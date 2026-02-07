@@ -342,6 +342,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             const defaults = this.mailComposeData;
             let fromOptions = [];
             if (isGM) {
+                if (!defaults.fromId && npcs.length > 0) defaults.fromId = npcs[0].id;
                 fromOptions = npcs.map(a => ({id: a.id, name: a.name, selected: a.id === defaults.fromId}));
             } else {
                 const myActors = game.actors.filter(a => a.isOwner);
@@ -521,9 +522,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         });
 
         // GM From Selection Change
-        html.find('select[name="fromId"]').change(ev => {
+        html.find('select[name="fromId"]').on('change', ev => {
+            ev.preventDefault();
             if (this.mailComposeData) {
-                this.mailComposeData.fromId = ev.target.value;
+                this.mailComposeData.fromId = $(ev.currentTarget).val();
                 this.render();
             }
         });
