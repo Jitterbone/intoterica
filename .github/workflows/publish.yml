@@ -1,0 +1,23 @@
+name: Publish Module
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip Module
+        run: zip -r module.zip . -x ".git/*" ".github/*" ".gitignore" "LOG" "*.log"
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            module.json
+            module.zip
