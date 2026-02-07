@@ -4,7 +4,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   static DEFAULT_OPTIONS = {
     id: "intoterica",
     window: {
-      title: "Intoterica",
+      title: "Intoterica (Beta 0.9.5)",
       resizable: true,
       minimizable: true
     },
@@ -32,6 +32,40 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     IntotericaApp._instance = this;
   }
 
+  static THEMES = {
+    "default": {
+      label: "Intoterica Default",
+      class: "theme-default",
+      sounds: {
+        idle: "modules/intoterica/sounds/IntotericaIdle.mp3",
+        nav: "modules/intoterica/sounds/NavSound.mp3",
+        mail: "modules/intoterica/sounds/VeilMailSound.mp3"
+      }
+    },
+    "custom": {
+      label: "Custom Configuration",
+      class: "theme-custom",
+      sounds: null // Indicates use settings
+    }
+  };
+
+  static getSoundPath(type) {
+    const themeKey = game.settings.get('intoterica', 'theme');
+    const themeConfig = IntotericaApp.THEMES[themeKey] || IntotericaApp.THEMES['default'];
+    
+    if (themeConfig.sounds) {
+      return themeConfig.sounds[type];
+    }
+    
+    // Fallback to settings for custom/undefined
+    switch (type) {
+      case 'idle': return game.settings.get('intoterica', 'soundIdle');
+      case 'nav': return game.settings.get('intoterica', 'soundNav');
+      case 'mail': return game.settings.get('intoterica', 'soundMail');
+    }
+    return null;
+  }
+
   async close(options = {}) {
     // Stop and clean up idle sound
     if (this._idleSound) {
@@ -41,6 +75,99 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     if (IntotericaApp._instance === this) IntotericaApp._instance = null;
     return super.close(options);
+  }
+
+  _getGameDate() {
+    const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
+    
+    if (useWorldClock) {
+      const calendariaModule = game.modules.get('calendaria');
+
+      if (window.SimpleCalendar?.api) {
+        const date = SimpleCalendar.api.timestampToDate(game.time.worldTime);
+        return SimpleCalendar.api.formatDateTime(date);
+      } else if (calendariaModule?.active) {
+        // Try common locations: window global, game property, or module API
+        const cal = window.Calendaria || window.CALENDARIA || game.calendaria || calendariaModule.api;
+        
+        if (cal) {
+            // 1. Try standard API methods (on main object or .api property)
+            const api = cal.api || cal;
+            
+            if (typeof api.formatDate === 'function') {
+                // Use 'dateLong' as the preset (matches default)
+                const dateStr = api.formatDate(null, 'dateLong');
+                
+                // Manually format time to ensure reliability
+                let timeStr = "";
+                if (typeof api.getCurrentDateTime === 'function') {
+                    const now = api.getCurrentDateTime();
+                    if (now) timeStr = `${now.hour.toString().padStart(2, '0')}:${now.minute.toString().padStart(2, '0')}`;
+                }
+                
+                return `${dateStr} ${timeStr}`;
+            }
+            
+            if (typeof api.getDate === 'function') return api.getDate();
+            if (typeof api.getDisplayDate === 'function') return api.getDisplayDate();
+            if (typeof api.getDateTime === 'function') return api.getDateTime();
+            
+            // 2. Try to find the active calendar data
+            let d = null;
+            
+            // Direct object (if it is the calendar)
+            if (cal.currentDate) d = cal;
+            else if (cal.data?.currentDate) d = cal.data;
+            else if (cal.api?.currentDate) d = cal.api;
+            else if (cal.system?.currentDate) d = cal.system;
+            else if (cal.state?.currentDate) d = cal.state;
+            
+            // Check CalendarManager (most likely location based on keys)
+            if (!d && cal.CalendarManager) {
+                // Try common property names for the active calendar instance
+                d = cal.CalendarManager.activeCalendar || 
+                    cal.CalendarManager.visibleCalendar || 
+                    cal.CalendarManager.currentCalendar;
+                
+                // If it's a list of calendars
+                if (!d && Array.isArray(cal.CalendarManager.calendars)) {
+                    d = cal.CalendarManager.calendars[0];
+                }
+            }
+
+            // 3. Construct string from data
+            if (d && d.currentDate) {
+                const c = d.currentDate;
+                let monthName = c.month;
+                
+                const months = d.months?.values || d.months;
+                if (Array.isArray(months)) {
+                    const monthData = months.find(m => m.ordinal === c.month) || months.find(m => m.numericRepresentation === c.month);
+                    if (monthData) monthName = monthData.name;
+                }
+                
+                const time = (c.hour !== undefined && c.minute !== undefined) 
+                    ? ` ${c.hour.toString().padStart(2, '0')}:${c.minute.toString().padStart(2, '0')}` 
+                    : '';
+                
+                return `${monthName} ${c.day}, ${c.year}${time}`;
+            }
+
+            // 4. Fallback: Check for string properties
+            if (typeof cal.toString === 'function') {
+                const str = cal.toString();
+                if (str !== '[object Object]' && !str.startsWith('class ') && !str.startsWith('function ')) return str;
+            }
+            if (typeof cal.displayDate === 'string') return cal.displayDate;
+            if (typeof cal.display === 'string') return cal.display;
+        }
+        return "Calendaria Active";
+      }
+      const day = Math.floor(game.time.worldTime / 86400);
+      return `Day ${day}`;
+    }
+    const c = game.settings.get('intoterica', 'data').worldClock || { era: 1, day: 1 };
+    return `Era ${c.era}, Day ${c.day}`;
   }
 
   async _prepareContext(_options) {
@@ -155,20 +282,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     // World Clock Logic
     const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
-    let clockDisplay;
-
-    if (useWorldClock) {
-      if (window.SimpleCalendar?.api) {
-        const date = SimpleCalendar.api.timestampToDate(game.time.worldTime);
-        clockDisplay = SimpleCalendar.api.formatDateTime(date);
-      } else {
-        const day = Math.floor(game.time.worldTime / 86400);
-        clockDisplay = `Day ${day}`;
-      }
-    } else {
-      const c = settings.worldClock || { era: 1, day: 1 };
-      clockDisplay = `Era ${c.era}, Day ${c.day}`;
-    }
+    const clockDisplay = this._getGameDate();
 
     // Player Overview Logic
     const players = [];
@@ -427,7 +541,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       isGM,
       clockDisplay,
       canEditClock: isGM && !useWorldClock,
-      theme: game.settings.get('intoterica', 'theme'),
+      theme: game.settings.get('intoterica', 'theme'), // Template likely uses theme-{{theme}}
       currentView: this.currentView,
       selectedFaction: this.selectedFaction,
       meritBadges: (settings.meritBadges || []).map(b => ({
@@ -532,10 +646,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
         // Input preservation on re-render
         html.find('input[name="subject"]').on('input', ev => {
-             if (this.mailComposeData) this.mailComposeData.subject = ev.target.value;
+             if (this.mailComposeData) this.mailComposeData.subject = $(ev.currentTarget).val();
         });
         html.find('textarea[name="body"]').on('input', ev => {
-             if (this.mailComposeData) this.mailComposeData.body = ev.target.value;
+             if (this.mailComposeData) this.mailComposeData.body = $(ev.currentTarget).val();
         });
     }
 
@@ -666,7 +780,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     // Start idle sound if enabled (Async - do not await to prevent blocking UI)
     const enableSounds = game.settings.get('intoterica', 'enableSounds');
-    const soundPath = game.settings.get('intoterica', 'soundIdle');
+    const soundPath = IntotericaApp.getSoundPath('idle');
 
     if (enableSounds && !this._idleSound && soundPath) {
       foundry.audio.AudioHelper.play({
@@ -684,7 +798,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   _onViewChange(event) {
     event.preventDefault();
     if (game.settings.get('intoterica', 'enableSounds')) {
-      const soundPath = game.settings.get('intoterica', 'soundNav');
+      const soundPath = IntotericaApp.getSoundPath('nav');
       if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: 0.8, autoplay: true, loop: false}, true);
     }
     this.currentView = event.currentTarget.dataset.view;
@@ -1758,7 +1872,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       image: senderImage,
       subject: data.subject,
       body: data.body,
-      date: data.date || new Date().toLocaleString(),
+      date: data.date || this._getGameDate(),
       status: "unread"
     };
     
@@ -1808,7 +1922,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     }
 
     // Notifications
-    const recipients = [...(Array.isArray(data.to) ? data.to : [data.to]), ...(Array.isArray(data.cc) ? data.cc : [data.cc])];
+    const recipients = Array.isArray(data.to) ? data.to : [data.to];
     const recipientUsers = game.users.filter(u => u.character && recipients.includes(u.character.id));
     
     recipientUsers.forEach(u => {
@@ -1826,7 +1940,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 </div>
             `,
             whisper: [u.id],
-            sound: "modules/intoterica/sounds/VeilMailSound.mp3"
+            sound: IntotericaApp.getSoundPath('mail')
         });
     });
 

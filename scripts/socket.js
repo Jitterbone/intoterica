@@ -2,7 +2,7 @@ export const initializeSocket = () => {
   game.socket.on('module.intoterica', (data) => {
     if (data.type === 'update') {
       if (data.action === 'newMessage' && game.settings.get('intoterica', 'enableSounds')) {
-        const soundPath = game.settings.get('intoterica', 'soundMail');
+        const soundPath = window.IntotericaApp ? window.IntotericaApp.getSoundPath('mail') : game.settings.get('intoterica', 'soundMail');
         if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: 0.8, autoplay: true, loop: false}, false);
       }
       

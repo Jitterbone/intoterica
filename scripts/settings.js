@@ -24,7 +24,8 @@ export const registerSettings = () => {
     config: true,
     type: String,
     choices: {
-      "default": "Intoterica Default"
+      "default": "Intoterica Default",
+      "custom": "Custom Configuration"
     },
     default: "default",
     onChange: () => {
@@ -73,6 +74,7 @@ export const registerSettings = () => {
 
   game.settings.register('intoterica', 'soundIdle', {
     name: 'Background Ambience',
+    hint: 'Used when Theme is set to Custom Configuration.',
     scope: 'client',
     config: true,
     type: String,
@@ -82,6 +84,7 @@ export const registerSettings = () => {
 
   game.settings.register('intoterica', 'soundNav', {
     name: 'Navigation Click Sound',
+    hint: 'Used when Theme is set to Custom Configuration.',
     scope: 'client',
     config: true,
     type: String,
@@ -91,6 +94,7 @@ export const registerSettings = () => {
 
   game.settings.register('intoterica', 'soundMail', {
     name: 'New Message Sound',
+    hint: 'Used when Theme is set to Custom Configuration.',
     scope: 'client',
     config: true,
     type: String,
