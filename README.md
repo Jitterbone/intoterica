@@ -50,9 +50,12 @@ A native Foundry VTT campaign management system for tracking quests, factions, a
 
 ## Installation
 
-1. Download the module.
-2. Extract to your Foundry VTT `Data/modules/intoterica` folder.
-3. Enable in "Manage Modules".
+**Manifest URL:**
+`https://github.com/Jitterbone/intoterica/releases/latest/download/module.json`
+
+1. Copy the URL above.
+2. In Foundry VTT (or The Forge), go to **Add-on Modules** -> **Install Module**.
+3. Paste the URL into the **Manifest URL** field and click Install.
 
 ## Usage
 
