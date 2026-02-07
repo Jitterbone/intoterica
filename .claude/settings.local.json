@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(\"c:\\\\Users\\\\Noah Loving\\\\AppData\\\\Local\\\\FoundryVTT\\\\Data\\\\modules\\\\intoterica\\\\templates\\\\achievements.hbs\" << 'EOF'\n<div class=\"section-header\">\n  <h2 class=\"section-title\">Merit Badges</h2>\n  {{#if isGM}}\n    <button class=\"add-badge\"><i class=\"fas fa-plus\"></i> Add Badge</button>\n  {{/if}}\n</div>\n\n{{#if meritBadges.length}}\n  <div class=\"content-grid three-column\">\n    {{#each meritBadges}}\n      <div class=\"badge-card content-card {{#if earned}}earned{{else}}locked{{/if}}\">\n        <div class=\"badge-icon\">{{icon}}</div>\n        <div class=\"badge-info\">\n          <div class=\"badge-name\">{{name}}</div>\n          <div class=\"badge-description\">{{description}}</div>\n          {{#if earned}}\n            <span class=\"badge-status earned\">Earned</span>\n          {{else}}\n            <span class=\"badge-status locked\">Locked</span>\n          {{/if}}\n          {{#if ../isGM}}\n            <div class=\"badge-actions\">\n              <button class=\"manage-badge\" data-badge-id=\"{{id}}\">Manage Awards</button>\n            </div>\n          {{/if}}\n        </div>\n      </div>\n    {{/each}}\n  </div>\n{{else}}\n  <div class=\"empty-state\">\n    <i class=\"fas fa-medal\"></i>\n    <p>No badges available</p>\n  </div>\n{{/if}}\nEOF)"
+    ]
+  }
+}

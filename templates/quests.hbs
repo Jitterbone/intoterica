@@ -1,0 +1,35 @@
+<div class="section-header">
+  <h2 class="section-title">Quest Journal</h2>
+  {{#if isGM}}
+    <button class="add-quest"><i class="fas fa-plus"></i> Add Quest</button>
+  {{/if}}
+</div>
+
+{{#if quests.length}}
+  {{#each quests}}
+    <div class="quest-item">
+      <div class="quest-indicator {{lowercase status}}"></div>
+      <div class="quest-content">
+        <div class="quest-header">
+          <div class="quest-title">{{title}}</div>
+          <div class="quest-difficulty {{lowercase difficulty}}">{{difficulty}}</div>
+        </div>
+        <div class="quest-status {{lowercase status}}">{{status}}</div>
+        <div class="quest-description">{{description}}</div>
+        {{#if ../isGM}}
+          <div class="quest-actions">
+            {{#if (eq status "Active")}}
+              <button class="complete-quest" data-quest-id="{{id}}">Complete</button>
+            {{/if}}
+            <button class="edit-quest" data-quest-id="{{id}}">Edit</button>
+          </div>
+        {{/if}}
+      </div>
+    </div>
+  {{/each}}
+{{else}}
+  <div class="empty-state">
+    <i class="fas fa-scroll"></i>
+    <p>No quests available</p>
+  </div>
+{{/if}}

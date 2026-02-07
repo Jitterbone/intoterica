@@ -1,0 +1,133 @@
+{{#if showDashboard}}
+  {{!-- GM Dashboard --}}
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label"><i class="fas fa-scroll"></i> Active Quests</div>
+      <div class="stat-value">{{stats.activeQuests}}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label"><i class="fas fa-envelope"></i> Unread Mail</div>
+      <div class="stat-value">{{stats.unreadMail}}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label"><i class="fas fa-medal"></i> Badges Earned</div>
+      <div class="stat-value">{{stats.earnedBadges}}</div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <h2 class="section-title">Player Overview</h2>
+  </div>
+
+  {{#if players.length}}
+    <div class="player-grid">
+      {{#each players}}
+        <div class="player-card" data-actor-id="{{id}}">
+          <img src="{{img}}" alt="{{name}}" class="player-img">
+          <div class="player-info">
+            <div class="player-name">{{name}}</div>
+            <div class="player-user">{{userName}}</div>
+            <div class="player-stats">
+              <span title="Factions"><i class="fas fa-shield-alt"></i> {{factionsCount}}</span>
+              <span title="Badges"><i class="fas fa-medal"></i> {{badgesCount}}</span>
+            </div>
+          </div>
+        </div>
+      {{/each}}
+    </div>
+  {{else}}
+    <div class="empty-state">
+      <i class="fas fa-users"></i>
+      <p>No players connected</p>
+    </div>
+  {{/if}}
+{{/if}}
+
+{{#if showProfile}}
+  {{!-- Player Profile --}}
+  {{#if profile}}
+    {{#if isGM}}
+      <button class="back-btn"><i class="fas fa-arrow-left"></i> Back to Dashboard</button>
+    {{/if}}
+
+    <div class="profile-header-card">
+      <img src="{{profile.img}}" alt="{{profile.name}}" class="profile-avatar">
+      <div>
+        <div class="profile-name">{{profile.name}}</div>
+        <div class="profile-subtitle">Character Profile</div>
+      </div>
+    </div>
+
+    <div class="profile-grid">
+      <div>
+        <h3 class="section-title">Factions</h3>
+        {{#if profile.factions.length}}
+          {{#each profile.factions}}
+            <div class="mini-card">
+              <div class="mini-icon" style="display: flex; align-items: center; justify-content: center;">
+                {{#if isImage}}<img src="{{image}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{image}}{{/if}}
+              </div>
+              <div>
+                <div class="mini-title">{{name}}</div>
+                <div class="mini-sub">{{rank}}</div>
+              </div>
+            </div>
+          {{/each}}
+        {{else}}
+          <p class="empty-text">No faction memberships</p>
+        {{/if}}
+      </div>
+
+      <div>
+        <h3 class="section-title">Badges</h3>
+        {{#if profile.badges.length}}
+          {{#each profile.badges}}
+            <div class="mini-card">
+              <div class="mini-icon" style="display: flex; align-items: center; justify-content: center;">
+                {{#if isImage}}<img src="{{icon}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{icon}}{{/if}}
+              </div>
+              <div>
+                <div class="mini-title">{{name}}</div>
+                <div class="mini-sub">{{description}}</div>
+              </div>
+            </div>
+          {{/each}}
+        {{else}}
+          <p class="empty-text">No badges earned</p>
+        {{/if}}
+      </div>
+
+      <div>
+        <h3 class="section-title">Active Quests</h3>
+        {{#if profile.quests.length}}
+          {{#each profile.quests}}
+            <div class="mini-card">
+              <div>
+                <div class="mini-title">{{title}}</div>
+                <div class="mini-sub">{{difficulty}}</div>
+              </div>
+            </div>
+          {{/each}}
+        {{else}}
+          <p class="empty-text">No active quests</p>
+        {{/if}}
+      </div>
+
+      <div>
+        <h3 class="section-title">Messages</h3>
+        {{#if profile.messages.length}}
+          {{#each profile.messages}}
+            <div class="mini-card">
+              <div>
+                <div class="mini-title">{{subject}}</div>
+                <div class="mini-sub">From {{from}}</div>
+              </div>
+            </div>
+          {{/each}}
+        {{else}}
+          <p class="empty-text">No messages</p>
+        {{/if}}
+      </div>
+    </div>
+  {{/if}}
+{{/if}}

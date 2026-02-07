@@ -1,0 +1,43 @@
+{
+  "id": "intoterica",
+  "name": "intoterica",
+  "title": "Intoterica",
+  "description": "Campaign management system for tracking quests, factions, achievements, and communications. GMs have full control while players can view shared content.",
+  "version": "1.0.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "authors": [
+    {
+      "name": "Your Name"
+    }
+  ],
+  "esmodules": [
+    "scripts/intoterica.js",
+    "scripts/app.js"
+  ],
+  "styles": [
+    "styles/intoterica.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "packs": [
+    {
+      "name": "intoterica-macros",
+      "label": "Intoterica Macros",
+      "path": "packs/macros",
+      "type": "Macro"
+    }
+  ],
+  "socket": true,
+  "url": "",
+  "manifest": "",
+  "download": "",
+  "license": "MIT"
+}

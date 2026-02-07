@@ -1,0 +1,27 @@
+<div class="section-header">
+  <h2 class="section-title">Mail</h2>
+  {{#if isGM}}
+    <button class="compose-mail"><i class="fas fa-paper-plane"></i> Compose</button>
+  {{/if}}
+</div>
+
+{{#if inbox.length}}
+  {{#each inbox}}
+    <div class="inbox-item {{#if (eq status 'unread')}}unread{{/if}}" data-message-id="{{id}}">
+      <div class="inbox-avatar">{{image}}</div>
+      <div class="inbox-content">
+        <div class="inbox-header">
+          <span class="inbox-from">{{from}}</span>
+          <span class="inbox-date">{{date}}</span>
+        </div>
+        <div class="inbox-subject">{{subject}}</div>
+        <div class="inbox-body">{{body}}</div>
+      </div>
+    </div>
+  {{/each}}
+{{else}}
+  <div class="empty-state">
+    <i class="fas fa-envelope"></i>
+    <p>No messages</p>
+  </div>
+{{/if}}

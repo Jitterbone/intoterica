@@ -1,0 +1,35 @@
+<div class="section-header">
+  <h2 class="section-title">Merit Badges</h2>
+  {{#if isGM}}
+    <button class="add-badge"><i class="fas fa-plus"></i> Add Badge</button>
+  {{/if}}
+</div>
+
+{{#if meritBadges.length}}
+  <div class="content-grid three-column">
+    {{#each meritBadges}}
+      <div class="badge-card content-card {{#if earned}}earned{{else}}locked{{/if}}">
+        <div class="badge-icon">{{icon}}</div>
+        <div class="badge-info">
+          <div class="badge-name">{{name}}</div>
+          <div class="badge-description">{{description}}</div>
+          {{#if earned}}
+            <span class="badge-status earned">Earned</span>
+          {{else}}
+            <span class="badge-status locked">Locked</span>
+          {{/if}}
+          {{#if ../isGM}}
+            <div class="badge-actions">
+              <button class="manage-badge" data-badge-id="{{id}}">Manage Awards</button>
+            </div>
+          {{/if}}
+        </div>
+      </div>
+    {{/each}}
+  </div>
+{{else}}
+  <div class="empty-state">
+    <i class="fas fa-medal"></i>
+    <p>No badges available</p>
+  </div>
+{{/if}}

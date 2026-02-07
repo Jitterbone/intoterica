@@ -1,0 +1,98 @@
+<div class="section-header">
+  <h2 class="section-title">Factions</h2>
+  {{#if isGM}}
+    <button class="add-faction"><i class="fas fa-plus"></i> Add Faction</button>
+  {{/if}}
+</div>
+
+{{#if factions.length}}
+  <div class="faction-layout">
+    <div class="faction-list">
+      {{#each factions}}
+        <button class="faction-card {{#if (eq ../selectedFaction.id id)}}selected{{/if}}" data-faction-id="{{id}}">
+          <div class="faction-header">
+            <div class="faction-icon">{{image}}</div>
+            <div>
+              <div class="faction-name">{{name}}</div>
+              <div class="faction-rep-bar">
+                <div class="faction-rep-fill {{#if (gte reputation 0)}}positive{{else}}negative{{/if}}"
+                     style="width: {{abs reputation}}%"></div>
+              </div>
+              <div class="faction-rep-value {{#if (gte reputation 0)}}positive{{else}}negative{{/if}}">
+                {{reputation}}
+              </div>
+            </div>
+          </div>
+        </button>
+      {{/each}}
+    </div>
+
+    <div>
+      {{#if selectedFaction}}
+        <div class="faction-detail">
+          <div class="faction-detail-header">
+            <div class="faction-detail-info">
+              <div class="faction-detail-icon">{{selectedFaction.image}}</div>
+              <div>
+                <div class="faction-detail-name">{{selectedFaction.name}}</div>
+                <div class="faction-detail-description">{{selectedFaction.description}}</div>
+              </div>
+            </div>
+            <div class="faction-standing">
+              <div class="standing-label">Reputation</div>
+              <div class="standing-value {{#if (gte selectedFaction.reputation 50)}}honored{{else}}{{#if (lt selectedFaction.reputation -50)}}hostile{{else}}neutral{{/if}}{{/if}}">
+                {{selectedFaction.reputation}}
+              </div>
+              {{#if isGM}}
+                <div class="standing-controls">
+                  <button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="-10">-10</button>
+                  <button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="10">+10</button>
+                </div>
+              {{/if}}
+            </div>
+          </div>
+
+          <div class="faction-sections">
+            <div>
+              <div class="faction-section-title"><i class="fas fa-star"></i> Ranks</div>
+              {{#each selectedFaction.ranks}}
+                <div class="rank-item">
+                  <span class="rank-name">{{this}}</span>
+                </div>
+              {{/each}}
+            </div>
+
+            <div>
+              <div class="faction-section-title">
+                <i class="fas fa-users"></i> Members
+                {{#if ../isGM}}
+                  <button class="add-member" data-faction-id="{{selectedFaction.id}}" style="margin-left: auto;"><i class="fas fa-user-plus"></i></button>
+                {{/if}}
+              </div>
+              {{#if selectedFaction.members.length}}
+                {{#each selectedFaction.members}}
+                  <div class="member-item">
+                    <span class="member-name">{{name}} <span class="member-type">{{type}}</span></span>
+                    <span class="member-rank-badge">{{lookup ../selectedFaction.ranks rank}}</span>
+                  </div>
+                {{/each}}
+              {{else}}
+                <p class="empty-text">No members</p>
+              {{/if}}
+            </div>
+          </div>
+        </div>
+      {{else}}
+        <div class="empty-state">
+          <i class="fas fa-shield-alt"></i>
+          <p>Select a faction to view details</p>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+{{else}}
+  <div class="empty-state">
+    <i class="fas fa-shield-alt"></i>
+    <p>No factions available</p>
+  </div>
+{{/if}}

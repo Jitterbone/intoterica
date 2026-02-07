@@ -1,0 +1,416 @@
+<div class="intoterica-container theme-{{theme}}">
+  <div class="crt-overlay"></div>
+  <nav class="intoterica-sidebar">
+    <div class="intoterica-nav">
+      <a class="nav-item {{#if (eq currentView 'dashboard')}}active{{/if}}" data-view="dashboard">
+        <i class="fas fa-home"></i> Dashboard
+      </a>
+      <a class="nav-item {{#if (eq currentView 'quests')}}active{{/if}}" data-view="quests">
+        <i class="fas fa-scroll"></i> Quest Journal
+      </a>
+      <a class="nav-item {{#if (eq currentView 'factions')}}active{{/if}}" data-view="factions">
+        <i class="fas fa-shield-alt"></i> Factions
+      </a>
+      <a class="nav-item {{#if (eq currentView 'achievements')}}active{{/if}}" data-view="achievements">
+        <i class="fas fa-medal"></i> Achievements
+      </a>
+      <a class="nav-item {{#if (eq currentView 'mail')}}active{{/if}}" data-view="mail">
+        <i class="fas fa-envelope"></i> Mail
+      </a>
+      {{#if isGM}}
+      <a class="nav-item {{#if (eq currentView 'known-npcs')}}active{{/if}}" data-view="known-npcs">
+        <i class="fas fa-user-friends"></i> Known NPCs
+      </a>
+      {{/if}}
+    </div>
+  </nav>
+
+  <main class="intoterica-main">
+    <header class="intoterica-header">
+      <div class="header-title">
+        {{#if (eq currentView 'dashboard')}}Dashboard{{/if}}
+        {{#if (eq currentView 'quests')}}Quest Journal{{/if}}
+        {{#if (eq currentView 'factions')}}Factions{{/if}}
+        {{#if (eq currentView 'achievements')}}Achievements{{/if}}
+        {{#if (eq currentView 'mail')}}Inbox{{/if}}
+        {{#if (eq currentView 'known-npcs')}}Known NPCs{{/if}}
+      </div>
+      <div class="header-actions">
+      </div>
+    </header>
+
+    <div class="intoterica-content">
+      {{!-- Dashboard View --}}
+      {{#if (or showDashboard showProfile)}}
+        {{> modules/intoterica/templates/dashboard.hbs}}
+      {{/if}}
+
+      {{!-- Quests View --}}
+      {{#if (eq currentView 'quests')}}
+        {{> modules/intoterica/templates/quests.hbs}}
+      {{/if}}
+
+      {{!-- Factions View --}}
+      {{#if (eq currentView 'factions')}}
+        <div class="faction-layout" style="display: grid; grid-template-columns: 250px 1fr; gap: 1rem; height: 100%; overflow: hidden;">
+          <div class="faction-list" style="overflow-y: auto; padding-right: 5px;">
+            <div class="section-header">
+              <div class="section-title">Known Factions</div>
+              {{#if isGM}}<button class="add-faction"><i class="fas fa-plus"></i></button>{{/if}}
+            </div>
+            {{#each factions}}
+              <button class="faction-card {{#if (eq ../selectedFaction.id id)}}selected{{/if}}" data-faction-id="{{id}}" style="width: 100%; height: auto; min-height: 60px; text-align: left; padding: 10px; margin-bottom: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--theme-border); border-radius: 4px; cursor: pointer; display: flex; gap: 15px; align-items: center;">
+                <div class="faction-icon" style="font-size: 32px; width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                  {{#if isImage}}<img src="{{image}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{image}}{{/if}}
+                </div>
+                <div style="flex: 1; overflow: hidden;">
+                  <div class="faction-name" style="font-weight: bold; font-size: 14px; margin-bottom: 2px;">{{name}}</div>
+                  <div class="faction-rep-value" style="font-size: 12px; color: {{statusColor}};">
+                    {{statusLabel}} ({{reputation}})
+                  </div>
+                  <div class="faction-rep-bar" style="height: 4px; background: #333; margin-top: 4px; border-radius: 2px;"><div style="width: {{#if (gte reputation 0)}}{{reputation}}{{else}}{{abs reputation}}{{/if}}%; background: {{statusColor}}; height: 100%; border-radius: 2px;"></div></div>
+                </div>
+              </button>
+            {{/each}}
+          </div>
+
+          <div class="faction-detail" style="overflow-y: auto; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px;">
+            {{#if selectedFaction}}
+              <div class="faction-detail-header" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--theme-border);">
+                <div class="faction-detail-info" style="display: flex; gap: 1rem; align-items: center;">
+                  <div class="faction-detail-icon" style="font-size: 48px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    {{#if selectedFaction.isImage}}<img src="{{selectedFaction.image}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{selectedFaction.image}}{{/if}}
+                  </div>
+                  <div class="faction-detail-name" style="font-size: 24px; font-weight: bold; display: flex; align-items: center; gap: 10px;">
+                      {{selectedFaction.name}}
+                      {{#if isGM}}<i class="fas fa-edit edit-faction" data-faction-id="{{selectedFaction.id}}" style="font-size: 14px; color: var(--theme-dim); cursor: pointer;" title="Edit Faction"></i>{{/if}}
+                  </div>
+                </div>
+                
+                <div class="faction-detail-description" style="color: var(--theme-dim); max-height: 150px; overflow-y: auto; padding: 8px; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid rgba(0,0,0,0.1);">{{selectedFaction.description}}</div>
+
+                <div class="faction-standing" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <div class="standing-label" style="font-size: 10px; text-transform: uppercase; color: var(--theme-dim); margin: 0;">Overall Reputation:</div>
+                    <div class="standing-value" style="font-size: 16px; font-weight: bold; color: {{selectedFaction.statusColor}};">
+                      {{selectedFaction.statusLabel}} ({{selectedFaction.reputation}})
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; gap: 10px; align-items: center;">
+                    {{#if isGM}}
+                      <label class="toggle-control" style="font-size: 11px; color: var(--theme-dim); cursor: pointer; display: flex; align-items: center; gap: 5px; margin: 0;">
+                        <input type="checkbox" class="toggle-auto-rep" data-faction-id="{{selectedFaction.id}}" {{#if selectedFaction.autoCalc}}checked{{/if}} style="margin: 0;">
+                        Auto-Calculate
+                      </label>
+                    {{/if}}
+                    {{#if selectedFaction.canEnlist}}
+                      <button class="enlist-faction" data-faction-id="{{selectedFaction.id}}" style="font-size: 11px; padding: 2px 8px;"><i class="fas fa-signature"></i> Enlist</button>
+                    {{/if}}
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reputation Visuals -->
+              {{#if selectedFaction.autoCalc}}
+                <div class="rep-face-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px; margin-bottom: 1rem;">
+                  <div class="rep-face" style="font-size: 64px; margin-bottom: 0.5rem; filter: drop-shadow(0 0 10px {{selectedFaction.statusColor}}); transition: all 0.3s ease;">{{selectedFaction.face}}</div>
+                  <div class="xp-modifier-badge" style="background: var(--theme-surface); border: 1px solid {{selectedFaction.statusColor}}; color: {{selectedFaction.statusColor}}; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: bold; font-size: 16px;">XP Modifier: x{{selectedFaction.xpMod}}</div>
+                </div>
+              {{else}}
+                <div class="faction-slider-container" style="margin-bottom: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px;">
+                  <input type="range" min="-100" max="100" value="{{selectedFaction.reputation}}" class="faction-rep-slider" data-faction-id="{{selectedFaction.id}}" {{#unless isGM}}disabled{{/unless}} style="width: 100%;">
+                  {{#if isGM}}<button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="0" style="display:none;"></button>{{/if}}
+                  
+                  {{#if isGM}}
+                  <div class="standing-controls" style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+                    <button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="-10">-10</button>
+                    <button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="10">+10</button>
+                  </div>
+                  {{/if}}
+                  
+                  <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--theme-dim); margin-top: 5px;">
+                    <span>-100 (Nemesis)</span>
+                    <span>0 (Neutral)</span>
+                    <span>+100 (Devoted)</span>
+                  </div>
+                </div>
+              {{/if}}
+
+              <div class="faction-sections" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div>
+                  <div class="faction-section-title" style="border-bottom: 1px solid var(--theme-border); padding-bottom: 5px; margin-bottom: 10px; font-weight: bold;"><i class="fas fa-star"></i> Ranks</div>
+                  {{#each selectedFaction.ranks}}
+                    <div class="rank-item" style="display: flex; justify-content: space-between; padding: 5px; background: rgba(0,0,0,0.1); margin-bottom: 5px; border-radius: 4px;">
+                      <span class="rank-name">{{name}}</span>
+                      <span style="font-size: 10px; color: var(--theme-dim);">XP: {{xp}} | Mod: x{{modifier}}</span>
+                    </div>
+                  {{/each}}
+                </div>
+                <div>
+                  <div class="faction-section-title" style="border-bottom: 1px solid var(--theme-border); padding-bottom: 5px; margin-bottom: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                    <span><i class="fas fa-users"></i> Members</span>
+                    {{#if isGM}}
+                      <div style="display: flex; gap: 5px;">
+                        <button class="award-xp" style="font-size: 10px;"><i class="fas fa-star"></i> XP</button>
+                        <button class="add-member" data-faction-id="{{selectedFaction.id}}" style="font-size: 10px;"><i class="fas fa-plus"></i></button>
+                      </div>
+                    {{/if}}
+                  </div>
+                  {{#if selectedFaction.members.length}}
+                    {{#each selectedFaction.members}}
+                      <div class="member-item" style="padding: 5px; background: rgba(0,0,0,0.1); margin-bottom: 5px; border-radius: 4px; display: flex; flex-direction: column;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                          <span class="member-name" style="display: flex; align-items: center; gap: 5px;">
+                              {{name}} <span class="member-type" style="font-size: 9px; color: var(--theme-dim);">{{type}}</span>
+                              {{#if ../isGM}}<i class="fas fa-times remove-member" data-faction-id="{{../selectedFaction.id}}" data-member-id="{{id}}" style="cursor: pointer; color: #c92a2a; font-size: 10px;" title="Remove Member"></i>{{/if}}
+                          </span>
+                          <span class="member-rank-badge" style="background: var(--theme-primary); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px;">{{lookup (lookup ../selectedFaction.ranks rank) 'name'}} ({{xp}} XP)</span>
+                        </div>
+                        
+                        {{#if ../selectedFaction.autoCalc}}
+                          {{#if ../isGM}}
+                            <div style="margin-top: 5px; display: flex; align-items: center; gap: 5px;">
+                              <span style="font-size: 10px; width: 30px;">Rep:</span>
+                              <input type="range" min="-100" max="100" value="{{reputation}}" class="member-rep-slider" data-faction-id="{{../selectedFaction.id}}" data-member-id="{{id}}" style="height: 4px; flex: 1;">
+                              <span style="font-size: 10px; width: 25px; text-align: right;">{{reputation}}</span>
+                            </div>
+                          {{/if}}
+                        {{/if}}
+                      </div>
+                    {{/each}}
+                  {{else}}
+                    <div class="empty-text" style="font-style: italic; color: var(--theme-dim);">No members recorded.</div>
+                  {{/if}}
+                </div>
+              </div>
+            {{else}}
+              <div class="empty-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--theme-dim);">
+                <i class="fas fa-shield-alt" style="font-size: 48px; margin-bottom: 1rem;"></i>
+                <div>Select a faction to view details</div>
+              </div>
+            {{/if}}
+          </div>
+        </div>
+      {{/if}}
+
+      {{!-- Achievements View --}}
+      {{#if (eq currentView 'achievements')}}
+        <div class="section-header">
+          <div class="section-title">Merit Badges</div>
+          {{#if isGM}}<button class="add-badge"><i class="fas fa-plus"></i> New Badge</button>{{/if}}
+        </div>
+        <div class="content-grid three-column" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+          {{#each meritBadges}}
+            <div class="badge-card" style="display: flex; gap: 10px; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--theme-border); border-radius: 4px; align-items: center;">
+              <div class="badge-icon" style="font-size: 32px; width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); border-radius: 4px;">
+                {{#if isImage}}<img src="{{icon}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{icon}}{{/if}}
+              </div>
+              <div class="badge-info" style="flex: 1; overflow: hidden;">
+                <div class="badge-name" style="font-weight: bold; font-size: 14px;">{{name}}</div>
+                <div class="badge-description" style="font-size: 11px; color: var(--theme-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{description}}</div>
+                {{#if ../isGM}}
+                  <div class="badge-actions" style="margin-top: 5px; display: flex; gap: 5px;">
+                    <button class="manage-badge" data-badge-id="{{id}}" style="font-size: 10px; padding: 2px 6px;"><i class="fas fa-users-cog"></i> Manage</button>
+                    <button class="edit-badge" data-badge-id="{{id}}" style="font-size: 10px; padding: 2px 6px;"><i class="fas fa-edit"></i> Edit</button>
+                  </div>
+                {{/if}}
+              </div>
+            </div>
+          {{else}}
+            <div class="empty-state" style="grid-column: 1/-1; text-align: center; padding: 2rem; color: var(--theme-dim);">
+              <i class="fas fa-medal" style="font-size: 48px; margin-bottom: 1rem;"></i>
+              <div>No merit badges created.</div>
+            </div>
+          {{/each}}
+        </div>
+      {{/if}}
+
+      {{!-- Messages View --}}
+      {{#if (eq currentView 'mail')}}
+        <div class="mail-layout" style="display: flex; height: 100%; overflow: hidden; gap: 1rem;">
+          <!-- Mail Sidebar (List) -->
+          <div class="mail-sidebar" style="flex: {{#if (or mailContext.compose mailContext.thread)}}0 0 300px{{else}}1{{/if}}; display: flex; flex-direction: column; overflow: hidden; transition: flex 0.3s;">
+            <div class="section-header" style="margin-bottom: 10px;">
+              <div class="section-title">Inbox</div>
+              <button class="compose-mail"><i class="fas fa-pen"></i> Compose</button>
+            </div>
+            <div class="mail-list" style="flex: 1; overflow-y: auto; padding-right: 5px;">
+              {{#each inbox}}
+                <div class="inbox-item {{status}} {{#if (eq ../mailContext.thread.subject subject)}}selected{{/if}}" data-message-id="{{id}}" style="margin-bottom: 5px; {{#if (eq ../mailContext.thread.subject subject)}}background: rgba(0, 240, 255, 0.1); border-color: var(--theme-accent);{{/if}}">
+                  <div class="inbox-avatar">
+                    {{#if isImage}}<img src="{{image}}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 4px;">{{else}}{{image}}{{/if}}
+                  </div>
+                  <div class="inbox-content">
+                    <div class="inbox-header">
+                      <span class="inbox-from">{{from}}</span>
+                      <span class="inbox-date">{{date}}</span>
+                    </div>
+                    <div class="inbox-subject">{{subject}}</div>
+                    <div class="inbox-body">{{body}}</div>
+                  </div>
+                </div>
+              {{else}}
+                <div class="empty-state">
+                  <i class="fas fa-inbox"></i>
+                  <div>Inbox empty.</div>
+                </div>
+              {{/each}}
+            </div>
+          </div>
+
+          <!-- Mail Content (Compose or Read) -->
+          {{#if (or mailContext.compose mailContext.thread)}}
+            <div class="mail-content" style="flex: 1; display: flex; flex-direction: column; background: rgba(0,0,0,0.1); border: 1px solid var(--theme-border); border-radius: 4px; overflow: hidden;">
+              
+              {{#if mailContext.compose}}
+                <!-- Compose View -->
+                <div class="compose-view" style="display: flex; flex-direction: column; height: 100%; padding: 1rem;">
+                  <div class="section-header" style="margin-bottom: 10px; border-bottom: none;">
+                    <div class="section-title">Compose Message</div>
+                    <button class="cancel-compose-btn" style="font-size: 12px;"><i class="fas fa-times"></i> Cancel</button>
+                  </div>
+                  <form class="intoterica-form email-compose-form" style="flex: 1; display: flex; flex-direction: column;">
+                    <div class="email-header" style="border-bottom: 1px solid var(--theme-border); padding-bottom: 10px; margin-bottom: 10px;">
+                      <div class="form-group" style="display: flex; align-items: center; margin-bottom: 5px;">
+                        <label style="width: 60px; font-weight: bold; color: var(--theme-accent);">From:</label>
+                        <div style="flex: 1; display: flex; align-items: center; gap: 10px;">
+                            <div class="recipient-chip" style="display: flex; align-items: center; gap: 5px; background: rgba(0,0,0,0.2); border: 1px solid var(--theme-border); border-radius: 15px; padding: 2px 10px 2px 2px;">
+                                <img src="{{mailContext.compose.currentFrom.image}}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
+                                <span style="font-size: 12px; font-weight: bold; color: var(--theme-text);">{{mailContext.compose.currentFrom.name}}</span>
+                            </div>
+                            {{#if (or isGM (gt mailContext.compose.fromOptions.length 1))}}
+                                <select name="fromId" style="width: 20px; opacity: 0.5; cursor: pointer;" title="Change Sender">
+                                {{#each mailContext.compose.fromOptions}}
+                                    <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
+                                {{/each}}
+                                </select>
+                            {{else}}
+                                <input type="hidden" name="fromId" value="{{mailContext.compose.currentFrom.id}}">
+                            {{/if}}
+                        </div>
+                      </div>
+                      
+                      <div class="form-group" style="display: flex; align-items: center; margin-bottom: 5px;">
+                        <label style="width: 60px; font-weight: bold; color: var(--theme-accent);">To:</label>
+                        <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 5px; background: rgba(0,0,0,0.1); border: 1px solid var(--theme-dim); border-radius: 3px; padding: 5px; min-height: 36px; align-items: center;">
+                          {{#each mailContext.compose.toRecipients}}
+                            <div class="recipient-chip" style="display: flex; align-items: center; gap: 5px; background: {{#if isUnknown}}#444{{else}}var(--theme-surface){{/if}}; border: 1px solid var(--theme-border); border-radius: 15px; padding: 2px 8px 2px 2px;">
+                                <img src="{{image}}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">
+                                <span style="font-size: 11px; color: var(--theme-text);">{{name}}</span>
+                            </div>
+                          {{/each}}
+                          <button type="button" class="open-address-book" data-target="to" style="width: 24px; height: 24px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 1px dashed var(--theme-dim); color: var(--theme-dim);"><i class="fas fa-plus"></i></button>
+                          <input type="hidden" name="to" value="{{mailContext.compose.toIds}}" />
+                        </div>
+                      </div>
+
+                      <div class="form-group" style="display: flex; align-items: center; margin-bottom: 5px;">
+                        <label style="width: 60px; font-weight: bold; color: var(--theme-accent);">Cc:</label>
+                        <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 5px; background: rgba(0,0,0,0.1); border: 1px solid var(--theme-dim); border-radius: 3px; padding: 5px; min-height: 36px; align-items: center;">
+                          {{#each mailContext.compose.ccRecipients}}
+                            <div class="recipient-chip" style="display: flex; align-items: center; gap: 5px; background: {{#if isUnknown}}#444{{else}}var(--theme-surface){{/if}}; border: 1px solid var(--theme-border); border-radius: 15px; padding: 2px 8px 2px 2px;">
+                                <img src="{{image}}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;">
+                                <span style="font-size: 11px; color: var(--theme-text);">{{name}}</span>
+                            </div>
+                          {{/each}}
+                          <button type="button" class="open-address-book" data-target="cc" style="width: 24px; height: 24px; padding: 0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; border: 1px dashed var(--theme-dim); color: var(--theme-dim);"><i class="fas fa-plus"></i></button>
+                          <input type="hidden" name="cc" value="{{mailContext.compose.ccIds}}" />
+                        </div>
+                      </div>
+
+                      <div class="form-group" style="display: flex; align-items: center; margin-bottom: 0;">
+                        <label style="width: 60px; font-weight: bold; color: var(--theme-accent);">Subject:</label>
+                        <input type="text" name="subject" placeholder="Message subject" value="{{mailContext.compose.subject}}" style="flex: 1; font-weight: bold;" />
+                      </div>
+                    </div>
+
+                    <div class="form-group" style="flex: 1; display: flex; flex-direction: column;">
+                      <textarea name="body" placeholder="Write your message here..." style="flex: 1; resize: none; padding: 10px; font-family: inherit; line-height: 1.4;">{{mailContext.compose.body}}</textarea>
+                    </div>
+                    
+                    <div style="margin-top: 10px; text-align: right;">
+                        <button type="button" class="send-mail-btn"><i class="fas fa-paper-plane"></i> Send Message</button>
+                    </div>
+                  </form>
+                </div>
+              {{else}}
+                <!-- Thread View -->
+                <div class="thread-view" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+                    <div class="thread-header" style="padding: 1rem; border-bottom: 1px solid var(--theme-border); background: rgba(0,0,0,0.2);">
+                        <div style="font-size: 18px; font-weight: bold; color: var(--theme-accent);">{{mailContext.thread.subject}}</div>
+                    </div>
+                    <div class="thread-messages" style="flex: 1; overflow-y: auto; padding: 1rem;">
+                        {{#each mailContext.thread.messages}}
+                            <div style="border: 1px solid var(--theme-border); background: rgba(0,0,0,0.2); padding: 10px; margin-bottom: 10px; border-radius: 4px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">
+                                  <div style="display: flex; align-items: center; gap: 10px;">
+                                    {{#if isImage}}<img src="{{image}}" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--theme-border);">{{/if}}
+                                    <strong style="color: var(--theme-accent);">{{from}}</strong>
+                                  </div>
+                                  <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span style="font-size: 11px; color: var(--theme-dim);">{{date}}</span>
+                                    {{#if @root.isGM}}
+                                      <i class="fas fa-trash delete-message-btn" data-message-id="{{id}}" style="cursor: pointer; color: #c92a2a; font-size: 12px;" title="Delete Message"></i>
+                                    {{/if}}
+                                  </div>
+                                </div>
+                                <div style="white-space: pre-wrap; font-size: 13px;">{{body}}</div>
+                            </div>
+                        {{/each}}
+                        {{#if mailContext.thread.isClosed}}
+                            <div style="display: flex; align-items: center; color: #c92a2a; margin: 20px 0 10px 0; font-weight: bold; font-size: 12px;">
+                                <div style="flex: 1; height: 2px; background: #c92a2a;"></div>
+                                <div style="padding: 0 10px;">COMMUNICATIONS ENDED</div>
+                                <div style="flex: 1; height: 2px; background: #c92a2a;"></div>
+                            </div>
+                        {{/if}}
+                    </div>
+                    <div class="thread-actions" style="padding: 1rem; border-top: 1px solid var(--theme-border); background: rgba(0,0,0,0.2); display: flex; gap: 10px;">
+                        <button class="reply-btn" {{#if mailContext.thread.isClosed}}disabled style="opacity: 0.5; cursor: not-allowed;"{{/if}}><i class="fas fa-reply"></i> Reply</button>
+                        {{#if isGM}}
+                        {{#if mailContext.thread.isClosed}}
+                            <button class="reopen-conversation-btn"><i class="fas fa-unlock"></i> Reopen Communications</button>
+                        {{else}}
+                            <button class="end-conversation-btn"><i class="fas fa-ban"></i> End Conversation</button>
+                        {{/if}}
+                        <button class="delete-thread-btn" onclick="new IntotericaApp()._deleteThread('{{mailContext.thread.subject}}')"><i class="fas fa-trash"></i> Delete Thread</button>
+                        {{/if}}
+                    </div>
+                </div>
+              {{/if}}
+            </div>
+          {{/if}}
+        </div>
+      {{/if}}
+
+      {{!-- Known NPCs View (GM Only) --}}
+      {{#if (eq currentView 'known-npcs')}}
+        <div class="section-header">
+          <div class="section-title">Known NPCs</div>
+        </div>
+        <div class="known-npcs-container" style="min-height: 200px; border: 2px dashed var(--theme-border); border-radius: 4px; padding: 1rem; background: rgba(0,0,0,0.1);">
+          {{#if knownNPCs.length}}
+            <div class="content-grid three-column" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
+              {{#each knownNPCs}}
+                <div class="player-card" style="cursor: default;">
+                  <img src="{{img}}" class="player-img">
+                  <div class="player-info">
+                    <div class="player-name">{{name}}</div>
+                    <button class="remove-known-npc" data-id="{{id}}" style="font-size: 10px; color: #c92a2a; border-color: #c92a2a; margin-top: 5px; padding: 2px 6px;">Remove</button>
+                  </div>
+                </div>
+              {{/each}}
+            </div>
+          {{else}}
+            <div class="empty-state" style="pointer-events: none;">
+              <i class="fas fa-user-plus"></i>
+              <div>Drag and drop NPC actors here to allow players to message them.</div>
+            </div>
+          {{/if}}
+        </div>
+      {{/if}}
+
+    </div>
+  </main>
+</div>
