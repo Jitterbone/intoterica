@@ -20,8 +20,8 @@ jobs:
 
     # Create Release and Upload Assets
     - name: Create Release
-      uses: softprops/action-gh-release@v2
+      uses: ncipollo/release-action@v1
       with:
-        files: |
-          module.zip
-          module.json
+        allowUpdates: true
+        artifacts: "module.zip,module.json"
+        token: ${{ secrets.GITHUB_TOKEN }}
