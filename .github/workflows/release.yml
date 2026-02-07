@@ -1,0 +1,27 @@
+name: Release Creation
+
+on: 
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+
+    # Zip the module directory (excluding git and github files)
+    - name: Zip Module
+      run: |
+        zip -r module.zip . -x ".git/*" ".github/*" "node_modules/*" ".gitignore"
+
+    # Create Release and Upload Assets
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          module.zip
+          module.json
