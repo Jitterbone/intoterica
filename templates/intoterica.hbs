@@ -52,60 +52,62 @@
 
       {{!-- Factions View --}}
       {{#if (eq currentView 'factions')}}
-        <div class="faction-layout" style="display: grid; grid-template-columns: 250px 1fr; gap: 1rem; height: 100%; overflow: hidden;">
-          <div class="faction-list" style="overflow-y: auto; padding-right: 5px;">
+        <div class="faction-layout">
+          <div class="faction-list">
             <div class="section-header">
               <div class="section-title">Known Factions</div>
               {{#if isGM}}<button class="add-faction"><i class="fas fa-plus"></i></button>{{/if}}
             </div>
-            {{#each factions}}
-              <button class="faction-card {{#if (eq ../selectedFaction.id id)}}selected{{/if}}" data-faction-id="{{id}}" style="width: 100%; height: auto; min-height: 60px; text-align: left; padding: 10px; margin-bottom: 8px; background: rgba(0,0,0,0.2); border: 1px solid var(--theme-border); border-radius: 4px; cursor: pointer; display: flex; gap: 15px; align-items: center;">
-                <div class="faction-icon" style="font-size: 32px; width: 48px; height: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); border-radius: 4px;">
-                  {{#if isImage}}<img src="{{image}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{image}}{{/if}}
-                </div>
-                <div style="flex: 1; overflow: hidden;">
-                  <div class="faction-name" style="font-weight: bold; font-size: 14px; margin-bottom: 2px;">{{name}}</div>
-                  <div class="faction-rep-value" style="font-size: 12px; color: {{statusColor}};">
-                    {{statusLabel}} ({{reputation}})
+            <div class="faction-grid">
+              {{#each factions}}
+                <button class="faction-card {{#if (eq ../selectedFaction.id id)}}selected{{/if}}" data-faction-id="{{id}}">
+                  <div class="faction-icon">
+                    {{#if isImage}}<img src="{{image}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{image}}{{/if}}
                   </div>
-                  <div class="faction-rep-bar" style="height: 4px; background: #333; margin-top: 4px; border-radius: 2px;"><div style="width: {{#if (gte reputation 0)}}{{reputation}}{{else}}{{abs reputation}}{{/if}}%; background: {{statusColor}}; height: 100%; border-radius: 2px;"></div></div>
-                </div>
-              </button>
-            {{/each}}
+                  <div class="faction-header">
+                    <div class="faction-name">{{name}}</div>
+                    <div class="faction-rep-value" style="color: {{statusColor}};">
+                      {{statusLabel}} ({{reputation}})
+                    </div>
+                    <div class="faction-rep-bar"><div class="faction-rep-fill" style="width: {{#if (gte reputation 0)}}{{reputation}}{{else}}{{abs reputation}}{{/if}}%; background: {{statusColor}};"></div></div>
+                  </div>
+                </button>
+              {{/each}}
+            </div>
           </div>
 
-          <div class="faction-detail" style="overflow-y: auto; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 4px;">
+          <div class="faction-detail">
             {{#if selectedFaction}}
-              <div class="faction-detail-header" style="display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--theme-border);">
-                <div class="faction-detail-info" style="display: flex; gap: 1rem; align-items: center;">
-                  <div class="faction-detail-icon" style="font-size: 48px; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+              <div class="faction-detail-header">
+                <div class="faction-detail-info">
+                  <div class="faction-detail-icon">
                     {{#if selectedFaction.isImage}}<img src="{{selectedFaction.image}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{selectedFaction.image}}{{/if}}
                   </div>
-                  <div class="faction-detail-name" style="font-size: 24px; font-weight: bold; display: flex; align-items: center; gap: 10px;">
+                  <div class="faction-detail-name">
                       {{selectedFaction.name}}
-                      {{#if isGM}}<i class="fas fa-edit edit-faction" data-faction-id="{{selectedFaction.id}}" style="font-size: 14px; color: var(--theme-dim); cursor: pointer;" title="Edit Faction"></i>{{/if}}
+                      {{#if isGM}}<i class="fas fa-edit edit-faction" data-faction-id="{{selectedFaction.id}}" title="Edit Faction"></i>{{/if}}
                   </div>
                 </div>
                 
-                <div class="faction-detail-description" style="color: var(--theme-dim); max-height: 150px; overflow-y: auto; padding: 8px; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid rgba(0,0,0,0.1);">{{selectedFaction.description}}</div>
+                <div class="faction-detail-description">{{selectedFaction.description}}</div>
 
-                <div class="faction-standing" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px;">
-                  <div style="display: flex; align-items: center; gap: 10px;">
-                    <div class="standing-label" style="font-size: 10px; text-transform: uppercase; color: var(--theme-dim); margin: 0;">Overall Reputation:</div>
-                    <div class="standing-value" style="font-size: 16px; font-weight: bold; color: {{selectedFaction.statusColor}};">
+                <div class="faction-standing">
+                  <div class="standing-info">
+                    <div class="standing-label">Overall Reputation:</div>
+                    <div class="standing-value" style="color: {{selectedFaction.statusColor}};">
                       {{selectedFaction.statusLabel}} ({{selectedFaction.reputation}})
                     </div>
                   </div>
                   
-                  <div style="display: flex; gap: 10px; align-items: center;">
+                  <div class="standing-actions">
                     {{#if isGM}}
-                      <label class="toggle-control" style="font-size: 11px; color: var(--theme-dim); cursor: pointer; display: flex; align-items: center; gap: 5px; margin: 0;">
-                        <input type="checkbox" class="toggle-auto-rep" data-faction-id="{{selectedFaction.id}}" {{#if selectedFaction.autoCalc}}checked{{/if}} style="margin: 0;">
+                      <label class="toggle-control">
+                        <input type="checkbox" class="toggle-auto-rep" data-faction-id="{{selectedFaction.id}}" {{#if selectedFaction.autoCalc}}checked{{/if}}>
                         Auto-Calculate
                       </label>
                     {{/if}}
                     {{#if selectedFaction.canEnlist}}
-                      <button class="enlist-faction" data-faction-id="{{selectedFaction.id}}" style="font-size: 11px; padding: 2px 8px;"><i class="fas fa-signature"></i> Enlist</button>
+                      <button class="enlist-faction" data-faction-id="{{selectedFaction.id}}"><i class="fas fa-signature"></i> Enlist</button>
                     {{/if}}
                   </div>
                 </div>
@@ -113,23 +115,23 @@
 
               <!-- Reputation Visuals -->
               {{#if selectedFaction.autoCalc}}
-                <div class="rep-face-container" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px; margin-bottom: 1rem;">
-                  <div class="rep-face" style="font-size: 64px; margin-bottom: 0.5rem; filter: drop-shadow(0 0 10px {{selectedFaction.statusColor}}); transition: all 0.3s ease;">{{selectedFaction.face}}</div>
-                  <div class="xp-modifier-badge" style="background: var(--theme-surface); border: 1px solid {{selectedFaction.statusColor}}; color: {{selectedFaction.statusColor}}; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: bold; font-size: 16px;">XP Modifier: x{{selectedFaction.xpMod}}</div>
+                <div class="rep-face-container">
+                  <div class="rep-face" style="filter: drop-shadow(0 0 10px {{selectedFaction.statusColor}});">{{selectedFaction.face}}</div>
+                  <div class="xp-modifier-badge" style="border-color: {{selectedFaction.statusColor}}; color: {{selectedFaction.statusColor}};">XP Modifier: x{{selectedFaction.xpMod}}</div>
                 </div>
               {{else}}
-                <div class="faction-slider-container" style="margin-bottom: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px;">
-                  <input type="range" min="-100" max="100" value="{{selectedFaction.reputation}}" class="faction-rep-slider" data-faction-id="{{selectedFaction.id}}" {{#unless isGM}}disabled{{/unless}} style="width: 100%;">
+                <div class="faction-slider-container">
+                  <input type="range" min="-100" max="100" value="{{selectedFaction.reputation}}" class="faction-rep-slider" data-faction-id="{{selectedFaction.id}}" {{#unless isGM}}disabled{{/unless}}>
                   {{#if isGM}}<button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="0" style="display:none;"></button>{{/if}}
                   
                   {{#if isGM}}
-                  <div class="standing-controls" style="display: flex; justify-content: center; gap: 10px; margin-top: 10px;">
+                  <div class="standing-controls">
                     <button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="-10">-10</button>
                     <button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="10">+10</button>
                   </div>
                   {{/if}}
                   
-                  <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--theme-dim); margin-top: 5px;">
+                  <div class="slider-labels">
                     <span>-100 (Nemesis)</span>
                     <span>0 (Neutral)</span>
                     <span>+100 (Devoted)</span>
@@ -137,56 +139,56 @@
                 </div>
               {{/if}}
 
-              <div class="faction-sections" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div class="faction-sections">
                 <div>
-                  <div class="faction-section-title" style="border-bottom: 1px solid var(--theme-border); padding-bottom: 5px; margin-bottom: 10px; font-weight: bold;"><i class="fas fa-star"></i> Ranks</div>
+                  <div class="faction-section-title"><i class="fas fa-star"></i> Ranks</div>
                   {{#each selectedFaction.ranks}}
-                    <div class="rank-item" style="display: flex; justify-content: space-between; padding: 5px; background: rgba(0,0,0,0.1); margin-bottom: 5px; border-radius: 4px;">
+                    <div class="rank-item">
                       <span class="rank-name">{{name}}</span>
-                      <span style="font-size: 10px; color: var(--theme-dim);">XP: {{xp}} | Mod: x{{modifier}}</span>
+                      <span class="rank-stats">XP: {{xp}} | Mod: x{{modifier}}</span>
                     </div>
                   {{/each}}
                 </div>
                 <div>
-                  <div class="faction-section-title" style="border-bottom: 1px solid var(--theme-border); padding-bottom: 5px; margin-bottom: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+                  <div class="faction-section-title">
                     <span><i class="fas fa-users"></i> Members</span>
                     {{#if isGM}}
-                      <div style="display: flex; gap: 5px;">
-                        <button class="award-xp" style="font-size: 10px;"><i class="fas fa-star"></i> XP</button>
-                        <button class="add-member" data-faction-id="{{selectedFaction.id}}" style="font-size: 10px;"><i class="fas fa-plus"></i></button>
+                      <div class="member-actions">
+                        <button class="award-xp"><i class="fas fa-star"></i> XP</button>
+                        <button class="add-member" data-faction-id="{{selectedFaction.id}}"><i class="fas fa-plus"></i></button>
                       </div>
                     {{/if}}
                   </div>
                   {{#if selectedFaction.members.length}}
                     {{#each selectedFaction.members}}
-                      <div class="member-item" style="padding: 5px; background: rgba(0,0,0,0.1); margin-bottom: 5px; border-radius: 4px; display: flex; flex-direction: column;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                          <span class="member-name" style="display: flex; align-items: center; gap: 5px;">
-                              {{name}} <span class="member-type" style="font-size: 9px; color: var(--theme-dim);">{{type}}</span>
-                              {{#if ../isGM}}<i class="fas fa-times remove-member" data-faction-id="{{../selectedFaction.id}}" data-member-id="{{id}}" style="cursor: pointer; color: #c92a2a; font-size: 10px;" title="Remove Member"></i>{{/if}}
+                      <div class="member-item">
+                        <div class="member-header">
+                          <span class="member-name">
+                              {{name}} <span class="member-type">{{type}}</span>
+                              {{#if ../isGM}}<i class="fas fa-times remove-member" data-faction-id="{{../selectedFaction.id}}" data-member-id="{{id}}" title="Remove Member"></i>{{/if}}
                           </span>
-                          <span class="member-rank-badge" style="background: var(--theme-primary); color: #fff; padding: 2px 6px; border-radius: 10px; font-size: 10px;">{{lookup (lookup ../selectedFaction.ranks rank) 'name'}} ({{xp}} XP)</span>
+                          <span class="member-rank-badge">{{lookup (lookup ../selectedFaction.ranks rank) 'name'}} ({{xp}} XP)</span>
                         </div>
                         
                         {{#if ../selectedFaction.autoCalc}}
                           {{#if ../isGM}}
-                            <div style="margin-top: 5px; display: flex; align-items: center; gap: 5px;">
-                              <span style="font-size: 10px; width: 30px;">Rep:</span>
-                              <input type="range" min="-100" max="100" value="{{reputation}}" class="member-rep-slider" data-faction-id="{{../selectedFaction.id}}" data-member-id="{{id}}" style="height: 4px; flex: 1;">
-                              <span style="font-size: 10px; width: 25px; text-align: right;">{{reputation}}</span>
+                            <div class="member-rep-control">
+                              <span>Rep:</span>
+                              <input type="range" min="-100" max="100" value="{{reputation}}" class="member-rep-slider" data-faction-id="{{../selectedFaction.id}}" data-member-id="{{id}}">
+                              <span class="rep-val">{{reputation}}</span>
                             </div>
                           {{/if}}
                         {{/if}}
                       </div>
                     {{/each}}
                   {{else}}
-                    <div class="empty-text" style="font-style: italic; color: var(--theme-dim);">No members recorded.</div>
+                    <div class="empty-text">No members recorded.</div>
                   {{/if}}
                 </div>
               </div>
             {{else}}
-              <div class="empty-state" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--theme-dim);">
-                <i class="fas fa-shield-alt" style="font-size: 48px; margin-bottom: 1rem;"></i>
+              <div class="empty-state">
+                <i class="fas fa-shield-alt"></i>
                 <div>Select a faction to view details</div>
               </div>
             {{/if}}

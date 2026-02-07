@@ -26,3 +26,19 @@ Hooks.once('ready', () => {
 
   initializeSocket();
 });
+
+Hooks.on('preCreateChatMessage', (document, data, options, userId) => {
+  if (data.content && data.content.includes('intoterica-chat-card')) {
+    const theme = game.settings.get('intoterica', 'theme') || 'default';
+    document.updateSource({ 'flags.intoterica.theme': theme });
+  }
+});
+
+Hooks.on('renderChatMessageHTML', (message, html) => {
+  const card = html.querySelector('.intoterica-chat-card');
+  if (card) {
+    const themeKey = message.getFlag('intoterica', 'theme') || game.settings.get('intoterica', 'theme') || 'default';
+    const themeClass = window.IntotericaApp?.THEMES?.[themeKey]?.class || 'theme-foundry';
+    card.classList.add(themeClass);
+  }
+});

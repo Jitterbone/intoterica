@@ -2,7 +2,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Roboto+Slab:wght@400;700&family=Cinzel:wght@400;700&family=Crimson+Text:wght@400;700&family=VT323&display=swap');
 
 /* Default (Foundry Standard) */
-.intoterica-container.theme-foundry {
+.intoterica-container.theme-foundry,
+.intoterica-chat-card.theme-foundry {
   --theme-bg: url(/ui/denim075.png);
   --theme-sidebar: rgba(0, 0, 0, 0.2);
   --theme-surface: rgba(255, 255, 255, 0.05);
@@ -20,7 +21,8 @@
 }
 
 /* Access Point (Formerly Default) */
-.intoterica-container.theme-access-point {
+.intoterica-container.theme-access-point,
+.intoterica-chat-card.theme-access-point {
   --theme-bg: #f0e6d2;
   --theme-sidebar: #1a2639;
   --theme-surface: #fdf6e3;
@@ -38,7 +40,8 @@
 }
 
 /* Soviet Retro Theme */
-.intoterica-container.theme-soviet {
+.intoterica-container.theme-soviet,
+.intoterica-chat-card.theme-soviet {
   --theme-bg: #f3f0e6; /* Off-white Paper */
   --theme-sidebar: #8b0000; /* Deep Red */
   --theme-surface: #fffbf0; /* Lighter Off-white */
@@ -94,7 +97,8 @@
 }
 
 /* Dark Fantasy 80s Theme */
-.intoterica-container.theme-dark-fantasy {
+.intoterica-container.theme-dark-fantasy,
+.intoterica-chat-card.theme-dark-fantasy {
   --theme-bg: #0f0a15; /* Deep Void Purple */
   --theme-sidebar: #050205; /* Abyssal Black */
   --theme-surface: #1a1220; /* Dark Stone */
@@ -138,7 +142,8 @@
 }
 
 /* Vaporwave Theme */
-.intoterica-container.theme-vaporwave {
+.intoterica-container.theme-vaporwave,
+.intoterica-chat-card.theme-vaporwave {
   --theme-bg: #050505; /* Deep Black */
   --theme-sidebar: #240046; /* Deep Purple */
   --theme-surface: #111111; /* Dark Grey */
@@ -592,12 +597,42 @@
 
 /* Faction Layout */
 .faction-layout {
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.faction-layout.details-open {
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 1rem;
 }
 
 .faction-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.faction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: min-content;
+  gap: 1rem;
+  overflow-y: auto;
+  padding: 0.5rem;
+  align-content: start;
+  flex: 1;
+}
+
+.intoterica .faction-layout.details-open .faction-list {
+  padding-right: 0.5rem;
+  border-right: 1px solid var(--theme-border);
+}
+
+.intoterica .faction-layout.details-open .faction-grid {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -607,8 +642,11 @@
   padding: 0.75rem;
   cursor: pointer;
   transition: all 0.2s;
-  text-align: left;
-  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 350px;
 }
 
 .intoterica .faction-card.selected {
@@ -617,36 +655,88 @@
   box-shadow: 0 0 8px var(--theme-accent);
 }
 
+.intoterica .faction-layout.details-open .faction-card {
+  display: flex;
+  flex-direction: row;
+  text-align: left;
+  align-items: center;
+  height: auto;
+  padding: 8px;
+  width: 100%;
+  margin-bottom: 5px;
+}
+
 .intoterica .faction-header {
   display: flex;
-  gap: 0.75rem;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.intoterica .faction-layout.details-open .faction-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  margin-left: 10px;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
 }
 
 .intoterica .faction-icon {
-  font-size: 24px;
-  width: 40px;
-  height: 40px;
+  font-size: 32px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.05);
-  border: 1px solid rgba(0,0,0,0.1);
+  background: rgba(0,0,0,0.1);
+  border: 2px solid var(--theme-border);
   border-radius: 4px;
+  flex-shrink: 0;
+  margin-bottom: 0.25rem;
+}
+
+.intoterica .faction-layout.details-open .faction-icon {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  margin-bottom: 0;
 }
 
 .intoterica .faction-name {
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 1.1em;
   color: var(--theme-accent);
   margin-bottom: 0.25rem;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+.intoterica .faction-layout.details-open .faction-name {
+  font-size: 14px;
+  margin-bottom: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .intoterica .faction-rep-bar {
   height: 4px;
   background: rgba(0,0,0,0.1);
   overflow: hidden;
-  margin-top: 0.25rem;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
   border-radius: 2px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.intoterica .faction-layout.details-open .faction-rep-bar {
+  display: none;
 }
 
 .intoterica .faction-rep-fill {
@@ -666,9 +756,142 @@
 .intoterica .faction-rep-value.positive { color: #2b8a3e; }
 .intoterica .faction-rep-value.negative { color: #c92a2a; }
 
+.intoterica .faction-layout.details-open .faction-rep-value {
+  margin-top: 0;
+}
+
+.faction-card-description {
+  font-size: 13px;
+  color: var(--theme-text);
+  margin-top: 10px;
+  line-height: 1.4;
+  border-top: 1px solid var(--theme-dim);
+  padding-top: 0.5rem;
+  word-break: break-word;
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+}
+
+.intoterica .faction-layout.details-open .faction-card-description {
+  display: none;
+}
+
 /* Faction Detail */
 .intoterica .faction-detail {
   padding: 1rem;
+  display: none;
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.faction-layout.details-open .faction-detail {
+  display: block;
+}
+
+/* Access Point Theme - Desktop File Look */
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-card {
+  background: rgba(26, 38, 57, 0.9);
+  border: 1px solid var(--theme-border);
+  padding: 0.75rem;
+  height: 350px;
+  border-radius: 4px;
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-card:hover {
+  background: rgba(26, 38, 57, 1);
+  border: 1px solid var(--theme-accent);
+  box-shadow: 0 0 10px rgba(79, 172, 254, 0.3);
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-icon {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 32px;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 0.5rem;
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-name {
+  font-family: var(--theme-font-header);
+  font-size: 1.1em;
+  color: var(--theme-accent);
+  text-shadow: none;
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-card-description {
+  font-size: 13px;
+  color: #ccc;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 0.5rem;
+  opacity: 1;
+}
+
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-card {
+  background: rgba(26, 38, 57, 0.9);
+  border: 1px solid var(--theme-border);
+  margin-bottom: 5px;
+  border-radius: 4px;
+}
+
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-card:hover,
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-card.selected {
+  background: rgba(26, 38, 57, 1);
+  border: 1px solid var(--theme-accent);
+  box-shadow: 0 0 5px rgba(79, 172, 254, 0.3);
+}
+
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-icon {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-name {
+  font-family: var(--theme-font-header);
+  color: var(--theme-accent);
+  text-shadow: none;
+  font-size: 14px;
+}
+
+.intoterica-container.theme-access-point .faction-detail {
+  background: rgba(235, 235, 235, 0.95);
+  color: var(--theme-text);
+}
+
+.intoterica-container.theme-access-point .faction-detail-description {
+  color: var(--theme-text);
+  background: rgba(0,0,0,0.05);
+  border: 1px solid var(--theme-dim);
+}
+
+.intoterica-container.theme-access-point .faction-section-title {
+  color: var(--theme-dim);
+  border-bottom: 1px solid var(--theme-dim);
+}
+
+.intoterica-container.theme-access-point .rank-name,
+.intoterica-container.theme-access-point .member-name,
+.intoterica-container.theme-access-point .standing-value.neutral {
+  color: var(--theme-text);
+}
+
+.intoterica-container.theme-access-point .faction-detail-header .standing-label {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 2px;
+  text-shadow: 1px 1px 1px #000;
 }
 
 .intoterica .faction-detail-header {
@@ -677,212 +900,134 @@
   margin-bottom: 1.5rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--theme-border);
-}
-
-.intoterica .faction-detail-info {
-  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
   gap: 1rem;
 }
 
-.intoterica .faction-detail-icon {
-  font-size: 48px;
-  width: 64px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.05);
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 4px;
-}
+.intoterica .faction-detail-info { display: flex; gap: 1rem; align-items: center; }
 
-.intoterica .faction-detail-name {
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--theme-accent);
-  margin-bottom: 0.25rem;
-  font-family: var(--theme-font-header);
-  text-shadow: var(--theme-glow);
-}
+.intoterica .faction-detail-icon { font-size: 64px; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; flex-shrink: 0; }
 
-.intoterica .faction-detail-description {
-  font-size: 13px;
-  color: var(--theme-text);
-  white-space: pre-wrap;
-  line-height: 1.4;
-}
+.intoterica .faction-detail-name { font-size: 24px; font-weight: 600; color: var(--theme-accent); margin-bottom: 0.25rem; font-family: var(--theme-font-header); text-shadow: var(--theme-glow); display: flex; align-items: center; gap: 10px; }
 
-.intoterica .faction-standing {
-  text-align: right;
-}
+.intoterica .edit-faction { font-size: 14px; color: var(--theme-dim); cursor: pointer; }
 
-.intoterica .standing-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--theme-dim);
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
+.intoterica .faction-detail-description { font-size: 13px; color: var(--theme-text); white-space: pre-wrap; line-height: 1.4; max-height: 150px; overflow-y: auto; padding: 8px; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); }
 
-.intoterica .standing-value {
-  font-size: 18px;
-  font-weight: 700;
-}
+.intoterica .faction-standing { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; }
 
-.intoterica .standing-value.honored { color: #2b8a3e; }
-.intoterica .standing-value.hostile { color: #c92a2a; }
-.intoterica .standing-value.neutral { color: var(--theme-text); }
+.intoterica .standing-info { display: flex; align-items: center; gap: 10px; }
 
-.intoterica .standing-controls {
-  display: flex;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
-  justify-content: flex-end;
-}
+.intoterica .standing-label { font-size: 11px; text-transform: uppercase; color: var(--theme-dim); font-weight: 600; margin: 0; }
 
-.faction-sections {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.5rem;
-}
+.intoterica .standing-value { font-size: 16px; font-weight: 700; }
 
-.intoterica .faction-section-title {
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--theme-dim);
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-bottom: 1px solid rgba(0,0,0,0.1);
-  padding-bottom: 0.25rem;
-}
+.intoterica .standing-value.honored { color: #2b8a3e; } .intoterica .standing-value.hostile { color: #c92a2a; } .intoterica .standing-value.neutral { color: var(--theme-text); }
 
-.intoterica .rank-item,
-.intoterica .member-item {
-  padding: 0.5rem;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
-  margin-bottom: 0.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+.intoterica .standing-actions { display: flex; gap: 10px; align-items: center; }
 
-.intoterica .rank-name,
-.intoterica .member-name {
-  color: var(--theme-text);
-  font-weight: 500;
-}
+.intoterica .toggle-control { font-size: 11px; color: var(--theme-dim); cursor: pointer; display: flex; align-items: center; gap: 5px; margin: 0; }
 
-.intoterica .member-type {
-  font-size: 10px;
-  text-transform: uppercase;
-  color: var(--theme-dim);
-  margin-left: 0.5rem;
-}
+.intoterica .enlist-faction { font-size: 11px; padding: 2px 8px; }
 
-.intoterica .member-rank-badge {
-  padding: 0.125rem 0.5rem;
-  background: rgba(0,0,0,0.1);
-  color: var(--theme-text);
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 3px;
-}
+/* Rep Visuals */ .rep-face-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px; margin-bottom: 1rem; }
 
-/* Inbox */
-.intoterica .inbox-item {
-  padding: 0.75rem;
-  display: flex;
-  gap: 0.75rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+.rep-face { font-size: 64px; margin-bottom: 0.5rem; transition: all 0.3s ease; }
 
-.intoterica .inbox-item.unread {
-  border-left: 4px solid var(--theme-accent);
-  background: rgba(0, 240, 255, 0.05);
-}
+.xp-modifier-badge { background: var(--theme-surface); border: 1px solid; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: bold; font-size: 16px; }
 
-.intoterica .inbox-avatar {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.05);
-  border: 1px solid rgba(0,0,0,0.1);
-  border-radius: 4px;
-  font-size: 20px;
-  flex-shrink: 0;
-}
+.faction-slider-container { margin-bottom: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px; }
 
-.intoterica .inbox-content {
-  flex: 1;
-  min-width: 0;
-}
+.faction-rep-slider { width: 100%; }
 
-.intoterica .inbox-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.25rem;
-}
+.standing-controls { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
 
-.intoterica .inbox-from {
-  font-weight: 600;
-  color: var(--theme-accent);
-}
+.slider-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--theme-dim); margin-top: 5px; }
 
-.intoterica .inbox-date {
-  font-size: 11px;
-  color: var(--theme-dim);
-}
+.faction-sections { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
 
-.intoterica .inbox-subject {
-  font-weight: 500;
-  color: var(--theme-text);
-  margin-bottom: 0.25rem;
-}
+.intoterica .faction-section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; color: var(--theme-dim); margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.25rem; }
 
-.intoterica .inbox-body {
-  font-size: 12px;
-  color: var(--theme-dim);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+.intoterica .rank-item, .intoterica .member-item { padding: 0.5rem; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(0,0,0,0.05); margin-bottom: 0.25rem; border-radius: 4px; }
 
-/* Empty State */
-.intoterica .empty-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: var(--theme-dim);
-}
+.intoterica .rank-item { display: flex; align-items: center; justify-content: space-between; }
 
-.intoterica .empty-state i {
-  font-size: 48px;
-  opacity: 0.3;
-  margin-bottom: 1rem;
-}
+.intoterica .member-item { display: flex; flex-direction: column; }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .faction-layout {
-    grid-template-columns: 1fr;
-  }
-  
-  .faction-sections {
-    grid-template-columns: 1fr;
-  }
-  
-  .content-grid.two-column {
-    grid-template-columns: 1fr;
-  }
-  .profile-grid {
-    grid-template-columns: 1fr;
-  }
-}
+.intoterica .member-header { display: flex; justify-content: space-between; align-items: center; }
+
+.intoterica .rank-name, .intoterica .member-name { color: var(--theme-text); font-weight: 500; display: flex; align-items: center; gap: 5px; }
+
+.intoterica .rank-stats { font-size: 10px; color: var(--theme-dim); }
+
+.intoterica .member-type { font-size: 10px; text-transform: uppercase; color: var(--theme-dim); }
+
+.intoterica .member-rank-badge { padding: 0.125rem 0.5rem; background: var(--theme-accent); color: #fff; font-size: 11px; font-weight: 600; border-radius: 10px; }
+
+.intoterica .member-actions { display: flex; gap: 5px; }
+
+.intoterica .member-actions button { font-size: 10px; }
+
+.intoterica .remove-member { cursor: pointer; color: #c92a2a; font-size: 10px; }
+
+.intoterica .member-rep-control { margin-top: 5px; display: flex; align-items: center; gap: 5px; }
+
+.intoterica .member-rep-control span { font-size: 10px; width: 30px; }
+
+.intoterica .member-rep-control .rep-val { width: 25px; text-align: right; }
+
+.intoterica .member-rep-slider { height: 4px; flex: 1; }
+
+/* Faction Tabs */ .faction-tabs { display: flex; gap: 5px; margin-bottom: 1rem; border-bottom: 1px solid var(--theme-border); }
+
+.faction-tab { padding: 0.5rem 1rem; cursor: pointer; background: rgba(0,0,0,0.1); border: 1px solid transparent; border-bottom: none; border-radius: 4px 4px 0 0; color: var(--theme-dim); font-weight: bold; font-size: 12px; text-transform: uppercase; }
+
+.faction-tab:hover { color: var(--theme-text); background: rgba(255,255,255,0.05); }
+
+.faction-tab.active { background: var(--theme-surface); border-color: var(--theme-border); color: var(--theme-accent); margin-bottom: -1px; border-bottom: 1px solid var(--theme-surface); }
+
+/* Member Cards (Small) */ .member-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }
+
+.member-card-small { background: rgba(0,0,0,0.1); border: 1px solid var(--theme-border); padding: 0.5rem; border-radius: 3px; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.member-card-header { display: flex; align-items: center; gap: 0.5rem; }
+
+.member-card-img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--theme-dim); }
+
+/* Rank Editor Table */ .rank-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+.rank-table th, .rank-table td { padding: 0.5rem; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.1); }
+
+/* Rank Display Cards */ .rank-display-card { background: rgba(0,0,0,0.1); border: 1px solid var(--theme-border); border-radius: 3px; margin-bottom: 0.5rem; padding: 0.5rem; }
+
+.rank-display-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--theme-dim); padding-bottom: 0.25rem; margin-bottom: 0.25rem; }
+
+.rank-display-name { font-weight: bold; color: var(--theme-accent); font-size: 14px; }
+
+.rank-display-stats { font-size: 11px; color: var(--theme-dim); }
+
+.rank-display-desc { font-size: 12px; color: var(--theme-text); font-style: italic; }
+
+/* Inbox */ .intoterica .inbox-item { padding: 0.75rem; display: flex; gap: 0.75rem; cursor: pointer; border-left: 3px solid transparent; }
+
+.intoterica .inbox-item.unread { background: rgba(255, 255, 255, 0.05); border-left-color: var(--theme-accent); }
+
+.intoterica .inbox-item.selected { background: rgba(0, 240, 255, 0.1); }
+
+.intoterica .inbox-avatar { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; }
+
+.intoterica .inbox-content { flex: 1; min-width: 0; }
+
+.intoterica .inbox-header { display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 12px; }
+
+.intoterica .inbox-from { font-weight: 600; color: var(--theme-accent); }
+
+.intoterica .inbox-date { color: var(--theme-dim); }
+
+.intoterica .inbox-subject { font-weight: 600; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.intoterica .inbox-body { font-size: 12px; color: var(--theme-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* Player Grid (GM Dashboard) */
 .player-grid {
@@ -1070,3 +1215,53 @@
 .quest-section-header.in-progress { color: #f59f00; border-color: #f59f00; }
 .quest-section-header.completed { color: #2b8a3e; border-color: #2b8a3e; }
 .quest-section-header.failed { color: #c92a2a; border-color: #c92a2a; }
+
+/* Chat Card Styles */
+.intoterica-chat-card {
+  border: 2px solid var(--theme-border);
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  font-family: var(--theme-font-main);
+  text-align: center;
+  box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.intoterica-chat-card h3 {
+  background: var(--theme-sidebar);
+  color: var(--theme-accent);
+  margin: 0;
+  padding: 5px;
+  border-bottom: 1px solid var(--theme-border);
+  font-family: var(--theme-font-header);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.intoterica-chat-card .card-content {
+  padding: 10px;
+}
+
+.intoterica-chat-card button {
+  background: var(--theme-sidebar);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
+}
+
+.intoterica-chat-card.theme-access-point button {
+  color: #ffffff;
+}
+
+/* Default Theme: Use dark background for readability */
+.intoterica-chat-card.theme-foundry {
+  background: var(--theme-bg);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* Soviet Theme: Fix contrast */
+.intoterica-chat-card.theme-soviet h3,
+.intoterica-chat-card.theme-soviet button {
+  color: var(--theme-border);
+}

@@ -4,7 +4,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   static DEFAULT_OPTIONS = {
     id: "intoterica",
     window: {
-      title: "Intoterica (Beta 0.9.5)",
+      title: "Intoterica (Beta 0.9.6)",
       resizable: true,
       minimizable: true
     },
@@ -26,6 +26,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this.currentView = game.settings.get('intoterica', 'defaultView') || 'dashboard';
     this.selectedFaction = null;
     this.profileActorId = null;
+    this.activeFactionTab = 'overview';
+    this.isEditingRanks = false;
     this._idleSound = null;
     this.mailComposeData = null;
     this.mailViewSubject = null;
@@ -49,7 +51,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         idle: "modules/intoterica/sounds/IntotericaIdle.mp3",
         nav: "modules/intoterica/sounds/NavSound.mp3",
         mail: "modules/intoterica/sounds/VeilMailSound.mp3"
-      }
+      },
+      volumeScale: 2.0
     },
     "soviet": {
       label: "Soviet Retro",
@@ -245,14 +248,24 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       // Auto-Calculate Reputation if enabled
       let currentRep = f.reputation;
       if (f.autoCalc) {
+        // If auto-calc is on, 'reputation' is the calculated value.
+        // We use 'partyReputation' for the base "Party" slider value.
         let totalWeightedRep = 0;
         let totalWeights = 0;
+        
+        // 1. Weighted Members
         (f.members || []).forEach(m => {
           const rankData = ranks[m.rank] || { modifier: 1.0 };
           const weight = rankData.modifier || 1.0;
           totalWeightedRep += (m.reputation || 0) * weight;
           totalWeights += weight;
         });
+        
+        // 2. Party Reputation (x1 Modifier)
+        const partyRep = f.partyReputation || 0;
+        totalWeightedRep += partyRep * 1.0;
+        totalWeights += 1.0;
+
         currentRep = totalWeights > 0 ? Math.round(totalWeightedRep / totalWeights) : 0;
         currentRep = Math.max(-100, Math.min(100, currentRep));
       }
@@ -263,7 +276,17 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
       const status = this._getRepStatus(currentRep);
       const isImage = f.image && (f.image.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.image));
-      return { ...f, ranks, reputation: currentRep, statusLabel: status.label, statusClass: status.class, face: status.face, xpMod: status.xpMod, statusColor: status.color, canEnlist, isImage };
+      
+      // Split members for UI
+      const playerMembers = (f.members || []).filter(m => m.type === 'Player');
+      const npcMembers = (f.members || []).filter(m => m.type !== 'Player');
+
+      return { 
+          ...f, ranks, reputation: currentRep, 
+          partyReputation: f.partyReputation || 0,
+          statusLabel: status.label, statusClass: status.class, face: status.face, xpMod: status.xpMod, statusColor: status.color, 
+          canEnlist, isImage, playerMembers, npcMembers 
+      };
     });
 
     // Sync selected faction with latest data
@@ -632,6 +655,35 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return { label: "Devoted", class: "rep-tier-devoted", face: "🧞", xpMod: 1.5, color: "#00bfff" };
   }
 
+  _calculateFactionRep(faction) {
+    if (!faction.autoCalc) return faction.reputation;
+
+    let ranks = faction.ranks || [];
+    // Normalize Ranks (Handle legacy string arrays vs new object arrays)
+    if (ranks.length > 0 && typeof ranks[0] === 'string') {
+      ranks = ranks.map(r => ({ name: r, xp: 0, modifier: 1.0 }));
+    }
+
+    let totalWeightedRep = 0;
+    let totalWeights = 0;
+    
+    // 1. Weighted Members
+    (faction.members || []).forEach(m => {
+      const rankData = ranks[m.rank] || { modifier: 1.0 };
+      const weight = rankData.modifier || 1.0;
+      totalWeightedRep += (m.reputation || 0) * weight;
+      totalWeights += weight;
+    });
+    
+    // 2. Party Reputation (x1 Modifier)
+    const partyRep = faction.partyReputation || 0;
+    totalWeightedRep += partyRep * 1.0;
+    totalWeights += 1.0;
+
+    let currentRep = totalWeights > 0 ? Math.round(totalWeightedRep / totalWeights) : 0;
+    return Math.max(-100, Math.min(100, currentRep));
+  }
+
   async _onRender(_context, _options) {
     const html = $(this.element);
 
@@ -743,6 +795,29 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (this._onSelectFaction) html.find('.faction-card').click(this._onSelectFaction.bind(this));
     if (this._onReadMessage) html.find('.inbox-item').click(this._onReadMessage.bind(this));
     if (this._onSelectPlayer) html.find('.player-card').click(this._onSelectPlayer.bind(this));
+
+    // Inject Custom Faction Detail View
+    const factionLayout = html.find('.faction-layout');
+    if (this.selectedFaction) {
+        factionLayout.addClass('details-open');
+        this._renderFactionDetail(html, this.selectedFaction);
+    } else {
+        factionLayout.removeClass('details-open');
+    }
+
+    // Inject Descriptions for Faction Cards (List View)
+    if (this.currentView === 'factions') {
+        const factionCards = html.find('.faction-card');
+        factionCards.each((i, el) => {
+            const card = $(el);
+            const factionId = card.data('factionId');
+            const faction = _context.factions.find(f => f.id === factionId);
+            if (faction && faction.description && !card.find('.faction-card-description').length) {
+                 const descText = faction.description.length > 500 ? faction.description.substring(0, 500) + '...' : faction.description;
+                 card.append(`<div class="faction-card-description">${descText}</div>`);
+            }
+        });
+    }
     
     // Profile Back Button - Explicit binding with off() to prevent duplicates
     if (this._onCloseProfile) {
@@ -871,9 +946,17 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const soundPath = IntotericaApp.getSoundPath('idle');
 
     if (enableSounds && !this._idleSound && soundPath) {
+      const themeKey = game.settings.get('intoterica', 'theme');
+      const themeConfig = IntotericaApp.THEMES[themeKey];
+      let volume = game.settings.get('intoterica', 'volumeAmbience');
+      
+      if (themeConfig && themeConfig.volumeScale) {
+          volume = Math.min(1.0, volume * themeConfig.volumeScale);
+      }
+
       foundry.audio.AudioHelper.play({
         src: soundPath,
-        volume: game.settings.get('intoterica', 'volumeAmbience'),
+        volume: volume,
         loop: true
       }, false).then(sound => {
         this._idleSound = sound;
@@ -881,6 +964,206 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         console.warn("Intoterica | Error playing idle sound:", err);
       });
     }
+  }
+
+  _renderFactionDetail(html, faction) {
+      const container = html.find('.faction-detail');
+      if (!container.length) return;
+      
+      // Clear existing content (from HBS) to replace with new UX
+      container.empty();
+
+      const isGM = IntotericaApp.hasPermission('permFactions');
+      const tab = this.activeFactionTab;
+
+      // 1. Header
+      const headerHtml = `
+        <div class="faction-detail-header">
+            <div class="faction-detail-info">
+                ${faction.isImage ? `<img src="${faction.image}" class="faction-detail-icon" style="object-fit: contain; border: none;">` : `<div class="faction-detail-icon">${faction.image}</div>`}
+                <div>
+                    <div class="faction-detail-name">${faction.name}</div>
+                    <div class="standing-label" style="color: ${faction.statusColor}">${faction.statusLabel} (${faction.reputation})</div>
+                </div>
+            </div>
+            <div class="faction-actions">
+                <button type="button" class="close-faction-detail" title="Close Details" style="margin-right: 5px;"><i class="fas fa-times"></i></button>
+                ${isGM ? `<button type="button" class="edit-faction" data-faction-id="${faction.id}"><i class="fas fa-edit"></i> Edit</button>` : ''}
+                ${faction.canEnlist ? `<button type="button" class="enlist-faction" data-faction-id="${faction.id}"><i class="fas fa-signature"></i> Enlist</button>` : ''}
+            </div>
+        </div>
+      `;
+
+      // 2. Tabs
+      const tabsHtml = `
+        <div class="faction-tabs">
+            <div class="faction-tab ${tab === 'overview' ? 'active' : ''}" data-tab="overview">Overview</div>
+            <div class="faction-tab ${tab === 'npcs' ? 'active' : ''}" data-tab="npcs">Members (NPC)</div>
+            <div class="faction-tab ${tab === 'ranks' ? 'active' : ''}" data-tab="ranks">Ranks</div>
+        </div>
+      `;
+
+      // 3. Content
+      let contentHtml = '';
+
+      if (tab === 'overview') {
+          // Reputation Slider Logic (Auto or Manual)
+          const isAuto = faction.autoCalc;
+          const repValue = isAuto ? faction.partyReputation : faction.reputation;
+          const repStatus = this._getRepStatus(repValue);
+          const sliderClass = isAuto ? 'party-rep-slider' : 'faction-rep-slider';
+          const label = isAuto ? 'Party Reputation (Global)' : 'Faction Reputation';
+          const subLabel = isAuto ? 'Weighed at x1. Counts for non-enlisted players.' : 'Manual control of faction standing.';
+          
+          contentHtml = `
+            <div class="faction-description" style="margin-bottom: 1.5rem; white-space: pre-wrap;">${faction.description || "No description provided."}</div>
+            
+            <div class="rep-section" style="background: rgba(0,0,0,0.1); padding: 10px; border-radius: 4px; margin-bottom: 1.5rem; border: 1px solid var(--theme-border);">
+                <div style="font-weight: bold; margin-bottom: 5px; display: flex; justify-content: space-between;">
+                    <span>${label}</span>
+                    <span style="color: ${repStatus.color}; text-shadow: 0 0 3px #000;">${repStatus.label}</span>
+                </div>
+                <div style="font-size: 11px; opacity: 0.7; margin-bottom: 5px;">${subLabel}</div>
+                ${isGM ? `<input type="range" class="${sliderClass}" min="-100" max="100" value="${repValue}" data-faction-id="${faction.id}" style="width: 100%;">` : ''}
+            </div>
+
+            <div class="section-header">
+                <div class="section-title" style="font-size: 16px;">Player Members</div>
+                ${isGM ? `<button type="button" class="award-xp" style="font-size: 11px;"><i class="fas fa-star"></i> Award XP</button>` : ''}
+            </div>
+            
+            <div class="member-card-grid">
+                ${faction.playerMembers.length ? faction.playerMembers.map(m => {
+                    const rankName = faction.ranks[m.rank]?.name || "Rank " + m.rank;
+                    const mStatus = this._getRepStatus(m.reputation);
+                    return `
+                    <div class="member-card-small">
+                        <div class="member-card-header">
+                            <img src="${game.actors.get(m.id)?.img || 'icons/svg/mystery-man.svg'}" class="member-card-img">
+                            <div style="overflow: hidden;">
+                                <div style="font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.name}</div>
+                                <div style="font-size: 10px; opacity: 0.7;">${rankName} • ${m.xp} XP</div>
+                            </div>
+                            ${isGM ? `<i class="fas fa-times remove-member" data-faction-id="${faction.id}" data-member-id="${m.id}" style="margin-left: auto; cursor: pointer; color: #c92a2a;"></i>` : ''}
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 5px; font-size: 11px;">
+                            <span>Rep:</span>
+                            <span style="font-weight: bold; color: ${mStatus.color}; text-shadow: 0 0 3px #000;">${mStatus.label}</span>
+                        </div>
+                        ${isGM ? `<input type="range" class="member-rep-slider" min="-100" max="100" value="${m.reputation}" data-faction-id="${faction.id}" data-member-id="${m.id}" style="width: 100%;">` : ''}
+                    </div>`;
+                }).join('') : '<div class="empty-text">No players enlisted.</div>'}
+            </div>
+          `;
+      } else if (tab === 'npcs') {
+          contentHtml = `
+            <div class="section-header">
+                <div class="section-title" style="font-size: 16px;">NPC Members</div>
+                <div style="font-size: 11px; opacity: 0.7;">${isGM ? 'Drag actors here to add' : ''}</div>
+            </div>
+            <div class="npc-drop-zone" style="min-height: 200px; border: 2px dashed var(--theme-dim); border-radius: 4px; padding: 10px;">
+                <div class="member-card-grid">
+                    ${faction.npcMembers.map(m => {
+                        const actor = game.actors.get(m.id);
+                        const img = actor?.img || "icons/svg/mystery-man.svg";
+                        return `
+                        <div class="member-card-small">
+                            <div class="member-card-header">
+                                <img src="${img}" class="member-card-img">
+                                <div style="overflow: hidden;">
+                                    <div style="font-weight: bold;">${m.name}</div>
+                                </div>
+                                ${isGM ? `<i class="fas fa-times remove-member" data-faction-id="${faction.id}" data-member-id="${m.id}" style="margin-left: auto; cursor: pointer; color: #c92a2a;"></i>` : ''}
+                            </div>
+                            <div style="margin-top: 5px;">
+                                <select class="update-member-rank" data-faction-id="${faction.id}" data-member-id="${m.id}" ${!isGM ? 'disabled' : ''} style="font-size: 11px; padding: 2px;">
+                                    ${faction.ranks.map((r, i) => `<option value="${i}" ${m.rank === i ? 'selected' : ''}>${r.name}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+                ${faction.npcMembers.length === 0 ? '<div style="text-align: center; padding: 20px; opacity: 0.5;">No NPC members</div>' : ''}
+            </div>
+          `;
+      } else if (tab === 'ranks') {
+          const isEditing = this.isEditingRanks && isGM;
+          
+          contentHtml = `
+            <div class="section-header">
+                <div class="section-title" style="font-size: 16px;">Rank Structure</div>
+                ${isGM ? `
+                    <div style="display: flex; gap: 5px;">
+                        ${isEditing ? `<button type="button" class="add-rank-btn" style="font-size: 11px;"><i class="fas fa-plus"></i> Add</button>` : ''}
+                        <button type="button" class="toggle-rank-edit" style="font-size: 11px;">
+                            ${isEditing ? '<i class="fas fa-check"></i> Done' : '<i class="fas fa-edit"></i> Edit'}
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+          `;
+
+          if (isEditing) {
+              contentHtml += `
+                <table class="rank-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">Name</th>
+                            <th style="width: 10%;">XP</th>
+                            <th style="width: 10%;">Mod</th>
+                            <th>Description</th>
+                            <th style="width: 30px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${faction.ranks.map((r, i) => `
+                            <tr>
+                                <td><input type="text" class="rank-input" data-idx="${i}" data-field="name" value="${r.name}"></td>
+                                <td><input type="number" class="rank-input" data-idx="${i}" data-field="xp" value="${r.xp}"></td>
+                                <td><input type="number" class="rank-input" data-idx="${i}" data-field="modifier" value="${r.modifier}" step="0.1"></td>
+                                <td><input type="text" class="rank-input" data-idx="${i}" data-field="description" value="${r.description || ''}" placeholder="Description..."></td>
+                                <td><i class="fas fa-trash delete-rank-btn" data-idx="${i}" style="cursor: pointer; color: #c92a2a;"></i></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+          } else {
+              contentHtml += `
+                <div class="rank-list">
+                    ${faction.ranks.map(r => `
+                        <div class="rank-display-card">
+                            <div class="rank-display-header">
+                                <span class="rank-display-name">${r.name}</span>
+                                <span class="rank-display-stats">XP: ${r.xp} | Mod: x${r.modifier}</span>
+                            </div>
+                            <div class="rank-display-desc">${r.description || "No description provided."}</div>
+                        </div>
+                    `).join('')}
+                    ${faction.ranks.length === 0 ? '<div class="empty-text">No ranks defined.</div>' : ''}
+                </div>`;
+          }
+      }
+
+      container.append(headerHtml + tabsHtml + contentHtml);
+
+      // Bind Events
+      container.find('.faction-tab').click(ev => {
+          this.activeFactionTab = ev.currentTarget.dataset.tab;
+          this.render();
+      });
+      container.find('.close-faction-detail').click(this._onCloseFactionDetail.bind(this));
+
+      if (isGM) {
+          container.find('.party-rep-slider').change(this._onPartyRepChange.bind(this));
+          container.find('.faction-rep-slider').change(this._onFactionRepSliderChange.bind(this));
+          container.find('.npc-drop-zone')[0]?.addEventListener('drop', this._onDropFactionMember.bind(this));
+          container.find('.npc-drop-zone')[0]?.addEventListener('dragover', e => e.preventDefault());
+          container.find('.update-member-rank').change(this._onUpdateMemberRank.bind(this));
+          container.find('.rank-input').change(this._onUpdateRank.bind(this));
+          container.find('.add-rank-btn').click(this._onAddRank.bind(this));
+          container.find('.delete-rank-btn').click(this._onDeleteRank.bind(this));
+          container.find('.toggle-rank-edit').click(this._onToggleRankEdit.bind(this));
+      }
   }
 
   _onViewChange(event) {
@@ -919,6 +1202,21 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const factionId = event.currentTarget.dataset.factionId;
     const settings = game.settings.get('intoterica', 'data');
     this.selectedFaction = settings.factions.find(f => f.id === factionId);
+    this.activeFactionTab = 'overview'; // Reset tab on selection
+    this.isEditingRanks = false;
+    this.render();
+  }
+
+  _onCloseFactionDetail(event) {
+    event.preventDefault();
+    this.selectedFaction = null;
+    this.isEditingRanks = false;
+    this.render();
+  }
+
+  _onToggleRankEdit(event) {
+    event.preventDefault();
+    this.isEditingRanks = !this.isEditingRanks;
     this.render();
   }
 
@@ -1206,9 +1504,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           if (actor) {
               ChatMessage.create({
                   content: `
-                    <div style="text-align: center; border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;">
-                      <h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">Merit Badge Awarded!</h3>
-                      <div style="padding: 10px;">
+                    <div class="intoterica-chat-card">
+                      <h3>Merit Badge Awarded!</h3>
+                      <div class="card-content">
                         <div style="font-size: 14px; margin-bottom: 5px;">Awarded to <strong>${actor.name}</strong></div>
                         ${isImage ? `<img src="${badge.icon}" style="display: block; margin: 10px auto; width: 64px; height: 64px; border: none; object-fit: contain;">` : `<div style="font-size: 48px; margin: 10px 0;">${badge.icon}</div>`}
                         <div style="font-weight: bold; font-size: 16px; margin-bottom: 5px;">${badge.name}</div>
@@ -1462,7 +1760,39 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     
     const faction = settings.factions.find(f => f.id === factionId);
     if (faction) {
+      // Handle Auto-Calc: Adjust Party Rep instead of base Rep
+      if (faction.autoCalc) {
+          const oldRep = this._calculateFactionRep(faction);
+          const oldStatus = this._getRepStatus(oldRep);
+          
+          faction.partyReputation = (faction.partyReputation || 0) + delta;
+          
+          await this._saveData(settings);
+          this._broadcastUpdate();
+          this.selectedFaction = faction;
+          this.render();
+          
+          const newRep = this._calculateFactionRep(faction);
+          const newStatus = this._getRepStatus(newRep);
+
+          if (game.settings.get('intoterica', 'notifyFactions') && oldStatus.label !== newStatus.label) {
+            ChatMessage.create({
+              content: `
+                <div class="intoterica-chat-card">
+                  <h3>Faction Update: ${faction.name}</h3>
+                  <div class="card-content">
+                    <div style="font-size: 48px; margin: 10px 0;">${newStatus.face}</div>
+                    <div style="font-size: 16px; font-weight: bold; color: ${newStatus.color};">${newStatus.label}</div>
+                    <div style="margin-top: 5px;">Party Reputation: <strong>${newRep}</strong></div>
+                  </div>
+                </div>`
+            });
+          }
+          return;
+      }
+
       const oldRep = faction.reputation;
+      const oldStatus = this._getRepStatus(oldRep);
       faction.reputation = Math.max(-100, Math.min(100, faction.reputation + delta));
       const actualDelta = faction.reputation - oldRep;
 
@@ -1471,11 +1801,21 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         this._broadcastUpdate();
         this.selectedFaction = faction;
         this.render();
+        
+        const newStatus = this._getRepStatus(faction.reputation);
 
-        if (game.settings.get('intoterica', 'notifyFactions')) {
-        ChatMessage.create({
-          content: `<div style="text-align: center; border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;"><h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">Faction Update: ${faction.name}</h3><div style="padding: 10px;"><div>Party Reputation: <strong>${faction.reputation}</strong> (${actualDelta > 0 ? '+' : ''}${actualDelta})</div></div></div>`
-        });
+        if (game.settings.get('intoterica', 'notifyFactions') && oldStatus.label !== newStatus.label) {
+            ChatMessage.create({
+              content: `
+                <div class="intoterica-chat-card">
+                  <h3>Faction Update: ${faction.name}</h3>
+                  <div class="card-content">
+                    <div style="font-size: 48px; margin: 10px 0;">${newStatus.face}</div>
+                    <div style="font-size: 16px; font-weight: bold; color: ${newStatus.color};">${newStatus.label}</div>
+                    <div style="margin-top: 5px;">Party Reputation: <strong>${faction.reputation}</strong></div>
+                  </div>
+                </div>`
+            });
         }
       }
     }
@@ -1593,6 +1933,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (Array.isArray(data.ranks)) {
         ranks = data.ranks;
     } else if (typeof data.ranks === 'string') {
+    } else if (typeof data.ranks === 'string') { // Legacy support
         ranks = data.ranks.split('\n').filter(line => line.trim()).map(line => {
             const [name, xp, modifier] = line.split(',').map(s => s.trim());
             return { name, xp: parseInt(xp) || 0, modifier: parseFloat(modifier) || 1.0 };
@@ -1606,6 +1947,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       image: data.image || "⚔️",
       reputation: 0,
       autoCalc: false,
+      partyReputation: 0,
       allowEnlistment: data.allowEnlistment || false,
       ranks: ranks,
       members: []
@@ -1625,6 +1967,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const faction = settings.factions.find(f => f.id === factionId);
     if (!faction) return;
 
+    // This dialog is now mostly for basic settings since Ranks are edited in the tab
+    // We keep it for Name, Desc, Image, Enlistment toggle
     const ranksHtml = faction.ranks.map(r => `
       <div class="rank-row" style="display: grid; grid-template-columns: 1fr 70px 50px 24px; gap: 5px; margin-bottom: 5px; align-items: center;">
         <input type="text" class="rank-name" value="${r.name}" placeholder="Name" style="width: 100%;" />
@@ -1681,6 +2025,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           callback: async (html) => {
             const form = html[0].querySelector('form');
             const formData = new FormDataExtended(form).object;
+            // Ranks are handled in the tab now, so we don't overwrite them here unless we want to support both.
+            // To be safe, we preserve existing ranks if not in form
+            formData.ranks = faction.ranks; 
 
             const rows = html.find('.rank-row');
             const ranks = [];
@@ -1734,6 +2081,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             $(ev.currentTarget).closest('.rank-row').remove();
         });
       },
+      render: (html) => { html.find('.file-picker').click(ev => new FilePicker({ type: "image", callback: (path) => html.find('input[name="image"]').val(path) }).render(true)); },
       default: "save"
     }).render(true);
   }
@@ -1758,6 +2106,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     faction.image = data.image;
     faction.allowEnlistment = data.allowEnlistment;
     faction.ranks = ranks;
+    // faction.ranks = ranks; // Preserved
 
     await this._saveData(settings);
     this._broadcastUpdate();
@@ -1846,6 +2195,100 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       
       if (faction) {
           faction.members = faction.members.filter(m => m.id !== memberId);
+          await this._saveData(settings);
+          this._broadcastUpdate();
+          this.render();
+      }
+  }
+
+  async _onDropFactionMember(event) {
+      event.preventDefault();
+      if (!this.selectedFaction) return;
+      
+      const data = JSON.parse(event.dataTransfer.getData('text/plain'));
+      if (data.type !== 'Actor') return;
+
+      const settings = game.settings.get('intoterica', 'data');
+      const faction = settings.factions.find(f => f.id === this.selectedFaction.id);
+      
+      let actorId = data.uuid ? data.uuid.split('.').pop() : data.id;
+      const actor = game.actors.get(actorId);
+
+      if (faction && actor) {
+          if (faction.members.some(m => m.id === actor.id)) return;
+          
+          faction.members.push({
+              id: actor.id,
+              name: actor.name,
+              type: actor.hasPlayerOwner ? "Player" : "NPC",
+              rank: 0,
+              xp: 0,
+              reputation: 0
+          });
+          
+          await this._saveData(settings);
+          this._broadcastUpdate();
+          this.selectedFaction = faction;
+          this.render();
+      }
+  }
+
+  async _onUpdateMemberRank(event) {
+      event.preventDefault();
+      const memberId = event.currentTarget.dataset.memberId;
+      const rankIdx = parseInt(event.currentTarget.value);
+      
+      const settings = game.settings.get('intoterica', 'data');
+      const faction = settings.factions.find(f => f.id === this.selectedFaction.id);
+      const member = faction?.members.find(m => m.id === memberId);
+      
+      if (member) {
+          member.rank = rankIdx;
+          await this._saveData(settings);
+          this._broadcastUpdate();
+      }
+  }
+
+  async _onUpdateRank(event) {
+      event.preventDefault();
+      const idx = parseInt(event.currentTarget.dataset.idx);
+      const field = event.currentTarget.dataset.field;
+      let value = event.currentTarget.value;
+      
+      if (field === 'xp') value = parseInt(value) || 0;
+      if (field === 'modifier') value = parseFloat(value) || 1.0;
+
+      const settings = game.settings.get('intoterica', 'data');
+      const faction = settings.factions.find(f => f.id === this.selectedFaction.id);
+      
+      if (faction && faction.ranks[idx]) {
+          faction.ranks[idx][field] = value;
+          await this._saveData(settings);
+          this._broadcastUpdate();
+      }
+  }
+
+  async _onAddRank(event) {
+      event.preventDefault();
+      const settings = game.settings.get('intoterica', 'data');
+      const faction = settings.factions.find(f => f.id === this.selectedFaction.id);
+      
+      if (faction) {
+          faction.ranks.push({ name: "New Rank", xp: 0, modifier: 1.0, description: "" });
+          await this._saveData(settings);
+          this._broadcastUpdate();
+          this.render();
+      }
+  }
+
+  async _onDeleteRank(event) {
+      event.preventDefault();
+      const idx = parseInt(event.currentTarget.dataset.idx);
+      const settings = game.settings.get('intoterica', 'data');
+      const faction = settings.factions.find(f => f.id === this.selectedFaction.id);
+      
+      if (faction) {
+          faction.ranks.splice(idx, 1);
           await this._saveData(settings);
           this._broadcastUpdate();
           this.render();
@@ -2076,6 +2519,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     await this._saveData(settings);
     this._broadcastUpdate({ action: 'newMessage' });
+
+    // Play sound locally since socket doesn't loop back
+    if (game.settings.get('intoterica', 'enableSounds')) {
+        const soundPath = IntotericaApp.getSoundPath('mail');
+        const volume = game.settings.get('intoterica', 'volumeNotification');
+        if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: volume, autoplay: true, loop: false}, false);
+    }
     this.render();
     
     // Determine if sender is a player character
@@ -2088,8 +2538,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         if (gmUsers.length > 0) {
             ChatMessage.create({
                 content: `
-                    <div style="background: #1a2639; color: #fff; padding: 5px; border: 1px solid #3b6ea5; border-radius: 5px; font-size: 12px;">
-                        <strong>${senderName}</strong> has sent a message.
+                    <div class="intoterica-chat-card">
+                        <div class="card-content" style="padding: 5px; font-size: 12px;">
+                            <strong>${senderName}</strong> has sent a message.
+                        </div>
                     </div>
                 `,
                 whisper: gmUsers
@@ -2106,14 +2558,14 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     recipientUsers.forEach(u => {
         ChatMessage.create({
             content: `
-                <div style="text-align: center; border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;">
-                  <h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">You've got mail!</h3>
-                  <div style="padding: 10px; background: #1a2639; color: #fff;">
+                <div class="intoterica-chat-card">
+                  <h3>You've got mail!</h3>
+                  <div class="card-content">
                     <div style="font-size: 48px; margin: 10px 0;">✉️</div>
                     <div style="margin-bottom: 5px;"><strong>${u.character.name}</strong></div>
                     <div style="font-size: 12px;">From: ${newMessage.from}</div>
-                    <div style="font-style: italic; margin-top: 5px; color: #ccc;">${newMessage.subject}</div>
-                    <button class="intoterica-open-inbox" data-message-id="${newMessage.id}" style="margin-top: 10px; background: #4facfe; color: #fff; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer; width: 100%;">Access Inbox</button>
+                    <div style="font-style: italic; margin-top: 5px; opacity: 0.8;">${newMessage.subject}</div>
+                    <button class="intoterica-open-inbox" data-message-id="${newMessage.id}" style="margin-top: 10px; width: 100%;">Access Inbox</button>
                   </div>
                 </div>
             `,
@@ -2269,6 +2721,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const faction = settings.factions.find(f => f.id === factionId);
     if (faction) {
       const oldRep = faction.reputation;
+      const oldStatus = this._getRepStatus(oldRep);
       faction.reputation = value;
       const delta = value - oldRep;
 
@@ -2277,13 +2730,61 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         this._broadcastUpdate();
         if (this.selectedFaction && this.selectedFaction.id === factionId) this.selectedFaction.reputation = value;
         setTimeout(() => this.render(), 50);
-        if (game.settings.get('intoterica', 'notifyFactions')) {
-        ChatMessage.create({
-          content: `<div style="text-align: center; border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;"><h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">Faction Update: ${faction.name}</h3><div style="padding: 10px;"><div>Party Reputation: <strong>${faction.reputation}</strong> (${delta > 0 ? '+' : ''}${delta})</div></div></div>`
-        });
+        
+        const newStatus = this._getRepStatus(faction.reputation);
+
+        if (game.settings.get('intoterica', 'notifyFactions') && oldStatus.label !== newStatus.label) {
+            ChatMessage.create({
+              content: `
+                <div class="intoterica-chat-card">
+                  <h3>Faction Update: ${faction.name}</h3>
+                  <div class="card-content">
+                    <div style="font-size: 48px; margin: 10px 0;">${newStatus.face}</div>
+                    <div style="font-size: 16px; font-weight: bold; color: ${newStatus.color};">${newStatus.label}</div>
+                    <div style="margin-top: 5px;">Party Reputation: <strong>${faction.reputation}</strong></div>
+                  </div>
+                </div>`
+            });
         }
       }
     }
+  }
+
+  async _onPartyRepChange(event) {
+      event.preventDefault();
+      const factionId = event.currentTarget.dataset.factionId;
+      const value = parseInt(event.currentTarget.value);
+      
+      const settings = game.settings.get('intoterica', 'data');
+      const faction = settings.factions.find(f => f.id === factionId);
+      
+      if (faction) {
+          const oldFactionRep = this._calculateFactionRep(faction);
+          const oldFactionStatus = this._getRepStatus(oldFactionRep);
+
+          faction.partyReputation = value;
+          
+          await this._saveData(settings);
+          this._broadcastUpdate();
+          this.render();
+
+          const newFactionRep = this._calculateFactionRep(faction);
+          const newFactionStatus = this._getRepStatus(newFactionRep);
+
+          if (game.settings.get('intoterica', 'notifyFactions') && oldFactionStatus.label !== newFactionStatus.label) {
+                ChatMessage.create({
+                  content: `
+                    <div class="intoterica-chat-card">
+                      <h3>Faction Update: ${faction.name}</h3>
+                      <div class="card-content">
+                        <div style="font-size: 48px; margin: 10px 0;">${newFactionStatus.face}</div>
+                        <div style="font-size: 16px; font-weight: bold; color: ${newFactionStatus.color};">${newFactionStatus.label}</div>
+                        <div style="margin-top: 5px;">Party Reputation: <strong>${newFactionRep}</strong></div>
+                      </div>
+                    </div>`
+                });
+          }
+      }
   }
 
   async _onMemberRepChange(event) {
@@ -2298,6 +2799,12 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     
     if (member) {
       const oldRep = member.reputation || 0;
+      const oldStatus = this._getRepStatus(oldRep);
+      
+      // Capture old faction rep if autoCalc is on
+      const oldFactionRep = this._calculateFactionRep(faction);
+      const oldFactionStatus = this._getRepStatus(oldFactionRep);
+
       member.reputation = value;
       const delta = value - oldRep;
 
@@ -2305,10 +2812,41 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         await this._saveData(settings);
         this._broadcastUpdate();
         setTimeout(() => this.render(), 50);
-        if (game.settings.get('intoterica', 'notifyFactions')) {
-        ChatMessage.create({
-          content: `<div style="text-align: center; border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;"><h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">Faction Member Update: ${faction.name}</h3><div style="padding: 10px;"><div><strong>${member.name}</strong> Reputation: <strong>${member.reputation}</strong> (${delta > 0 ? '+' : ''}${delta})</div></div></div>`
-        });
+
+        // Member Notification
+        const newStatus = this._getRepStatus(member.reputation);
+        if (game.settings.get('intoterica', 'notifyFactions') && oldStatus.label !== newStatus.label) {
+            ChatMessage.create({
+              content: `
+                <div class="intoterica-chat-card">
+                  <h3>Faction Member Update: ${faction.name}</h3>
+                  <div class="card-content">
+                    <div style="font-size: 48px; margin: 10px 0;">${newStatus.face}</div>
+                    <div style="font-size: 16px; font-weight: bold; color: ${newStatus.color};">${newStatus.label}</div>
+                    <div style="margin-top: 5px;"><strong>${member.name}</strong> Reputation: <strong>${member.reputation}</strong></div>
+                  </div>
+                </div>`
+            });
+        }
+
+        // Faction Notification (if autoCalc changed the overall standing)
+        if (faction.autoCalc) {
+            const newFactionRep = this._calculateFactionRep(faction);
+            const newFactionStatus = this._getRepStatus(newFactionRep);
+            
+            if (game.settings.get('intoterica', 'notifyFactions') && oldFactionStatus.label !== newFactionStatus.label) {
+                ChatMessage.create({
+                  content: `
+                    <div class="intoterica-chat-card">
+                      <h3>Faction Update: ${faction.name}</h3>
+                      <div class="card-content">
+                        <div style="font-size: 48px; margin: 10px 0;">${newFactionStatus.face}</div>
+                        <div style="font-size: 16px; font-weight: bold; color: ${newFactionStatus.color};">${newFactionStatus.label}</div>
+                        <div style="margin-top: 5px;">Party Reputation: <strong>${newFactionRep}</strong></div>
+                      </div>
+                    </div>`
+                });
+            }
         }
       }
     }
@@ -2408,9 +2946,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       if (game.settings.get('intoterica', 'notifyFactions')) {
       ChatMessage.create({
         content: `
-          <div style="border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;">
-            <h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">Faction Update: ${faction.name}</h3>
-            <div style="padding: 10px;">
+          <div class="intoterica-chat-card">
+            <h3>Faction Update: ${faction.name}</h3>
+            <div class="card-content" style="text-align: left;">
               <div style="font-size: 12px; opacity: 0.8;">XP Modifier: x${modifier} (${processedFaction.statusLabel})</div>
               <ul style="margin: 5px 0; padding-left: 20px;">${updates.map(u => `<li>${u}</li>`).join('')}</ul>
             </div>
