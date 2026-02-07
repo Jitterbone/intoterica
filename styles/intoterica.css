@@ -1,7 +1,26 @@
 /* Intoterica - Theming System */
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Roboto+Slab:wght@400;700&family=Cinzel:wght@400;700&family=Crimson+Text:wght@400;700&family=VT323&display=swap');
 
-/* Intoterica Default */
-.intoterica-container.theme-default {
+/* Default (Foundry Standard) */
+.intoterica-container.theme-foundry {
+  --theme-bg: url(/ui/denim075.png);
+  --theme-sidebar: rgba(0, 0, 0, 0.2);
+  --theme-surface: rgba(255, 255, 255, 0.05);
+  --theme-border: #000;
+  --theme-accent: #ff6400;
+  --theme-text: #f0f0e0;
+  --theme-dim: #aaa;
+  --theme-glow: none;
+  --theme-font-main: 'Signika', sans-serif;
+  --theme-font-header: 'Signika', sans-serif;
+  --theme-bg-image: url(/ui/denim075.png);
+  --crt-display: none;
+  --nav-active-bg: rgba(255, 255, 255, 0.15);
+  --nav-active-color: #fff;
+}
+
+/* Access Point (Formerly Default) */
+.intoterica-container.theme-access-point {
   --theme-bg: #f0e6d2;
   --theme-sidebar: #1a2639;
   --theme-surface: #fdf6e3;
@@ -18,8 +37,156 @@
   --nav-active-color: #fff;
 }
 
+/* Soviet Retro Theme */
+.intoterica-container.theme-soviet {
+  --theme-bg: #f3f0e6; /* Off-white Paper */
+  --theme-sidebar: #8b0000; /* Deep Red */
+  --theme-surface: #fffbf0; /* Lighter Off-white */
+  --theme-border: #d4af37; /* Gold */
+  --theme-accent: #cc0000; /* Bright Red */
+  --theme-text: #2a2a2a; /* Dark Ink */
+  --theme-dim: #665c54;
+  --theme-glow: 0 0 0 transparent;
+  --theme-font-main: 'Roboto Slab', serif;
+  --theme-font-header: 'Russo One', sans-serif;
+  --theme-bg-image: none;
+  --crt-display: block;
+  --nav-active-bg: #d4af37;
+  --nav-active-color: #8b0000;
+}
+
+/* Soviet Specific Overrides */
+.intoterica-container.theme-soviet .intoterica-sidebar {
+  border-right: 4px double var(--theme-border);
+  box-shadow: 5px 0 10px rgba(0,0,0,0.2);
+}
+
+.intoterica-container.theme-soviet .intoterica-main {
+  background-image: radial-gradient(#d4af37 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: var(--theme-bg);
+}
+
+.intoterica-container.theme-soviet .nav-item {
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  color: #d4af37;
+}
+
+.intoterica-container.theme-soviet .nav-item:hover {
+  background: rgba(212, 175, 55, 0.1);
+  color: #fff;
+}
+
+.intoterica-container.theme-soviet .nav-item.active {
+  background: var(--theme-border);
+  color: var(--theme-sidebar);
+  border-left: none;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+}
+
+.intoterica-container.theme-soviet .stat-card,
+.intoterica-container.theme-soviet .quest-item,
+.intoterica-container.theme-soviet .faction-card,
+.intoterica-container.theme-soviet .inbox-item {
+  border: 2px solid var(--theme-border);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.1);
+}
+
+/* Dark Fantasy 80s Theme */
+.intoterica-container.theme-dark-fantasy {
+  --theme-bg: #0f0a15; /* Deep Void Purple */
+  --theme-sidebar: #050205; /* Abyssal Black */
+  --theme-surface: #1a1220; /* Dark Stone */
+  --theme-border: #8a6d3b; /* Tarnished Bronze */
+  --theme-accent: #b026ff; /* Neon Magick */
+  --theme-text: #d0c0d0; /* Ghostly White */
+  --theme-dim: #6a5a7a;
+  --theme-glow: 0 0 15px rgba(176, 38, 255, 0.3);
+  --theme-font-main: 'Crimson Text', serif;
+  --theme-font-header: 'Cinzel', serif;
+  --theme-bg-image: radial-gradient(circle at center, #1a1220 0%, #0f0a15 100%);
+  --crt-display: block;
+  --nav-active-bg: linear-gradient(90deg, rgba(138, 109, 59, 0.3), transparent);
+  --nav-active-color: #fff;
+}
+
+/* Dark Fantasy Specific Overrides */
+.intoterica-container.theme-dark-fantasy .intoterica-sidebar {
+  border-right: 1px solid var(--theme-border);
+  box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+}
+
+.intoterica-container.theme-dark-fantasy .nav-item {
+  font-family: 'Cinzel', serif;
+  letter-spacing: 2px;
+}
+
+.intoterica-container.theme-dark-fantasy .nav-item.active {
+  border-left: 3px solid var(--theme-accent);
+  box-shadow: 0 0 15px var(--theme-accent);
+  text-shadow: 0 0 10px var(--theme-accent);
+}
+
+.intoterica-container.theme-dark-fantasy .stat-card,
+.intoterica-container.theme-dark-fantasy .quest-item,
+.intoterica-container.theme-dark-fantasy .faction-card,
+.intoterica-container.theme-dark-fantasy .inbox-item {
+  border: 1px solid var(--theme-border);
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  background: rgba(26, 18, 32, 0.8);
+}
+
+/* Vaporwave Theme */
+.intoterica-container.theme-vaporwave {
+  --theme-bg: #050505; /* Deep Black */
+  --theme-sidebar: #240046; /* Deep Purple */
+  --theme-surface: #111111; /* Dark Grey */
+  --theme-border: #00f0ff; /* Neon Blue */
+  --theme-accent: #00f0ff; /* Neon Blue */
+  --theme-text: #00f0ff; /* Blue Text */
+  --theme-dim: #008f99; /* Blue Dim */
+  --theme-glow: 0 0 10px rgba(0, 240, 255, 0.6);
+  --theme-font-main: 'VT323', monospace;
+  --theme-font-header: 'VT323', monospace;
+  --theme-bg-image: linear-gradient(180deg, #000000 0%, #000000 40%, #4a0028 60%, #b51700 75%, #ff9e00 90%, #ff71ce 100%); /* Sunset Horizon */
+  --crt-display: block;
+  --nav-active-bg: linear-gradient(90deg, rgba(0, 240, 255, 0.3), transparent);
+  --nav-active-color: #fff;
+}
+
+/* Vaporwave Specific Overrides */
+.intoterica-container.theme-vaporwave .intoterica-sidebar {
+  border-right: 2px solid var(--theme-accent);
+  box-shadow: 5px 0 20px rgba(0, 240, 255, 0.2);
+}
+
+.intoterica-container.theme-vaporwave .nav-item {
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+.intoterica-container.theme-vaporwave .nav-item.active {
+  border-left: 3px solid var(--theme-border);
+  box-shadow: 0 0 15px var(--theme-border);
+  text-shadow: 2px 2px 0px #00f0ff;
+}
+
+.intoterica-container.theme-vaporwave .stat-card,
+.intoterica-container.theme-vaporwave .quest-item,
+.intoterica-container.theme-vaporwave .faction-card,
+.intoterica-container.theme-vaporwave .inbox-item {
+  border: 1px solid var(--theme-accent);
+  box-shadow: 4px 4px 0 rgba(0, 240, 255, 0.3);
+  background: rgba(10, 10, 10, 0.9);
+}
+
+.intoterica-container.theme-vaporwave .intoterica-header {
+  background: var(--theme-sidebar);
+}
+
 /* Window Container */
-.intoterica.window-app .window-content {
+.intoterica .window-content {
   background: #000; /* Fallback */
   padding: 0;
   overflow: hidden;
@@ -40,6 +207,16 @@
   z-index: 9999;
   animation: flicker 0.15s steps(2) infinite;
   opacity: 0.4;
+  box-shadow: inset 0 0 6rem rgba(0,0,0,0.6);
+}
+
+/* Bubble Glare Effect */
+.crt-overlay::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 60%);
+  pointer-events: none;
 }
 
 @keyframes flicker {

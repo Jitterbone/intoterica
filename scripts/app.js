@@ -23,7 +23,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   constructor(options = {}) {
     super(options);
-    this.currentView = 'dashboard';
+    this.currentView = game.settings.get('intoterica', 'defaultView') || 'dashboard';
     this.selectedFaction = null;
     this.profileActorId = null;
     this._idleSound = null;
@@ -34,11 +34,47 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   static THEMES = {
     "default": {
-      label: "Intoterica Default",
-      class: "theme-default",
+      label: "Default",
+      class: "theme-foundry",
+      sounds: {
+        idle: null,
+        nav: null,
+        mail: null
+      }
+    },
+    "access-point": {
+      label: "Access Point",
+      class: "theme-access-point",
       sounds: {
         idle: "modules/intoterica/sounds/IntotericaIdle.mp3",
         nav: "modules/intoterica/sounds/NavSound.mp3",
+        mail: "modules/intoterica/sounds/VeilMailSound.mp3"
+      }
+    },
+    "soviet": {
+      label: "Soviet Retro",
+      class: "theme-soviet",
+      sounds: {
+        idle: "modules/intoterica/sounds/VintageRoyaltyFree.mp3",
+        nav: "modules/intoterica/sounds/SovietNavSound.mp3",
+        mail: "modules/intoterica/sounds/VeilMailSound.mp3"
+      }
+    },
+    "dark-fantasy": {
+      label: "Dark Fantasy 80s",
+      class: "theme-dark-fantasy",
+      sounds: {
+        idle: "modules/intoterica/sounds/DarkFantasySynth.mp3",
+        nav: "modules/intoterica/sounds/DarkFantasyNav.mp3",
+        mail: "modules/intoterica/sounds/VeilMailSound.mp3"
+      }
+    },
+    "vaporwave": {
+      label: "Vaporwave",
+      class: "theme-vaporwave",
+      sounds: {
+        idle: "modules/intoterica/sounds/Vaporwave.mp3",
+        nav: "modules/intoterica/sounds/VaporwaveNav.mp3",
         mail: "modules/intoterica/sounds/VeilMailSound.mp3"
       }
     },
@@ -66,6 +102,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     return null;
   }
 
+  static hasPermission(settingKey) {
+    const requiredRole = game.settings.get('intoterica', settingKey);
+    return game.user.role >= requiredRole;
+  }
+
   async close(options = {}) {
     // Stop and clean up idle sound
     if (this._idleSound) {
@@ -81,12 +122,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
     
     if (useWorldClock) {
-      const calendariaModule = game.modules.get('calendaria');
-
       if (window.SimpleCalendar?.api) {
         const date = SimpleCalendar.api.timestampToDate(game.time.worldTime);
         return SimpleCalendar.api.formatDateTime(date);
-      } else if (calendariaModule?.active) {
+      } else if (game.modules.get('calendaria')?.active) {
+        const calendariaModule = game.modules.get('calendaria');
         // Try common locations: window global, game property, or module API
         const cal = window.Calendaria || window.CALENDARIA || game.calendaria || calendariaModule.api;
         
@@ -172,10 +212,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   async _prepareContext(_options) {
     const settings = game.settings.get('intoterica', 'data');
-    const isGM = game.user.isGM;
+    const canManageMail = IntotericaApp.hasPermission('permMail');
 
     // GM: Process Pending Mail from Offline Players
-    if (isGM) {
+    if (canManageMail) {
         let hasUpdates = false;
         for (const user of game.users) {
             const pending = user.getFlag('intoterica', 'pendingOutbox');
@@ -192,18 +232,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
     }
 
-    // Helper: Get Reputation Tier Info
-    const getRepStatus = (rep) => {
-      if (rep <= -80) return { label: "Nemesis", class: "rep-tier-nemesis", face: "👿", xpMod: 0.5, color: "#8b0000" };
-      if (rep <= -50) return { label: "Hostile", class: "rep-tier-hostile", face: "😠", xpMod: 0.75, color: "#ff4500" };
-      if (rep <= -30) return { label: "Unfriendly", class: "rep-tier-unfriendly", face: "😒", xpMod: 0.9, color: "#ffd700" };
-      if (rep <= -10) return { label: "Wary", class: "rep-tier-wary", face: "😕", xpMod: 1.0, color: "#f5f5dc" };
-      if (rep < 10) return { label: "Neutral", class: "rep-tier-neutral", face: "😐", xpMod: 1.0, color: "#ffffff" };
-      if (rep < 30) return { label: "Friendly", class: "rep-tier-friendly", face: "🙂", xpMod: 1.1, color: "#98fb98" };
-      if (rep < 50) return { label: "Allied", class: "rep-tier-allied", face: "😃", xpMod: 1.25, color: "#00ff00" };
-      if (rep < 80) return { label: "Devoted", class: "rep-tier-devoted", face: "😇", xpMod: 1.5, color: "#00bfff" };
-      return { label: "Devoted", class: "rep-tier-devoted", face: "🧞", xpMod: 1.5, color: "#00bfff" };
-    };
+    const userActorId = game.user.character?.id;
 
     // Process Factions (Auto-Calc & Normalization)
     const processedFactions = (settings.factions || []).map(f => {
@@ -229,11 +258,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       }
 
       // Check enlistment eligibility
-      const userActorId = game.user.character?.id;
       const isMember = (f.members || []).some(m => m.id === userActorId);
-      const canEnlist = !isGM && f.autoCalc === false && f.allowEnlistment && userActorId && !isMember;
+      const canEnlist = !canManageMail && f.autoCalc === false && f.allowEnlistment && userActorId && !isMember; // Using mail perm as proxy for GM-like status here, or strictly !isGM? Sticking to !isGM logic for player actions usually implies "Not an admin".
 
-      const status = getRepStatus(currentRep);
+      const status = this._getRepStatus(currentRep);
       const isImage = f.image && (f.image.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.image));
       return { ...f, ranks, reputation: currentRep, statusLabel: status.label, statusClass: status.class, face: status.face, xpMod: status.xpMod, statusColor: status.color, canEnlist, isImage };
     });
@@ -283,18 +311,29 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     // World Clock Logic
     const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
     const clockDisplay = this._getGameDate();
+    
+    // Permissions
+    const perms = {
+        factions: IntotericaApp.hasPermission('permFactions'),
+        quests: IntotericaApp.hasPermission('permQuests'),
+        badges: IntotericaApp.hasPermission('permBadges'),
+        mail: IntotericaApp.hasPermission('permMail'),
+        clock: IntotericaApp.hasPermission('permClock'),
+        profiles: IntotericaApp.hasPermission('permProfiles')
+    };
 
     // Player Overview Logic
     const players = [];
-    const users = game.users.filter(u => !u.isGM && u.character);
-
-    for (const u of users) {
+    
+    for (const u of game.users) {
+      if (u.isGM || !u.character) continue;
+      
       const actor = u.character;
       const isOnline = u.active;
       const isSelf = u.isSelf;
 
-      // GM sees all players. Players see themselves and online players.
-      if (isGM || isSelf || isOnline) {
+      // Admin sees all players. Players see themselves and online players.
+      if (perms.profiles || isSelf || isOnline) {
         const actorId = actor.id;
         const badgesCount = (settings.meritBadges || []).filter(b => (b.earnedBy || []).includes(actorId)).length;
         const factionsCount = (settings.factions || []).filter(f => (f.members || []).some(m => m.id === actorId)).length;
@@ -310,7 +349,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           badgesCount,
           factionsCount,
           unreadMessages,
-          canExpand: isGM || isSelf // Only GM or Self can view full profile
+          canExpand: perms.profiles || isSelf // Only Admin or Self can view full profile
         });
       }
     }
@@ -321,7 +360,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const actor = game.actors.get(this.profileActorId);
       const isOwnCharacter = game.user.character?.id === this.profileActorId;
 
-      if (actor && (isGM || isOwnCharacter)) {
+      if (actor && (perms.profiles || isOwnCharacter)) {
         const actorId = actor.id;
         
         // Get Profile History (Hidden/Added quests)
@@ -386,7 +425,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     // Process Inbox for Current User (Threading)
     let userInbox = [];
     
-    if (isGM) {
+    if (perms.mail) {
       userInbox = settings.inbox || [];
     } else {
       const myActorIds = game.actors.filter(a => a.isOwner).map(a => a.id);
@@ -412,7 +451,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         let displayFrom = msg.from;
         let displayImage = msg.image;
         
-        if (!isGM && msg.fromId && !knownNPCIds.includes(msg.fromId)) {
+        if (!perms.mail && msg.fromId && !knownNPCIds.includes(msg.fromId)) {
             const actor = game.actors.get(msg.fromId);
             if (actor && !actor.hasPlayerOwner) {
                 displayFrom = "Unknown Sender";
@@ -449,13 +488,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (this.currentView === 'mail') {
         const npcs = game.actors.filter(a => !a.hasPlayerOwner).sort((a, b) => a.name.localeCompare(b.name));
         const players = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
-        const availableNPCs = isGM ? npcs : npcs.filter(n => knownNPCIds.includes(n.id));
+        const availableNPCs = perms.mail ? npcs : npcs.filter(n => knownNPCIds.includes(n.id));
         const allRecipients = [...players, ...availableNPCs];
 
         if (this.mailComposeData) {
             const defaults = this.mailComposeData;
             let fromOptions = [];
-            if (isGM) {
+            if (perms.mail) {
                 if (!defaults.fromId && npcs.length > 0) defaults.fromId = npcs[0].id;
                 fromOptions = npcs.map(a => ({id: a.id, name: a.name, selected: a.id === defaults.fromId}));
             } else {
@@ -479,7 +518,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                     // Handle replying to unknown sender (not in allRecipients)
                     if (!actor) {
                         const unknownActor = game.actors.get(id);
-                        if (unknownActor && !unknownActor.hasPlayerOwner && !isGM && !knownNPCIds.includes(id)) {
+                        if (unknownActor && !unknownActor.hasPlayerOwner && !perms.mail && !knownNPCIds.includes(id)) {
                             return { id: id, name: "Unknown Sender", image: "icons/svg/mystery-man.svg", isUnknown: true };
                         }
                         actor = unknownActor;
@@ -505,7 +544,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 id: currentFromActor.id,
                 name: currentFromActor.name,
                 image: currentFromActor.prototypeToken?.texture?.src || currentFromActor.img
-            } : (isGM ? { id: 'gm', name: game.user.name, image: 'icons/svg/mystery-man.svg' } : null);
+            } : (perms.mail ? { id: 'gm', name: game.user.name, image: 'icons/svg/mystery-man.svg' } : null);
 
             mailContext.compose = {
                 fromOptions,
@@ -537,10 +576,24 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
     }
 
+    // Calculate Stats Efficiently
+    let unreadMailCount = 0;
+    if (perms.mail) {
+        unreadMailCount = (settings.inbox || []).filter(m => m.status === 'unread').length;
+    } else {
+        const myActorIds = game.actors.filter(a => a.isOwner).map(a => a.id);
+        unreadMailCount = (settings.inbox || []).filter(m => {
+            if (m.status !== 'unread') return false;
+            const to = Array.isArray(m.to) ? m.to : [m.to];
+            const cc = Array.isArray(m.cc) ? m.cc : [m.cc];
+            return to.some(id => myActorIds.includes(id)) || cc.some(id => myActorIds.includes(id));
+        }).length;
+    }
+
     return {
-      isGM,
+      isGM: perms.mail, // Template uses isGM for many admin controls, mapping to mail perm for now or specific perms below
       clockDisplay,
-      canEditClock: isGM && !useWorldClock,
+      canEditClock: perms.clock && !useWorldClock,
       theme: game.settings.get('intoterica', 'theme'), // Template likely uses theme-{{theme}}
       currentView: this.currentView,
       selectedFaction: this.selectedFaction,
@@ -559,20 +612,50 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       showProfile: this.currentView === 'dashboard' && this.profileActorId,
       stats: {
         activeQuests: activeQuests.length,
-        unreadMail: (settings.inbox || []).filter(m => {
-            const myActorIds = isGM ? [] : game.actors.filter(a => a.isOwner).map(a => a.id);
-            const to = Array.isArray(m.to) ? m.to : [m.to];
-            const cc = Array.isArray(m.cc) ? m.cc : [m.cc];
-            return m.status === 'unread' && (isGM || (to.some(id => myActorIds.includes(id)) || cc.some(id => myActorIds.includes(id))));
-        }).length,
-        earnedBadges: (settings.meritBadges || []).filter(b => b.earned).length
+        unreadMail: unreadMailCount,
+        earnedBadges: (settings.meritBadges || []).filter(b => (b.earnedBy || []).includes(game.user.character?.id)).length
       },
-      worldClock: settings.worldClock || { era: 4, day: 442 }
+      worldClock: settings.worldClock || { era: 4, day: 442 },
+      perms // Pass granular permissions to template
     };
+  }
+
+  _getRepStatus(rep) {
+      if (rep <= -80) return { label: "Nemesis", class: "rep-tier-nemesis", face: "👿", xpMod: 0.5, color: "#8b0000" };
+      if (rep <= -50) return { label: "Hostile", class: "rep-tier-hostile", face: "😠", xpMod: 0.75, color: "#ff4500" };
+      if (rep <= -30) return { label: "Unfriendly", class: "rep-tier-unfriendly", face: "😒", xpMod: 0.9, color: "#ffd700" };
+      if (rep <= -10) return { label: "Wary", class: "rep-tier-wary", face: "😕", xpMod: 1.0, color: "#f5f5dc" };
+      if (rep < 10) return { label: "Neutral", class: "rep-tier-neutral", face: "😐", xpMod: 1.0, color: "#ffffff" };
+      if (rep < 30) return { label: "Friendly", class: "rep-tier-friendly", face: "🙂", xpMod: 1.1, color: "#98fb98" };
+      if (rep < 50) return { label: "Allied", class: "rep-tier-allied", face: "😃", xpMod: 1.25, color: "#00ff00" };
+      if (rep < 80) return { label: "Devoted", class: "rep-tier-devoted", face: "😇", xpMod: 1.5, color: "#00bfff" };
+      return { label: "Devoted", class: "rep-tier-devoted", face: "🧞", xpMod: 1.5, color: "#00bfff" };
   }
 
   async _onRender(_context, _options) {
     const html = $(this.element);
+
+    // Update Window Header with Date (Right Side)
+    if (_context.clockDisplay && this.window?.header) {
+        this.window.title.textContent = IntotericaApp.DEFAULT_OPTIONS.window.title;
+        let dateEl = this.window.header.querySelector('.intoterica-header-date');
+        if (!dateEl) {
+            dateEl = document.createElement('span');
+            dateEl.classList.add('intoterica-header-date');
+            dateEl.style.cssText = "margin-right: 1rem; font-size: 0.85rem; opacity: 0.9; white-space: nowrap;";
+            this.window.title.after(dateEl);
+        }
+        dateEl.textContent = _context.clockDisplay;
+    }
+
+    // Apply Custom CSS if enabled
+    if (game.settings.get('intoterica', 'theme') === 'custom') {
+      const customCSS = game.settings.get('intoterica', 'customCSS');
+      if (customCSS) {
+        html.find('#intoterica-custom-css').remove();
+        html.append(`<style id="intoterica-custom-css">${customCSS}</style>`);
+      }
+    }
 
     // CRITICAL FIX: Prevent form submission globally using the nuclear option
     html.find('form').attr('onsubmit', 'return false;').on('submit', event => {
@@ -595,7 +678,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     }
 
     // Known NPCs Drag & Drop (GM Only)
-    if (this.currentView === 'known-npcs' && game.user.isGM) {
+    if (this.currentView === 'known-npcs' && IntotericaApp.hasPermission('permMail')) {
         const dropZone = html.find('.known-npcs-container')[0];
         if (dropZone) {
             dropZone.addEventListener('dragover', e => e.preventDefault());
@@ -608,7 +691,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (this.currentView === 'mail') {
         html.find('.compose-mail').click(this._onComposeMail.bind(this));
         // Force select value for GM sender to match state
-        if (_context.mailContext?.compose?.currentFrom?.id && game.user.isGM) {
+        if (_context.mailContext?.compose?.currentFrom?.id && IntotericaApp.hasPermission('permMail')) {
              html.find('select[name="fromId"]').val(_context.mailContext.compose.currentFrom.id);
         }
 
@@ -627,7 +710,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             const npcs = game.actors.filter(a => a.type === 'npc').sort((a, b) => a.name.localeCompare(b.name));
             const players = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
             const knownNPCIds = game.settings.get('intoterica', 'data').knownNPCs || [];
-            const availableNPCs = game.user.isGM ? npcs : npcs.filter(n => knownNPCIds.includes(n.id));
+            const availableNPCs = IntotericaApp.hasPermission('permMail') ? npcs : npcs.filter(n => knownNPCIds.includes(n.id));
 
             this._openAddressBook(currentIds, players, availableNPCs, (newIds) => {
                 this.mailComposeData[target] = newIds;
@@ -712,7 +795,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             <div class="quest-content">
               <div class="quest-header">
                 <div class="quest-title">${q.title}</div>
-                ${game.user.isGM ? `<i class="fas fa-trash remove-profile-quest" title="Remove from Report" style="margin-left: auto; color: #c92a2a; cursor: pointer; z-index: 10;"></i>` : ''}
+                ${IntotericaApp.hasPermission('permQuests') ? `<i class="fas fa-trash remove-profile-quest" title="Remove from Report" style="margin-left: auto; color: #c92a2a; cursor: pointer; z-index: 10;"></i>` : ''}
               </div>
               <div class="quest-status ${statusClass}">${statusClass.charAt(0).toUpperCase() + statusClass.slice(1)}</div>
             </div>
@@ -723,7 +806,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const reportHtml = `
         <div class="section-header" style="margin-top: 2rem;">
             <div class="section-title">Mission Report</div>
-            ${game.user.isGM ? `<button type="button" class="add-legacy-quest" style="font-size: 12px;"><i class="fas fa-plus"></i> Add Entry</button>` : ''}
+            ${IntotericaApp.hasPermission('permQuests') ? `<button type="button" class="add-legacy-quest" style="font-size: 12px;"><i class="fas fa-plus"></i> Add Entry</button>` : ''}
         </div>
         <div class="content-grid two-column" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
           <div class="report-column">
@@ -750,32 +833,37 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         });
       }
       
-      if (game.user.isGM) {
+      if (IntotericaApp.hasPermission('permQuests')) {
           content.find('.remove-profile-quest').click(this._onRemoveProfileQuest.bind(this));
           content.find('.add-legacy-quest').click(this._onAddLegacyQuest.bind(this));
       }
     }
 
-    // GM-only controls
-    if (game.user.isGM) {
-      if (this._onAddBadge) html.find('.add-badge').click(this._onAddBadge.bind(this));
-      if (this._onManageBadge) html.find('.manage-badge').click(this._onManageBadge.bind(this));
-      if (this._onEditBadge) html.find('.edit-badge').click(this._onEditBadge.bind(this));
-      if (this._onAddQuest) html.find('.add-quest').click(this._onAddQuest.bind(this));
-      if (this._onCompleteQuest) html.find('.complete-quest').click(this._onCompleteQuest.bind(this));
-      if (this._onEditQuest) html.find('.edit-quest').click(this._onEditQuest.bind(this));
-      if (this._onAdjustReputation) html.find('.adjust-reputation').click(this._onAdjustReputation.bind(this));
-      if (this._onAddFaction) html.find('.add-faction').click(this._onAddFaction.bind(this));
-      if (this._onAddMember) html.find('.add-member').click(this._onAddMember.bind(this));
-      if (this._onComposeMail) html.find('.compose-mail').click(this._onComposeMail.bind(this));
-      if (this._onEditClock) html.find('.edit-clock').click(this._onEditClock.bind(this));
-      if (this._onAwardXP) html.find('.award-xp').click(this._onAwardXP.bind(this));
-      if (this._onToggleAutoRep) html.find('.toggle-auto-rep').change(this._onToggleAutoRep.bind(this));
-      if (this._onMemberRepChange) html.find('.member-rep-slider').change(this._onMemberRepChange.bind(this));
-      if (this._onFactionRepSliderChange) html.find('.faction-rep-slider').change(this._onFactionRepSliderChange.bind(this));
-      if (this._onEditFaction) html.find('.edit-faction').click(this._onEditFaction.bind(this));
-      if (this._onEnlistFaction) html.find('.enlist-faction').click(this._onEnlistFaction.bind(this));
-      if (this._onRemoveMember) html.find('.remove-member').click(this._onRemoveMember.bind(this));
+    // Permission-based controls
+    if (IntotericaApp.hasPermission('permBadges')) {
+      html.find('.add-badge').click(this._onAddBadge.bind(this));
+      html.find('.manage-badge').click(this._onManageBadge.bind(this));
+      html.find('.edit-badge').click(this._onEditBadge.bind(this));
+    }
+    if (IntotericaApp.hasPermission('permQuests')) {
+      html.find('.add-quest').click(this._onAddQuest.bind(this));
+      html.find('.complete-quest').click(this._onCompleteQuest.bind(this));
+      html.find('.edit-quest').click(this._onEditQuest.bind(this));
+    }
+    if (IntotericaApp.hasPermission('permFactions')) {
+      html.find('.adjust-reputation').click(this._onAdjustReputation.bind(this));
+      html.find('.add-faction').click(this._onAddFaction.bind(this));
+      html.find('.add-member').click(this._onAddMember.bind(this));
+      html.find('.award-xp').click(this._onAwardXP.bind(this));
+      html.find('.toggle-auto-rep').change(this._onToggleAutoRep.bind(this));
+      html.find('.member-rep-slider').change(this._onMemberRepChange.bind(this));
+      html.find('.faction-rep-slider').change(this._onFactionRepSliderChange.bind(this));
+      html.find('.edit-faction').click(this._onEditFaction.bind(this));
+      html.find('.enlist-faction').click(this._onEnlistFaction.bind(this));
+      html.find('.remove-member').click(this._onRemoveMember.bind(this));
+    }
+    if (IntotericaApp.hasPermission('permClock')) {
+      html.find('.edit-clock').click(this._onEditClock.bind(this));
     }
 
     // Start idle sound if enabled (Async - do not await to prevent blocking UI)
@@ -785,7 +873,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (enableSounds && !this._idleSound && soundPath) {
       foundry.audio.AudioHelper.play({
         src: soundPath,
-        volume: 0.2,
+        volume: game.settings.get('intoterica', 'volumeAmbience'),
         loop: true
       }, false).then(sound => {
         this._idleSound = sound;
@@ -799,7 +887,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     event.preventDefault();
     if (game.settings.get('intoterica', 'enableSounds')) {
       const soundPath = IntotericaApp.getSoundPath('nav');
-      if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: 0.8, autoplay: true, loop: false}, true);
+      const volume = game.settings.get('intoterica', 'volumeInterface');
+      if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: volume, autoplay: true, loop: false}, true);
     }
     this.currentView = event.currentTarget.dataset.view;
     this.profileActorId = null;
@@ -811,7 +900,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const actorId = event.currentTarget.dataset.actorId;
     const targetUser = game.users.find(u => u.character?.id === actorId);
     
-    if (game.user.isGM || (targetUser && targetUser.isSelf)) {
+    if (IntotericaApp.hasPermission('permProfiles') || (targetUser && targetUser.isSelf)) {
       this.profileActorId = actorId;
       this.render();
     }
@@ -846,7 +935,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this.mailComposeData = null;
     this.render();
     
-    if (!game.user.isGM) {
+    if (!IntotericaApp.hasPermission('permMail')) {
         game.socket.emit('module.intoterica', {
             type: 'dispatch',
             action: 'readMessage',
@@ -932,7 +1021,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         this.mailViewSubject = null;
     }
     
-    await game.settings.set('intoterica', 'data', settings);
+    await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
     ui.notifications.info("Message deleted.");
@@ -948,7 +1037,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       if (!settings.closedThreads.includes(normalizedSubject)) {
           settings.closedThreads.push(normalizedSubject);
       }
-      await game.settings.set('intoterica', 'data', settings);
+      await this._saveData(settings);
       this._broadcastUpdate();
       this.render();
   }
@@ -959,7 +1048,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const settings = game.settings.get('intoterica', 'data');
       const normalizedSubject = this.mailViewSubject.toString().replace(/^(Re:\s*)+/i, '').trim().toLowerCase();
       settings.closedThreads = (settings.closedThreads || []).filter(s => s !== normalizedSubject);
-      await game.settings.set('intoterica', 'data', settings);
+      await this._saveData(settings);
       this._broadcastUpdate();
       this.render();
   }
@@ -979,7 +1068,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (actor && !actor.hasPlayerOwner && !known.includes(actorId)) {
         known.push(actorId);
         settings.knownNPCs = known;
-        await game.settings.set('intoterica', 'data', settings);
+        await this._saveData(settings);
         this._broadcastUpdate();
         this.render();
         ui.notifications.info(`${actor.name} added to Known NPCs.`);
@@ -991,7 +1080,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const id = event.currentTarget.dataset.id;
       const settings = game.settings.get('intoterica', 'data');
       settings.knownNPCs = (settings.knownNPCs || []).filter(k => k !== id);
-      await game.settings.set('intoterica', 'data', settings);
+      await this._saveData(settings);
       this._broadcastUpdate();
       this.render();
   }
@@ -1059,7 +1148,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     };
     
     settings.meritBadges.push(newBadge);
-    await game.settings.set('intoterica', 'data', settings);
+    await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
     ui.notifications.info(`Badge "${data.name}" created`);
@@ -1093,7 +1182,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             const newlyAwarded = newEarnedBy.filter(id => !previousEarned.includes(id));
             
             badge.earnedBy = newEarnedBy;
-            await game.settings.set('intoterica', 'data', settings);
+            await this._saveData(settings);
             this._broadcastUpdate();
             this.render();
             
@@ -1108,6 +1197,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   _sendBadgeNotifications(badge, actorIds) {
+      if (!game.settings.get('intoterica', 'notifyBadges')) return;
+
       const isImage = badge.icon && (badge.icon.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(badge.icon));
       
       actorIds.forEach(actorId => {
@@ -1170,7 +1261,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             badge.description = formData.description;
             badge.icon = formData.icon;
 
-            await game.settings.set('intoterica', 'data', settings);
+            await this._saveData(settings);
             this._broadcastUpdate();
             this.render();
           }
@@ -1180,7 +1271,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             label: "Delete",
             callback: async () => {
                 settings.meritBadges = settings.meritBadges.filter(b => b.id !== badgeId);
-                await game.settings.set('intoterica', 'data', settings);
+                await this._saveData(settings);
                 this._broadcastUpdate();
                 this.render();
             }
@@ -1260,7 +1351,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     };
     
     settings.quests.push(newQuest);
-    await game.settings.set('intoterica', 'data', settings);
+    await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
     ui.notifications.info(`Quest "${data.title}" created`);
@@ -1273,11 +1364,94 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const quest = settings.quests.find(q => q.id === questId);
     if (quest) {
       quest.status = 'Completed';
-      await game.settings.set('intoterica', 'data', settings);
+      await this._saveData(settings);
       this._broadcastUpdate();
       this.render();
       ui.notifications.info(`Quest "${quest.title}" completed`);
     }
+  }
+
+  async _onEditQuest(event) {
+    event.preventDefault();
+    const questId = event.currentTarget.dataset.questId;
+    const settings = game.settings.get('intoterica', 'data');
+    const quest = settings.quests.find(q => q.id === questId);
+    if (!quest) return;
+
+    new Dialog({
+      title: "Edit Quest",
+      content: `
+        <form class="intoterica-form">
+          <div class="form-group">
+            <label>Quest Title</label>
+            <input type="text" name="title" value="${quest.title}" placeholder="Enter quest title" autofocus />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <textarea name="description" placeholder="Quest details" rows="4">${quest.description}</textarea>
+          </div>
+          <div class="form-group">
+            <label>Image URL</label>
+            <div style="display: flex; gap: 5px;">
+                <input type="text" name="image" value="${quest.image || ''}" placeholder="path/to/image.webp" />
+                <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Difficulty</label>
+            <select name="difficulty">
+              <option value="Easy" ${quest.difficulty === 'Easy' ? 'selected' : ''}>Easy</option>
+              <option value="Medium" ${quest.difficulty === 'Medium' ? 'selected' : ''}>Medium</option>
+              <option value="Hard" ${quest.difficulty === 'Hard' ? 'selected' : ''}>Hard</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select name="status">
+              <option value="Active" ${quest.status === 'Active' ? 'selected' : ''}>Active</option>
+              <option value="Completed" ${quest.status === 'Completed' ? 'selected' : ''}>Completed</option>
+              <option value="Failed" ${quest.status === 'Failed' ? 'selected' : ''}>Failed</option>
+            </select>
+          </div>
+        </form>
+      `,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: "Save",
+          callback: async (html) => {
+            const form = html[0].querySelector('form');
+            const formData = new FormDataExtended(form).object;
+            
+            quest.title = formData.title;
+            quest.description = formData.description;
+            quest.difficulty = formData.difficulty;
+            quest.status = formData.status;
+            quest.image = formData.image;
+
+            await this._saveData(settings);
+            this._broadcastUpdate();
+            this.render();
+          }
+        },
+        delete: {
+            icon: '<i class="fas fa-trash"></i>',
+            label: "Delete",
+            callback: async () => {
+                settings.quests = settings.quests.filter(q => q.id !== questId);
+                await this._saveData(settings);
+                this._broadcastUpdate();
+                this.render();
+            }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      render: (html) => { html.find('.file-picker').click(ev => new FilePicker({ type: "image", callback: (path) => html.find('input[name="image"]').val(path) }).render(true)); },
+      default: "save"
+    }).render(true);
   }
 
   async _onAdjustReputation(event) {
@@ -1293,14 +1467,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const actualDelta = faction.reputation - oldRep;
 
       if (actualDelta !== 0) {
-        await game.settings.set('intoterica', 'data', settings);
+        await this._saveData(settings);
         this._broadcastUpdate();
         this.selectedFaction = faction;
         this.render();
 
+        if (game.settings.get('intoterica', 'notifyFactions')) {
         ChatMessage.create({
           content: `<div style="text-align: center; border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;"><h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">Faction Update: ${faction.name}</h3><div style="padding: 10px;"><div>Party Reputation: <strong>${faction.reputation}</strong> (${actualDelta > 0 ? '+' : ''}${actualDelta})</div></div></div>`
         });
+        }
       }
     }
   }
@@ -1436,7 +1612,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     };
     
     settings.factions.push(newFaction);
-    await game.settings.set('intoterica', 'data', settings);
+    await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
     ui.notifications.info(`Faction "${data.name}" created`);
@@ -1583,7 +1759,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     faction.allowEnlistment = data.allowEnlistment;
     faction.ranks = ranks;
 
-    await game.settings.set('intoterica', 'data', settings);
+    await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
   }
@@ -1591,7 +1767,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   async _deleteFaction(factionId) {
       const settings = game.settings.get('intoterica', 'data');
       settings.factions = settings.factions.filter(f => f.id !== factionId);
-      await game.settings.set('intoterica', 'data', settings);
+      await this._saveData(settings);
       this.selectedFaction = null;
       this._broadcastUpdate();
       this.render();
@@ -1652,7 +1828,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         reputation: 0
       });
       
-      await game.settings.set('intoterica', 'data', settings);
+      await this._saveData(settings);
       this._broadcastUpdate();
       this.selectedFaction = faction;
       this.render();
@@ -1670,7 +1846,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       
       if (faction) {
           faction.members = faction.members.filter(m => m.id !== memberId);
-          await game.settings.set('intoterica', 'data', settings);
+          await this._saveData(settings);
           this._broadcastUpdate();
           this.render();
       }
@@ -1683,7 +1859,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const faction = settings.factions.find(f => f.id === factionId);
     const actor = game.user.character;
     
-    if (!game.user.isGM) {
+    if (!IntotericaApp.hasPermission('permFactions')) {
         game.socket.emit('module.intoterica', {
             type: 'dispatch',
             action: 'enlistFaction',
@@ -1702,7 +1878,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             xp: 0,
             reputation: 0
         });
-        await game.settings.set('intoterica', 'data', settings);
+        await this._saveData(settings);
         this._broadcastUpdate();
         this.render();
         ui.notifications.info(`Enlisted in ${faction.name}!`);
@@ -1724,7 +1900,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             xp: 0,
             reputation: 0
         });
-        await game.settings.set('intoterica', 'data', settings);
+        await this._saveData(settings);
         this._broadcastUpdate();
     }
   }
@@ -1876,7 +2052,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       status: "unread"
     };
     
-    if (!game.user.isGM) {
+    if (!IntotericaApp.hasPermission('permMail')) {
         if (!game.users.some(u => u.isGM && u.active)) {
             // Queue message for later delivery
             const pending = game.user.getFlag('intoterica', 'pendingOutbox') || [];
@@ -1898,7 +2074,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     settings.inbox.unshift(newMessage);
 
-    await game.settings.set('intoterica', 'data', settings);
+    await this._saveData(settings);
     this._broadcastUpdate({ action: 'newMessage' });
     this.render();
     
@@ -1925,6 +2101,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const recipients = Array.isArray(data.to) ? data.to : [data.to];
     const recipientUsers = game.users.filter(u => u.character && recipients.includes(u.character.id));
     
+    if (game.settings.get('intoterica', 'notifyMail')) {
+    
     recipientUsers.forEach(u => {
         ChatMessage.create({
             content: `
@@ -1940,9 +2118,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 </div>
             `,
             whisper: [u.id],
-            sound: IntotericaApp.getSoundPath('mail')
+            sound: null // Sound handled by socket/AudioHelper with volume control
         });
     });
+    }
 
     ui.notifications.info(`Mail sent!`);
   }
@@ -1977,7 +2156,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               era: parseInt(formData.era),
               day: parseInt(formData.day)
             };
-            await game.settings.set('intoterica', 'data', settings);
+            await this._saveData(settings);
             this._broadcastUpdate();
             this.render();
           }
@@ -2011,7 +2190,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         if (!history.hidden.includes(questId)) history.hidden.push(questId);
     }
     
-    await game.settings.set('intoterica', 'data', settings);
+    await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
   }
@@ -2056,7 +2235,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             
             const newQuest = { id: foundry.utils.randomID(), title: formData.title, status: formData.status, image: formData.image, isManual: true };
             settings.profileHistory[this.profileActorId].added.push(newQuest);
-            await game.settings.set('intoterica', 'data', settings);
+            await this._saveData(settings);
             this._broadcastUpdate();
             this.render();
           }
@@ -2076,7 +2255,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     
     if (faction) {
       faction.autoCalc = isAuto;
-      await game.settings.set('intoterica', 'data', settings);
+      await this._saveData(settings);
       this._broadcastUpdate();
       this.render();
     }
@@ -2094,13 +2273,15 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const delta = value - oldRep;
 
       if (delta !== 0) {
-        await game.settings.set('intoterica', 'data', settings);
+        await this._saveData(settings);
         this._broadcastUpdate();
         if (this.selectedFaction && this.selectedFaction.id === factionId) this.selectedFaction.reputation = value;
         setTimeout(() => this.render(), 50);
+        if (game.settings.get('intoterica', 'notifyFactions')) {
         ChatMessage.create({
           content: `<div style="text-align: center; border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;"><h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">Faction Update: ${faction.name}</h3><div style="padding: 10px;"><div>Party Reputation: <strong>${faction.reputation}</strong> (${delta > 0 ? '+' : ''}${delta})</div></div></div>`
         });
+        }
       }
     }
   }
@@ -2121,12 +2302,14 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const delta = value - oldRep;
 
       if (delta !== 0) {
-        await game.settings.set('intoterica', 'data', settings);
+        await this._saveData(settings);
         this._broadcastUpdate();
         setTimeout(() => this.render(), 50);
+        if (game.settings.get('intoterica', 'notifyFactions')) {
         ChatMessage.create({
           content: `<div style="text-align: center; border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;"><h3 style="background: #3b6ea5; color: #fff; margin: 0; padding: 5px; border-bottom: 1px solid #1a2639;">Faction Member Update: ${faction.name}</h3><div style="padding: 10px;"><div><strong>${member.name}</strong> Reputation: <strong>${member.reputation}</strong> (${delta > 0 ? '+' : ''}${delta})</div></div></div>`
         });
+        }
       }
     }
   }
@@ -2218,10 +2401,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     });
 
     if (updates.length > 0) {
-      await game.settings.set('intoterica', 'data', settings);
+      await this._saveData(settings);
       this._broadcastUpdate();
       this.render();
       
+      if (game.settings.get('intoterica', 'notifyFactions')) {
       ChatMessage.create({
         content: `
           <div style="border: 2px solid #3b6ea5; border-radius: 5px; overflow: hidden;">
@@ -2232,7 +2416,19 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             </div>
           </div>`
       });
+      }
       ui.notifications.info(`Awarded ${finalXP} XP to ${updates.length} members.`);
+    }
+  }
+
+  // Helper to save data, routing through socket if user is not GM
+  async _saveData(settings) {
+    if (game.user.isGM) {
+        await game.settings.set('intoterica', 'data', settings);
+    } else {
+        // Non-GMs cannot write to world settings directly
+        // Emit socket event for GM to handle the save
+        game.socket.emit('module.intoterica', { type: 'dispatch', action: 'updateData', payload: settings });
     }
   }
 
@@ -2253,7 +2449,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   static async handleDispatch(data) {
-    if (!game.user.isGM) return;
+    if (!game.user.isGM) return; // Only GMs can execute writes to world settings
     
     // Use existing instance if available, otherwise create temporary one for method access
     const instance = IntotericaApp._instance || new IntotericaApp();
@@ -2267,6 +2463,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             break;
         case 'enlistFaction':
             await instance._performEnlistFaction(data.payload.factionId, data.payload.actorId);
+            break;
+        case 'updateData':
+            await game.settings.set('intoterica', 'data', data.payload);
+            instance._broadcastUpdate();
             break;
     }
   }

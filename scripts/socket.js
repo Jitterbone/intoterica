@@ -3,7 +3,8 @@ export const initializeSocket = () => {
     if (data.type === 'update') {
       if (data.action === 'newMessage' && game.settings.get('intoterica', 'enableSounds')) {
         const soundPath = window.IntotericaApp ? window.IntotericaApp.getSoundPath('mail') : game.settings.get('intoterica', 'soundMail');
-        if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: 0.8, autoplay: true, loop: false}, false);
+        const volume = game.settings.get('intoterica', 'volumeNotification');
+        if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: volume, autoplay: true, loop: false}, false);
       }
       
       // Access the app instance via the window object to avoid circular dependencies
