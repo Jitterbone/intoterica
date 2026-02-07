@@ -519,6 +519,22 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 this.render();
             });
         });
+
+        // GM From Selection Change
+        html.find('select[name="fromId"]').change(ev => {
+            if (this.mailComposeData) {
+                this.mailComposeData.fromId = ev.target.value;
+                this.render();
+            }
+        });
+
+        // Input preservation on re-render
+        html.find('input[name="subject"]').on('input', ev => {
+             if (this.mailComposeData) this.mailComposeData.subject = ev.target.value;
+        });
+        html.find('textarea[name="body"]').on('input', ev => {
+             if (this.mailComposeData) this.mailComposeData.body = ev.target.value;
+        });
     }
 
     // View switching (available to all users)
