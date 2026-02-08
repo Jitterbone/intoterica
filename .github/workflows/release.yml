@@ -16,7 +16,7 @@ jobs:
     # Zip the module directory (excluding git and github files)
     - name: Zip Module
       run: |
-        zip -r module.zip . -x ".git/*" ".github/*" "node_modules/*" ".gitignore"
+        zip -r module.zip . -x ".git/*" ".github/*" "node_modules/*" ".gitignore" "*.mp3" "*.psd"
 
     # Create Release and Upload Assets
     - name: Create Release
