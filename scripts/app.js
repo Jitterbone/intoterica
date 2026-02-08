@@ -1,7 +1,7 @@
 export class IntotericaApp extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
-  static VERSION = "0.9.8-beta.2";
+  static VERSION = "0.9.8-beta.3";
 
   static DEFAULT_OPTIONS = {
     id: "intoterica",
@@ -268,30 +268,41 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         ranks = ranks.map(r => ({ name: r, xp: 0, modifier: 1.0 }));
       }
 
-      // Auto-Calculate Reputation if enabled
-      let currentRep = f.reputation;
-      if (f.autoCalc) {
-        // If auto-calc is on, 'reputation' is the calculated value.
-        // We use 'partyReputation' for the base "Party" slider value.
-        let totalWeightedRep = 0;
-        let totalWeights = 0;
-        
-        // 1. Weighted Members
-        (f.members || []).forEach(m => {
-          const rankData = ranks[m.rank] || { modifier: 1.0 };
-          const weight = rankData.modifier || 1.0;
-          totalWeightedRep += (m.reputation || 0) * weight;
-          totalWeights += weight;
-        });
-        
-        // 2. Party Reputation (x1 Modifier)
-        const partyRep = f.partyReputation || 0;
-        totalWeightedRep += partyRep * 1.0;
-        totalWeights += 1.0;
-
-        currentRep = totalWeights > 0 ? Math.round(totalWeightedRep / totalWeights) : 0;
-        currentRep = Math.max(-100, Math.min(100, currentRep));
+      // Auto-Calculate Reputation (Always Active)
+      let partyRep = f.partyReputation;
+      if (f.autoCalc === false) {
+          partyRep = f.reputation;
       }
+      if (partyRep === undefined) partyRep = 0;
+
+      let totalWeightedRep = 0;
+      let totalWeights = 0;
+      
+      // 1. Weighted Members (Players Only)
+      const playerMembers = (f.members || []).filter(m => m.type === 'Player');
+      const npcMembers = (f.members || []).filter(m => m.type !== 'Player');
+
+      playerMembers.forEach(m => {
+        const rankData = ranks[m.rank] || { modifier: 1.0 };
+        const rankMod = rankData.modifier !== undefined ? rankData.modifier : 1.0;
+        const weight = 1.0 + rankMod;
+        totalWeightedRep += (m.reputation || 0) * weight;
+        totalWeights += weight;
+      });
+      
+      // 2. Party Reputation
+      const totalPCs = game.users.filter(u => !u.isGM && u.character).length;
+      const enlistedCount = playerMembers.length;
+      let partyWeight = Math.max(0, totalPCs - enlistedCount);
+      if (totalPCs === 0 && enlistedCount === 0) partyWeight = 1.0; // Fallback for setup
+
+      if (partyWeight > 0) {
+          totalWeightedRep += partyRep * partyWeight;
+          totalWeights += partyWeight;
+      }
+
+      let currentRep = totalWeights > 0 ? Math.round(totalWeightedRep / totalWeights) : 0;
+      currentRep = Math.max(-100, Math.min(100, currentRep));
 
       // Check enlistment eligibility
       const isMember = (f.members || []).some(m => m.id === userActorId);
@@ -300,10 +311,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const status = this._getRepStatus(currentRep);
       const isImage = f.image && (f.image.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.image));
       
-      // Split members for UI
-      const playerMembers = (f.members || []).filter(m => m.type === 'Player');
-      const npcMembers = (f.members || []).filter(m => m.type !== 'Player');
-
       return { 
           ...f, ranks, reputation: currentRep, 
           partyReputation: f.partyReputation || 0,
@@ -735,8 +742,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   _calculateFactionRep(faction) {
-    if (!faction.autoCalc) return faction.reputation;
-
     let ranks = faction.ranks || [];
     // Normalize Ranks (Handle legacy string arrays vs new object arrays)
     if (ranks.length > 0 && typeof ranks[0] === 'string') {
@@ -746,18 +751,33 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     let totalWeightedRep = 0;
     let totalWeights = 0;
     
-    // 1. Weighted Members
-    (faction.members || []).forEach(m => {
+    // 1. Weighted Members (Players Only)
+    const playerMembers = (faction.members || []).filter(m => m.type === 'Player');
+    
+    playerMembers.forEach(m => {
       const rankData = ranks[m.rank] || { modifier: 1.0 };
-      const weight = rankData.modifier || 1.0;
+      const rankMod = rankData.modifier !== undefined ? rankData.modifier : 1.0;
+      const weight = 1.0 + rankMod;
       totalWeightedRep += (m.reputation || 0) * weight;
       totalWeights += weight;
     });
     
-    // 2. Party Reputation (x1 Modifier)
-    const partyRep = faction.partyReputation || 0;
-    totalWeightedRep += partyRep * 1.0;
-    totalWeights += 1.0;
+    // 2. Party Reputation
+    let partyRep = faction.partyReputation;
+    if (faction.autoCalc === false) {
+        partyRep = faction.reputation;
+    }
+    if (partyRep === undefined) partyRep = 0;
+
+    const totalPCs = game.users.filter(u => !u.isGM && u.character).length;
+    const enlistedCount = playerMembers.length;
+    let partyWeight = Math.max(0, totalPCs - enlistedCount);
+    if (totalPCs === 0 && enlistedCount === 0) partyWeight = 1.0; // Fallback for setup
+
+    if (partyWeight > 0) {
+        totalWeightedRep += partyRep * partyWeight;
+        totalWeights += partyWeight;
+    }
 
     let currentRep = totalWeights > 0 ? Math.round(totalWeightedRep / totalWeights) : 0;
     return Math.max(-100, Math.min(100, currentRep));
@@ -1156,12 +1176,19 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
       if (tab === 'overview') {
           // Reputation Slider Logic (Auto or Manual)
-          const isAuto = faction.autoCalc;
-          const repValue = isAuto ? faction.partyReputation : faction.reputation;
+          let repValue = faction.partyReputation;
+          if (faction.autoCalc === false) {
+              repValue = faction.reputation;
+          }
+          if (repValue === undefined) repValue = 0;
+
           const repStatus = this._getRepStatus(repValue);
-          const sliderClass = isAuto ? 'party-rep-slider' : 'faction-rep-slider';
-          const label = isAuto ? 'Party Reputation (Global)' : 'Faction Reputation';
-          const subLabel = isAuto ? 'Weighed at x1. Counts for non-enlisted players.' : 'Manual control of faction standing.';
+          const sliderClass = 'party-rep-slider';
+          const label = 'Party Reputation (Global)';
+          
+          const totalPCs = game.users.filter(u => !u.isGM && u.character).length;
+          const partyWeight = Math.max(0, totalPCs - faction.playerMembers.length);
+          const subLabel = `Represents non-enlisted party members (Weight: ${partyWeight}).`;
           
           contentHtml = `
             <div class="faction-description" style="margin-bottom: 1.5rem; white-space: pre-wrap;">${faction.description || "No description provided."}</div>
@@ -1990,63 +2017,37 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     
     const faction = settings.factions.find(f => f.id === factionId);
     if (faction) {
-      // Handle Auto-Calc: Adjust Party Rep instead of base Rep
-      if (faction.autoCalc) {
-          const oldRep = this._calculateFactionRep(faction);
-          const oldStatus = this._getRepStatus(oldRep);
-          
-          faction.partyReputation = (faction.partyReputation || 0) + delta;
-          
-          await this._saveData(settings);
-          this._broadcastUpdate();
-          this.selectedFaction = faction;
-          this.render();
-          
-          const newRep = this._calculateFactionRep(faction);
-          const newStatus = this._getRepStatus(newRep);
-
-          if (game.settings.get('intoterica', 'notifyFactions') && oldStatus.label !== newStatus.label) {
-            ChatMessage.create({
-              content: `
-                <div class="intoterica-chat-card">
-                  <h3>Faction Update: ${faction.name}</h3>
-                  <div class="card-content">
-                    <div style="font-size: 48px; margin: 10px 0;">${newStatus.face}</div>
-                    <div style="font-size: 16px; font-weight: bold; color: ${newStatus.color};">${newStatus.label}</div>
-                    <div style="margin-top: 5px;">Party Reputation: <strong>${newRep}</strong></div>
-                  </div>
-                </div>`
-            });
-          }
-          return;
+      // Migration: If currently manual, migrate rep to partyReputation first
+      if (faction.autoCalc === false) {
+          faction.partyReputation = faction.reputation;
+          faction.autoCalc = true;
       }
 
-      const oldRep = faction.reputation;
+      const oldRep = this._calculateFactionRep(faction);
       const oldStatus = this._getRepStatus(oldRep);
-      faction.reputation = Math.max(-100, Math.min(100, faction.reputation + delta));
-      const actualDelta = faction.reputation - oldRep;
+      
+      faction.partyReputation = (faction.partyReputation || 0) + delta;
+      
+      await this._saveData(settings);
+      this._broadcastUpdate();
+      this.selectedFaction = faction;
+      this.render();
+      
+      const newRep = this._calculateFactionRep(faction);
+      const newStatus = this._getRepStatus(newRep);
 
-      if (actualDelta !== 0) {
-        await this._saveData(settings);
-        this._broadcastUpdate();
-        this.selectedFaction = faction;
-        this.render();
-        
-        const newStatus = this._getRepStatus(faction.reputation);
-
-        if (game.settings.get('intoterica', 'notifyFactions') && oldStatus.label !== newStatus.label) {
-            ChatMessage.create({
-              content: `
-                <div class="intoterica-chat-card">
-                  <h3>Faction Update: ${faction.name}</h3>
-                  <div class="card-content">
-                    <div style="font-size: 48px; margin: 10px 0;">${newStatus.face}</div>
-                    <div style="font-size: 16px; font-weight: bold; color: ${newStatus.color};">${newStatus.label}</div>
-                    <div style="margin-top: 5px;">Party Reputation: <strong>${faction.reputation}</strong></div>
-                  </div>
-                </div>`
-            });
-        }
+      if (game.settings.get('intoterica', 'notifyFactions') && oldStatus.label !== newStatus.label) {
+        ChatMessage.create({
+          content: `
+            <div class="intoterica-chat-card">
+              <h3>Faction Update: ${faction.name}</h3>
+              <div class="card-content">
+                <div style="font-size: 48px; margin: 10px 0;">${newStatus.face}</div>
+                <div style="font-size: 16px; font-weight: bold; color: ${newStatus.color};">${newStatus.label}</div>
+                <div style="margin-top: 5px;">Party Reputation: <strong>${newRep}</strong></div>
+              </div>
+            </div>`
+        });
       }
     }
   }
@@ -3037,6 +3038,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const faction = settings.factions.find(f => f.id === factionId);
       
       if (faction) {
+          if (faction.autoCalc === false) {
+              faction.partyReputation = faction.reputation;
+              faction.autoCalc = true;
+          }
+
           const oldFactionRep = this._calculateFactionRep(faction);
           const oldFactionStatus = this._getRepStatus(oldFactionRep);
 
@@ -3087,6 +3093,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const delta = value - oldRep;
 
       if (delta !== 0) {
+        if (faction.autoCalc === false) {
+            faction.partyReputation = faction.reputation;
+            faction.autoCalc = true;
+        }
+
         await this._saveData(settings);
         this._broadcastUpdate();
         setTimeout(() => this.render(), 50);
@@ -3107,24 +3118,22 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             });
         }
 
-        // Faction Notification (if autoCalc changed the overall standing)
-        if (faction.autoCalc) {
-            const newFactionRep = this._calculateFactionRep(faction);
-            const newFactionStatus = this._getRepStatus(newFactionRep);
-            
-            if (game.settings.get('intoterica', 'notifyFactions') && oldFactionStatus.label !== newFactionStatus.label) {
-                ChatMessage.create({
-                  content: `
-                    <div class="intoterica-chat-card">
-                      <h3>Faction Update: ${faction.name}</h3>
-                      <div class="card-content">
-                        <div style="font-size: 48px; margin: 10px 0;">${newFactionStatus.face}</div>
-                        <div style="font-size: 16px; font-weight: bold; color: ${newFactionStatus.color};">${newFactionStatus.label}</div>
-                        <div style="margin-top: 5px;">Party Reputation: <strong>${newFactionRep}</strong></div>
-                      </div>
-                    </div>`
-                });
-            }
+        // Faction Notification
+        const newFactionRep = this._calculateFactionRep(faction);
+        const newFactionStatus = this._getRepStatus(newFactionRep);
+        
+        if (game.settings.get('intoterica', 'notifyFactions') && oldFactionStatus.label !== newFactionStatus.label) {
+            ChatMessage.create({
+              content: `
+                <div class="intoterica-chat-card">
+                  <h3>Faction Update: ${faction.name}</h3>
+                  <div class="card-content">
+                    <div style="font-size: 48px; margin: 10px 0;">${newFactionStatus.face}</div>
+                    <div style="font-size: 16px; font-weight: bold; color: ${newFactionStatus.color};">${newFactionStatus.label}</div>
+                    <div style="margin-top: 5px;">Party Reputation: <strong>${newFactionRep}</strong></div>
+                  </div>
+                </div>`
+            });
         }
       }
     }

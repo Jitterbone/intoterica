@@ -1,4 +1,4 @@
-# Intoterica (Beta 0.9.8-beta.2)
+# Intoterica (Beta 0.9.8-beta.3)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jitterbone)
 
@@ -23,6 +23,13 @@ A native Foundry VTT campaign management system for tracking quests, factions, a
 - **Enlistment:** Players can enlist in factions (if allowed)
 - **Auto-Calculation:** Option to calculate faction standing based on member ranks
 - **Visuals:** Dynamic icons and reputation faces
+
+### 🧮 Reputation Logic
+Faction standing is a weighted average of the **Party** and **Enlisted Members**:
+
+1. **Party Reputation:** Represents non-enlisted players. Its influence (weight) decreases as more players enlist.
+2. **Enlisted Members:** Players who enlist carry their own weight, boosted by their Rank. Higher ranks have more influence on the faction's overall opinion.
+3. **NPCs:** NPC members do not affect the calculation.
 
 ### 🏆 Achievements (Merit Badges)
 - Create custom badges with images and descriptions

@@ -3,6 +3,7 @@ export const initializeSocket = () => {
     if (data.type === 'update') {
       if (data.action === 'newMessage' && game.settings.get('intoterica', 'enableSounds')) {
         const soundPath = window.IntotericaApp ? window.IntotericaApp.getSoundPath('mail') : game.settings.get('intoterica', 'soundMail');
+        let volume = game.settings.get('intoterica', 'volumeNotification');
         
         // Apply Theme Scale
         if (window.IntotericaApp) {
