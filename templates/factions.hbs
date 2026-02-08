@@ -49,6 +49,9 @@
                   <button class="adjust-reputation" data-faction-id="{{selectedFaction.id}}" data-delta="10">+10</button>
                 </div>
               {{/if}}
+              {{#if selectedFaction.canEnlist}}
+                <button class="enlist-faction" data-faction-id="{{selectedFaction.id}}" style="margin-top: 10px; width: 100%;"><i class="fas fa-signature"></i> Enlist</button>
+              {{/if}}
             </div>
           </div>
 

@@ -1,7 +1,7 @@
 export class IntotericaApp extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
-  static VERSION = "0.9.8-beta.1";
+  static VERSION = "0.9.8-beta.2";
 
   static DEFAULT_OPTIONS = {
     id: "intoterica",
@@ -38,6 +38,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this._idleSound = null;
     this.mailComposeData = null;
     this.mailViewSubject = null;
+    this._isClosing = false;
     IntotericaApp._instance = this;
   }
 
@@ -121,6 +122,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   async close(options = {}) {
+    this._isClosing = true;
     // Save window state
     if (this.position) {
         const state = {
@@ -293,7 +295,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
       // Check enlistment eligibility
       const isMember = (f.members || []).some(m => m.id === userActorId);
-      const canEnlist = !canManageMail && f.autoCalc === false && f.allowEnlistment && userActorId && !isMember; // Using mail perm as proxy for GM-like status here, or strictly !isGM? Sticking to !isGM logic for player actions usually implies "Not an admin".
+      const canEnlist = !canManageMail && f.allowEnlistment && userActorId && !isMember; // Using mail perm as proxy for GM-like status here, or strictly !isGM? Sticking to !isGM logic for player actions usually implies "Not an admin".
 
       const status = this._getRepStatus(currentRep);
       const isImage = f.image && (f.image.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.image));
@@ -463,12 +465,40 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           })),
           factions: processedFactions.filter(f => (f.members || []).some(m => m.id === actorId)).map(f => {
             const member = f.members.find(m => m.id === actorId);
+            
+            // Calculate Progress
+            let progress = 0;
+            let showProgress = false;
+            let nextRankName = "";
+            let nextRankXP = 0;
+            const currentXP = member ? (member.xp || 0) : 0;
+            
+            if (member && f.ranks.length > 0) {
+                const currentRankIdx = member.rank;
+                if (currentRankIdx < f.ranks.length - 1) {
+                    const currentRankXP = f.ranks[currentRankIdx].xp || 0;
+                    const nextRank = f.ranks[currentRankIdx + 1];
+                    nextRankXP = nextRank.xp || 0;
+                    
+                    if (nextRankXP > currentRankXP) {
+                        progress = Math.min(100, Math.max(0, ((currentXP - currentRankXP) / (nextRankXP - currentRankXP)) * 100));
+                        showProgress = true;
+                        nextRankName = nextRank.name;
+                    }
+                }
+            }
+
             return {
               id: f.id,
               name: f.name,
               image: f.image,
               isImage: f.isImage,
-              rank: member ? (f.ranks[member.rank]?.name || member.rank) : ''
+              rank: member ? (f.ranks[member.rank]?.name || member.rank) : '',
+              xp: currentXP,
+              progress: Math.round(progress),
+              showProgress,
+              nextRankName,
+              nextRankXP
             };
           }),
           messages: (settings.inbox || []).filter(m => {
@@ -938,6 +968,39 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       }
     }
 
+    // Inject Faction Progress Bars in Profile
+    if (this.profileActorId && _context.profile) {
+        const profileFactions = _context.profile.factions;
+        const miniCards = html.find('.mini-card');
+        
+        miniCards.each((i, el) => {
+            const card = $(el);
+            const title = card.find('.mini-title').text().trim();
+            const factionData = profileFactions.find(f => f.name === title);
+            
+            if (factionData && factionData.showProgress) {
+                if (card.find('.faction-progress-wrapper').length) return;
+                
+                const progressHtml = `
+                    <div class="faction-progress-wrapper" title="Next Rank: ${factionData.nextRankName} (${factionData.xp} / ${factionData.nextRankXP} XP)">
+                        <div class="faction-rank-labels">
+                            <span class="rank-current">${factionData.rank}</span>
+                            <span class="rank-next">${factionData.nextRankName}</span>
+                        </div>
+                        <div class="faction-xp-row">
+                            <span class="xp-current">${factionData.xp}</span>
+                            <div class="faction-progress-track">
+                                <div class="faction-progress-fill" style="width: ${factionData.progress}%"></div>
+                            </div>
+                            <span class="xp-next">${factionData.nextRankXP}</span>
+                        </div>
+                    </div>
+                `;
+                card.children('div').last().append(progressHtml);
+            }
+        });
+    }
+
     // Inject Profile "Mission Report" (Completed/Failed Quests)
     if (this.profileActorId && _context.profile) {
       const content = html.find('.intoterica-content');
@@ -1025,7 +1088,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const enableSounds = game.settings.get('intoterica', 'enableSounds');
     const soundPath = IntotericaApp.getSoundPath('idle');
 
-    if (enableSounds && !this._idleSound && soundPath) {
+    if (enableSounds && !this._idleSound && soundPath && !this._isClosing) {
       const themeKey = game.settings.get('intoterica', 'theme');
       const themeConfig = IntotericaApp.THEMES[themeKey];
       let volume = game.settings.get('intoterica', 'volumeAmbience');
@@ -1039,6 +1102,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         volume: volume,
         loop: true
       }, false).then(sound => {
+        if (this._isClosing) {
+            sound.stop();
+            return;
+        }
         this._idleSound = sound;
       }).catch(err => {
         console.warn("Intoterica | Error playing idle sound:", err);
