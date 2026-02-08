@@ -16,6 +16,21 @@ export const registerSettings = () => {
     }
   });
 
+  // Faction XP Setting
+  game.settings.register('intoterica', 'enableFactionXP', {
+    name: 'Enable Faction XP',
+    hint: 'If enabled, player ranks are determined by XP. If disabled, GMs manually adjust ranks.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => {
+      Object.values(ui.windows).forEach(app => {
+        if (app.constructor.name === "IntotericaApp") app.render();
+      });
+    }
+  });
+
   // Visual Theme Setting
   game.settings.register('intoterica', 'theme', {
     name: 'Interface Theme',
@@ -136,7 +151,7 @@ export const registerSettings = () => {
     config: true,
     type: String,
     filePicker: "audio",
-    default: "modules/intoterica/sounds/IntotericaIdle.mp3"
+    default: "modules/intoterica/sounds/IntotericaIdle.ogg"
   });
 
   game.settings.register('intoterica', 'soundNav', {
@@ -146,7 +161,7 @@ export const registerSettings = () => {
     config: true,
     type: String,
     filePicker: "audio",
-    default: "modules/intoterica/sounds/NavSound.mp3"
+    default: "modules/intoterica/sounds/NavSound.ogg"
   });
 
   game.settings.register('intoterica', 'soundMail', {
@@ -156,7 +171,7 @@ export const registerSettings = () => {
     config: true,
     type: String,
     filePicker: "audio",
-    default: "modules/intoterica/sounds/VeilMailSound.mp3"
+    default: "modules/intoterica/sounds/VeilMailSound.ogg"
   });
 
   // Notification Toggles

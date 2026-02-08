@@ -30,6 +30,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this.profileActorId = null;
     this.activeFactionTab = 'overview';
     this.isEditingRanks = false;
+    this.isEditingMembers = false;
     this._idleSound = null;
     this.mailComposeData = null;
     this.mailViewSubject = null;
@@ -50,9 +51,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       label: "Access Point",
       class: "theme-access-point",
       sounds: {
-        idle: "modules/intoterica/sounds/IntotericaIdle.mp3",
-        nav: "modules/intoterica/sounds/NavSound.mp3",
-        mail: "modules/intoterica/sounds/VeilMailSound.mp3"
+        idle: "modules/intoterica/sounds/IntotericaIdle.ogg",
+        nav: "modules/intoterica/sounds/NavSound.ogg",
+        mail: "modules/intoterica/sounds/VeilMailSound.ogg"
       },
       volumeScale: 2.0
     },
@@ -60,27 +61,28 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       label: "Soviet Retro",
       class: "theme-soviet",
       sounds: {
-        idle: "modules/intoterica/sounds/VintageRoyaltyFree.mp3",
-        nav: "modules/intoterica/sounds/SovietNavSound.mp3",
-        mail: "modules/intoterica/sounds/VeilMailSound.mp3"
-      }
+        idle: "modules/intoterica/sounds/VintageRoyaltyFree.ogg",
+        nav: "modules/intoterica/sounds/SovietNavSound.ogg",
+        mail: "modules/intoterica/sounds/VeilMailSound.ogg"
+      },
+      volumeScale: 0.5
     },
     "dark-fantasy": {
       label: "Dark Fantasy 80s",
       class: "theme-dark-fantasy",
       sounds: {
-        idle: "modules/intoterica/sounds/DarkFantasySynth.mp3",
-        nav: "modules/intoterica/sounds/DarkFantasyNav.mp3",
-        mail: "modules/intoterica/sounds/VeilMailSound.mp3"
+        idle: "modules/intoterica/sounds/DarkFantasySynth.ogg",
+        nav: "modules/intoterica/sounds/DarkFantasyNav.ogg",
+        mail: "modules/intoterica/sounds/VeilMailSound.ogg"
       }
     },
     "vaporwave": {
       label: "Vaporwave",
       class: "theme-vaporwave",
       sounds: {
-        idle: "modules/intoterica/sounds/Vaporwave.mp3",
-        nav: "modules/intoterica/sounds/VaporwaveNav.mp3",
-        mail: "modules/intoterica/sounds/VeilMailSound.mp3"
+        idle: "modules/intoterica/sounds/Vaporwave.ogg",
+        nav: "modules/intoterica/sounds/VaporwaveNav.ogg",
+        mail: "modules/intoterica/sounds/VeilMailSound.ogg"
       }
     },
     "custom": {
@@ -977,6 +979,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
       const isGM = IntotericaApp.hasPermission('permFactions');
       const tab = this.activeFactionTab;
+      const enableFactionXP = game.settings.get('intoterica', 'enableFactionXP');
 
       // 1. Header
       const headerHtml = `
@@ -1000,7 +1003,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const tabsHtml = `
         <div class="faction-tabs">
             <div class="faction-tab ${tab === 'overview' ? 'active' : ''}" data-tab="overview">Overview</div>
-            <div class="faction-tab ${tab === 'npcs' ? 'active' : ''}" data-tab="npcs">Members (NPC)</div>
+            <div class="faction-tab ${tab === 'npcs' ? 'active' : ''}" data-tab="npcs">Members</div>
             <div class="faction-tab ${tab === 'ranks' ? 'active' : ''}" data-tab="ranks">Ranks</div>
         </div>
       `;
@@ -1031,7 +1034,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
             <div class="section-header">
                 <div class="section-title" style="font-size: 16px;">Player Members</div>
-                ${isGM ? `<button type="button" class="award-xp" style="font-size: 11px;"><i class="fas fa-star"></i> Award XP</button>` : ''}
+                ${isGM ? (enableFactionXP ? 
+                    `<button type="button" class="award-xp" style="font-size: 11px;"><i class="fas fa-star"></i> Award XP</button>` : 
+                    `<button type="button" class="adjust-player-rank" style="font-size: 11px;"><i class="fas fa-layer-group"></i> Adjust Rank</button>`
+                ) : ''}
             </div>
             
             <div class="member-card-grid">
@@ -1058,36 +1064,94 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             </div>
           `;
       } else if (tab === 'npcs') {
+          const isEditing = this.isEditingMembers && isGM;
+
           contentHtml = `
             <div class="section-header">
-                <div class="section-title" style="font-size: 16px;">NPC Members</div>
-                <div style="font-size: 11px; opacity: 0.7;">${isGM ? 'Drag actors here to add' : ''}</div>
-            </div>
-            <div class="npc-drop-zone" style="min-height: 200px; border: 2px dashed var(--theme-dim); border-radius: 4px; padding: 10px;">
-                <div class="member-card-grid">
-                    ${faction.npcMembers.map(m => {
-                        const actor = game.actors.get(m.id);
-                        const img = actor?.img || "icons/svg/mystery-man.svg";
-                        return `
-                        <div class="member-card-small">
-                            <div class="member-card-header">
-                                <img src="${img}" class="member-card-img">
-                                <div style="overflow: hidden;">
-                                    <div style="font-weight: bold;">${m.name}</div>
-                                </div>
-                                ${isGM ? `<i class="fas fa-times remove-member" data-faction-id="${faction.id}" data-member-id="${m.id}" style="margin-left: auto; cursor: pointer; color: #c92a2a;"></i>` : ''}
-                            </div>
-                            <div style="margin-top: 5px;">
-                                <select class="update-member-rank" data-faction-id="${faction.id}" data-member-id="${m.id}" ${!isGM ? 'disabled' : ''} style="font-size: 11px; padding: 2px;">
-                                    ${faction.ranks.map((r, i) => `<option value="${i}" ${m.rank === i ? 'selected' : ''}>${r.name}</option>`).join('')}
-                                </select>
-                            </div>
-                        </div>`;
-                    }).join('')}
-                </div>
-                ${faction.npcMembers.length === 0 ? '<div style="text-align: center; padding: 20px; opacity: 0.5;">No NPC members</div>' : ''}
+                <div class="section-title" style="font-size: 16px;">Faction Hierarchy</div>
+                ${isGM ? `
+                    <button type="button" class="toggle-member-edit" style="font-size: 11px;">
+                        ${isEditing ? '<i class="fas fa-check"></i> Done' : '<i class="fas fa-edit"></i> Manage NPCs'}
+                    </button>
+                ` : ''}
             </div>
           `;
+
+          if (isEditing) {
+              contentHtml += `
+                <div class="npc-drop-zone" style="min-height: 200px; border: 2px dashed var(--theme-dim); border-radius: 4px; padding: 10px;">
+                    <div style="font-size: 11px; opacity: 0.7; margin-bottom: 10px; text-align: center;">Drag actors here to add NPCs.</div>
+                    <div class="member-card-grid">
+                        ${faction.npcMembers.map(m => {
+                            const actor = game.actors.get(m.id);
+                            const img = actor?.img || "icons/svg/mystery-man.svg";
+                            return `
+                            <div class="member-card-small">
+                                <div class="member-card-header">
+                                    <img src="${img}" class="member-card-img">
+                                    <div style="overflow: hidden;">
+                                        <div style="font-weight: bold;">${m.name}</div>
+                                    </div>
+                                    <i class="fas fa-times remove-member" data-faction-id="${faction.id}" data-member-id="${m.id}" style="margin-left: auto; cursor: pointer; color: #c92a2a;"></i>
+                                </div>
+                                <div style="margin-top: 5px;">
+                                    <select class="update-member-rank" data-faction-id="${faction.id}" data-member-id="${m.id}" style="font-size: 11px; padding: 2px; width: 100%;">
+                                        ${faction.ranks.map((r, i) => `<option value="${i}" ${m.rank === i ? 'selected' : ''}>${r.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                    ${faction.npcMembers.length === 0 ? '<div style="text-align: center; padding: 20px; opacity: 0.5;">No NPC members</div>' : ''}
+                </div>
+              `;
+          } else {
+              const ranksReversed = [...faction.ranks].map((r, i) => ({...r, index: i})).reverse();
+              contentHtml += `<div class="hierarchy-tree" style="display: flex; flex-direction: column; gap: 10px;">`;
+              
+              ranksReversed.forEach(rank => {
+                  const membersInRank = (faction.members || []).filter(m => m.rank === rank.index);
+                  contentHtml += `
+                    <div class="rank-tier" style="border: 1px solid var(--theme-border); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.05);">
+                        <div class="rank-tier-header" style="font-weight: bold; border-bottom: 1px solid var(--theme-border); margin-bottom: 5px; padding-bottom: 2px; font-size: 12px; display: flex; justify-content: space-between;">
+                            <span>${rank.name}</span>
+                            <span style="opacity: 0.6; font-size: 10px;">XP: ${rank.xp}</span>
+                        </div>
+                        <div class="member-card-grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+                            ${membersInRank.map(m => {
+                                const actor = game.actors.get(m.id);
+                                const img = actor?.img || "icons/svg/mystery-man.svg";
+                                const isPlayer = m.type === 'Player';
+                                const canEditRank = isGM && (!isPlayer || !enableFactionXP);
+
+                                return `
+                                <div class="member-card-small" style="${isPlayer ? 'border: 1px solid var(--color-text-hyperlink);' : ''}">
+                                    <div class="member-card-header">
+                                        <img src="${img}" class="member-card-img">
+                                        <div style="overflow: hidden;">
+                                            <div style="font-weight: bold; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.name}</div>
+                                            <div style="font-size: 9px; opacity: 0.7;">${isPlayer ? 'Player' : 'NPC'}</div>
+                                        </div>
+                                    </div>
+                                    ${canEditRank ? `
+                                    <div style="margin-top: 5px;">
+                                        <select class="update-member-rank" data-faction-id="${faction.id}" data-member-id="${m.id}" style="font-size: 10px; padding: 1px; width: 100%;">
+                                            ${faction.ranks.map((r, i) => `<option value="${i}" ${m.rank === i ? 'selected' : ''}>${r.name}</option>`).join('')}
+                                        </select>
+                                    </div>` : `
+                                    <div style="margin-top: 5px; font-size: 10px; opacity: 0.8;">
+                                        ${faction.ranks[m.rank]?.name || 'Rank ' + m.rank}
+                                    </div>
+                                    `}
+                                </div>`;
+                            }).join('')}
+                            ${membersInRank.length === 0 ? '<div style="font-size: 10px; opacity: 0.5; padding: 5px;">No members</div>' : ''}
+                        </div>
+                    </div>
+                  `;
+              });
+              contentHtml += `</div>`;
+          }
       } else if (tab === 'ranks') {
           const isEditing = this.isEditingRanks && isGM;
           
@@ -1165,6 +1229,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           container.find('.add-rank-btn').click(this._onAddRank.bind(this));
           container.find('.delete-rank-btn').click(this._onDeleteRank.bind(this));
           container.find('.toggle-rank-edit').click(this._onToggleRankEdit.bind(this));
+          container.find('.toggle-member-edit').click(this._onToggleMemberEdit.bind(this));
+          container.find('.adjust-player-rank').click(this._onAdjustPlayerRank.bind(this));
       }
   }
 
@@ -1219,6 +1285,12 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   _onToggleRankEdit(event) {
     event.preventDefault();
     this.isEditingRanks = !this.isEditingRanks;
+    this.render();
+  }
+
+  _onToggleMemberEdit(event) {
+    event.preventDefault();
+    this.isEditingMembers = !this.isEditingMembers;
     this.render();
   }
 
@@ -2244,6 +2316,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const faction = settings.factions.find(f => f.id === this.selectedFaction.id);
       const member = faction?.members.find(m => m.id === memberId);
       
+      const enableFactionXP = game.settings.get('intoterica', 'enableFactionXP');
+      if (member && member.type === 'Player' && enableFactionXP) return;
+
       if (member) {
           member.rank = rankIdx;
           await this._saveData(settings);
@@ -2961,6 +3036,82 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     }
   }
 
+  async _onAdjustPlayerRank(event) {
+    event.preventDefault();
+    const settings = game.settings.get('intoterica', 'data');
+    const faction = settings.factions.find(f => f.id === this.selectedFaction.id);
+    if (!faction) return;
+
+    const playerMembers = faction.members.filter(m => m.type === 'Player');
+    if (playerMembers.length === 0) {
+        ui.notifications.warn("No player members in this faction.");
+        return;
+    }
+
+    new Dialog({
+      title: "Adjust Player Rank",
+      content: `
+        <form class="intoterica-form">
+          <div class="form-group">
+            <label>Select Player</label>
+            <select name="memberId">
+              ${playerMembers.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>New Rank</label>
+            <select name="rankIdx">
+              ${faction.ranks.map((r, i) => `<option value="${i}">${r.name}</option>`).join('')}
+            </select>
+          </div>
+        </form>
+      `,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: "Update",
+          callback: async (html) => {
+            const form = html[0].querySelector('form');
+            const formData = new FormDataExtended(form).object;
+            await this._processRankAdjustment(faction.id, formData.memberId, parseInt(formData.rankIdx));
+          }
+        }
+      },
+      default: "save"
+    }).render(true);
+  }
+
+  async _processRankAdjustment(factionId, memberId, newRankIdx) {
+      const settings = game.settings.get('intoterica', 'data');
+      const faction = settings.factions.find(f => f.id === factionId);
+      const member = faction?.members.find(m => m.id === memberId);
+      
+      if (member && faction.ranks[newRankIdx]) {
+          const oldRankName = faction.ranks[member.rank]?.name || member.rank;
+          const newRankName = faction.ranks[newRankIdx].name;
+          
+          member.rank = newRankIdx;
+          
+          await this._saveData(settings);
+          this._broadcastUpdate();
+          this.render();
+          
+          if (game.settings.get('intoterica', 'notifyFactions')) {
+              ChatMessage.create({
+                  content: `
+                    <div class="intoterica-chat-card">
+                      <h3>Faction Promotion: ${faction.name}</h3>
+                      <div class="card-content">
+                        <div style="font-size: 14px; margin-bottom: 5px;"><strong>${member.name}</strong></div>
+                        <div>Rank adjusted from <strong>${oldRankName}</strong> to <strong>${newRankName}</strong></div>
+                      </div>
+                    </div>`
+              });
+          }
+          ui.notifications.info(`Updated ${member.name}'s rank to ${newRankName}.`);
+      }
+  }
+
   // Helper to save data, routing through socket if user is not GM
   async _saveData(settings) {
     if (game.user.isGM) {
@@ -3032,7 +3183,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 // Expose the application class globally so macros and other scripts can access it.
 if (typeof window !== 'undefined') window.IntotericaApp = IntotericaApp;
 
-Hooks.on('ready', () => {
+Hooks.on('ready', async () => {
   $(document).on('click', '.intoterica-open-inbox', (event) => {
     event.preventDefault();
     const messageId = event.currentTarget.dataset.messageId;
@@ -3040,4 +3191,15 @@ Hooks.on('ready', () => {
       window.IntotericaApp.openInbox(messageId);
     }
   });
+
+  // Migration: Update audio settings from mp3 to ogg
+  const audioSettings = ['soundIdle', 'soundNav', 'soundMail'];
+  for (const key of audioSettings) {
+    const val = game.settings.get('intoterica', key);
+    if (val && typeof val === 'string' && val.includes('modules/intoterica/sounds/') && val.endsWith('.mp3')) {
+      const newVal = val.replace('.mp3', '.ogg');
+      console.log(`Intoterica | Migrating setting ${key} from .mp3 to .ogg`);
+      await game.settings.set('intoterica', key, newVal);
+    }
+  }
 });
