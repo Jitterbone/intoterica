@@ -23,5 +23,6 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         allowUpdates: true
+        removeArtifacts: true
         artifacts: "module.zip,module.json"
         token: ${{ secrets.GITHUB_TOKEN }}

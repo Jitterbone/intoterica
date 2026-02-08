@@ -74,7 +74,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         idle: "modules/intoterica/sounds/DarkFantasySynth.ogg",
         nav: "modules/intoterica/sounds/DarkFantasyNav.ogg",
         mail: "modules/intoterica/sounds/VeilMailSound.ogg"
-      }
+      },
+      volumeScale: 1.0
     },
     "vaporwave": {
       label: "Vaporwave",
@@ -83,7 +84,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         idle: "modules/intoterica/sounds/Vaporwave.ogg",
         nav: "modules/intoterica/sounds/VaporwaveNav.ogg",
         mail: "modules/intoterica/sounds/VeilMailSound.ogg"
-      }
+      },
+      volumeScale: 1.0
     },
     "custom": {
       label: "Custom Configuration",
