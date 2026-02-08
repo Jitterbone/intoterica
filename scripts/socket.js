@@ -3,7 +3,16 @@ export const initializeSocket = () => {
     if (data.type === 'update') {
       if (data.action === 'newMessage' && game.settings.get('intoterica', 'enableSounds')) {
         const soundPath = window.IntotericaApp ? window.IntotericaApp.getSoundPath('mail') : game.settings.get('intoterica', 'soundMail');
-        const volume = game.settings.get('intoterica', 'volumeNotification');
+        
+        // Apply Theme Scale
+        if (window.IntotericaApp) {
+            const themeKey = game.settings.get('intoterica', 'theme');
+            const themeConfig = window.IntotericaApp.THEMES[themeKey];
+            if (themeConfig && themeConfig.volumeScale) {
+                volume = Math.min(1.0, volume * themeConfig.volumeScale);
+            }
+        }
+        
         if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: volume, autoplay: true, loop: false}, false);
       }
       

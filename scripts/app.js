@@ -1,7 +1,7 @@
 export class IntotericaApp extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
-  static VERSION = "0.9.8-beta";
+  static VERSION = "0.9.8-beta.1";
 
   static DEFAULT_OPTIONS = {
     id: "intoterica",
@@ -89,7 +89,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         nav: "modules/intoterica/sounds/VaporwaveNav.ogg",
         mail: "modules/intoterica/sounds/VeilMailSound.ogg"
       },
-      volumeScale: 1.0
+      volumeScale: 0.5
     },
     "custom": {
       label: "Custom Configuration",
@@ -484,6 +484,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       }
     }
 
+    // Helper to check if message is unread for current user
+    const userId = game.user.id;
+    const isMsgUnread = (m) => {
+        if (Array.isArray(m.readBy)) return !m.readBy.includes(userId);
+        return m.status === 'unread';
+    };
+
     // Process Inbox for Current User (Threading)
     let userInbox = [];
     
@@ -535,9 +542,12 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     const displayInbox = Object.values(threads).map(threadMsgs => {
       let latest = threadMsgs.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+      // Thread is unread if ANY message in it is unread for this user
+      const isThreadUnread = threadMsgs.some(isMsgUnread);
       latest = getMessageDisplayData(latest);
       return {
         ...latest,
+        status: isThreadUnread ? 'unread' : 'read', // Override status for display
         isImage: latest.image && (latest.image.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(latest.image))
       };
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -641,11 +651,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     // Calculate Stats Efficiently
     let unreadMailCount = 0;
     if (perms.mail) {
-        unreadMailCount = (settings.inbox || []).filter(m => m.status === 'unread').length;
+        unreadMailCount = (settings.inbox || []).filter(isMsgUnread).length;
     } else {
         const myActorIds = game.actors.filter(a => a.isOwner).map(a => a.id);
         unreadMailCount = (settings.inbox || []).filter(m => {
-            if (m.status !== 'unread') return false;
+            if (!isMsgUnread(m)) return false;
             const to = Array.isArray(m.to) ? m.to : [m.to];
             const cc = Array.isArray(m.cc) ? m.cc : [m.cc];
             return to.some(id => myActorIds.includes(id)) || cc.some(id => myActorIds.includes(id));
@@ -1305,8 +1315,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     event.preventDefault();
     if (game.settings.get('intoterica', 'enableSounds')) {
       const soundPath = IntotericaApp.getSoundPath('nav');
-      const volume = game.settings.get('intoterica', 'volumeInterface');
-      if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: volume, autoplay: true, loop: false}, true);
+      let volume = game.settings.get('intoterica', 'volumeInterface');
+      
+      // Apply Theme Scale
+      const themeKey = game.settings.get('intoterica', 'theme');
+      const themeConfig = IntotericaApp.THEMES[themeKey];
+      if (themeConfig && themeConfig.volumeScale) {
+          volume = Math.min(1.0, volume * themeConfig.volumeScale);
+      }
+      
+      if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: volume, autoplay: true, loop: false}, false);
     }
     this.currentView = event.currentTarget.dataset.view;
     this.profileActorId = null;
@@ -1391,35 +1409,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         game.socket.emit('module.intoterica', {
             type: 'dispatch',
             action: 'readMessage',
-            payload: { messageId }
+            payload: { messageId, userId: game.user.id }
         });
         return;
     }
 
-    // Find Thread
-    const normalizedSubject = this.mailViewSubject.replace(/^(Re:\s*)+/i, '').trim().toLowerCase();
-    const threadMessages = settings.inbox.filter(m => {
-        const mSubject = m.subject || "(No Subject)";
-        return mSubject.toString().replace(/^(Re:\s*)+/i, '').trim().toLowerCase() === normalizedSubject;
-    }).sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Mark all as read for this user
-    let updated = false;
-    threadMessages.forEach(m => {
-        if (m.status === 'unread') {
-            m.status = 'read';
-            updated = true;
-        }
-    });
-
-    if (updated) {
-      await game.settings.set('intoterica', 'data', settings); 
-      this._broadcastUpdate();
-      this.render();
-    }
+    await this._performReadMessage(messageId, game.user.id);
+    this.render();
   }
 
-  async _performReadMessage(messageId) {
+  async _performReadMessage(messageId, userId) {
     const settings = game.settings.get('intoterica', 'data');
     const message = settings.inbox.find(m => m.id === messageId);
     if (!message) return;
@@ -1432,8 +1431,18 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     let updated = false;
     threadMessages.forEach(m => {
-        if (m.status === 'unread') {
-            m.status = 'read';
+        // Initialize readBy if missing (Migration)
+        if (!Array.isArray(m.readBy)) {
+            // If legacy status was 'read', assume read by everyone to prevent old mail appearing unread
+            if (m.status === 'read') {
+                m.readBy = game.users.map(u => u.id);
+            } else {
+                m.readBy = [];
+            }
+        }
+
+        if (!m.readBy.includes(userId)) {
+            m.readBy.push(userId);
             updated = true;
         }
     });
@@ -2685,6 +2694,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       subject: data.subject,
       body: data.body,
       date: data.date || this._getGameDate(),
+      readBy: [],
       status: "unread"
     };
     
@@ -2716,7 +2726,15 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     // Play sound locally since socket doesn't loop back
     if (game.settings.get('intoterica', 'enableSounds')) {
         const soundPath = IntotericaApp.getSoundPath('mail');
-        const volume = game.settings.get('intoterica', 'volumeNotification');
+        let volume = game.settings.get('intoterica', 'volumeNotification');
+        
+        // Apply Theme Scale
+        const themeKey = game.settings.get('intoterica', 'theme');
+        const themeConfig = IntotericaApp.THEMES[themeKey];
+        if (themeConfig && themeConfig.volumeScale) {
+            volume = Math.min(1.0, volume * themeConfig.volumeScale);
+        }
+        
         if (soundPath) foundry.audio.AudioHelper.play({src: soundPath, volume: volume, autoplay: true, loop: false}, false);
     }
     this.render();
@@ -3266,7 +3284,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             await instance._sendMail(data.payload);
             break;
         case 'readMessage':
-            await instance._performReadMessage(data.payload.messageId);
+            await instance._performReadMessage(data.payload.messageId, data.payload.userId);
             break;
         case 'enlistFaction':
             await instance._performEnlistFaction(data.payload.factionId, data.payload.actorId);

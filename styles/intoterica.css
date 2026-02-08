@@ -4,20 +4,45 @@
 /* Default (Foundry Standard) */
 .intoterica-container.theme-foundry,
 .intoterica-chat-card.theme-foundry {
-  --theme-bg: url(/ui/denim075.png);
-  --theme-sidebar: rgba(0, 0, 0, 0.2);
-  --theme-surface: rgba(255, 255, 255, 0.05);
-  --theme-border: #000;
+  --theme-bg: #f0f0e0 url(/ui/parchment.jpg) repeat;
+  --theme-sidebar: rgba(0, 0, 0, 0.05);
+  --theme-surface: rgba(255, 255, 255, 0.5);
+  --theme-border: #782e22;
   --theme-accent: #ff6400;
-  --theme-text: #f0f0e0;
-  --theme-dim: #aaa;
+  --theme-text: #191813;
+  --theme-dim: #4b4a44;
   --theme-glow: none;
   --theme-font-main: 'Signika', sans-serif;
-  --theme-font-header: 'Signika', sans-serif;
-  --theme-bg-image: url(/ui/denim075.png);
+  --theme-font-header: 'Modesto Condensed', sans-serif;
+  --theme-bg-image: url(/ui/parchment.jpg);
   --crt-display: none;
-  --nav-active-bg: rgba(255, 255, 255, 0.15);
+  --nav-active-bg: #782e22;
   --nav-active-color: #fff;
+}
+
+/* Foundry Specific Overrides */
+.intoterica-container.theme-foundry .intoterica-sidebar {
+  border-right: 1px solid rgba(120, 46, 34, 0.3);
+  box-shadow: inset -2px 0 5px rgba(0,0,0,0.05);
+}
+
+.intoterica-container.theme-foundry .nav-item {
+  border-bottom: 1px solid rgba(120, 46, 34, 0.1);
+}
+
+.intoterica-container.theme-foundry .nav-item:hover {
+  background: rgba(120, 46, 34, 0.05);
+  color: #000;
+  text-shadow: none;
+}
+
+.intoterica-container.theme-foundry .stat-card,
+.intoterica-container.theme-foundry .quest-item,
+.intoterica-container.theme-foundry .faction-card,
+.intoterica-container.theme-foundry .inbox-item {
+  border: 1px solid #c9c7b8;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  background: var(--theme-surface);
 }
 
 /* Access Point (Formerly Default) */
@@ -192,7 +217,7 @@
 
 /* Window Container */
 .intoterica .window-content {
-  background: #000; /* Fallback */
+  background: transparent; /* Fallback */
   padding: 0;
   overflow: hidden;
   border: none;
@@ -235,7 +260,7 @@
   display: flex;
   height: 100%;
   position: relative;
-  background: var(--theme-bg-image);
+  background: #f0f0e0 var(--theme-bg-image);
   color: var(--theme-text);
   font-family: var(--theme-font-main);
   border: 2px solid var(--theme-border);
@@ -1258,10 +1283,10 @@
   color: #ffffff;
 }
 
-/* Default Theme: Use dark background for readability */
+/* Default Theme: Parchment style */
 .intoterica-chat-card.theme-foundry {
-  background: var(--theme-bg);
-  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+  background: #f0f0e0 url(/ui/parchment.jpg) repeat;
+  box-shadow: 0 0 5px rgba(0,0,0,0.3);
 }
 
 /* Soviet Theme: Fix contrast */
