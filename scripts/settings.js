@@ -16,6 +16,14 @@ export const registerSettings = () => {
     }
   });
 
+  // Window State (Position/Size)
+  game.settings.register('intoterica', 'windowState', {
+    scope: 'client',
+    config: false,
+    type: Object,
+    default: {}
+  });
+
   // Faction XP Setting
   game.settings.register('intoterica', 'enableFactionXP', {
     name: 'Enable Faction XP',

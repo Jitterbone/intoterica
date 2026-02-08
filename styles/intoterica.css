@@ -568,6 +568,10 @@
   border-radius: 3px;
 }
 
+.intoterica .quest-difficulty:empty {
+  display: none;
+}
+
 .intoterica .quest-difficulty.easy { color: #2b8a3e; border-color: #2b8a3e; }
 .intoterica .quest-difficulty.medium { color: #f59f00; border-color: #f59f00; }
 .intoterica .quest-difficulty.hard { color: #c92a2a; border-color: #c92a2a; }
@@ -591,7 +595,7 @@
   margin-bottom: 0.5rem;
 }
 
-.intoterica .quest-status.active { color: #f59f00; }
+.intoterica .quest-status.active { color: #f59f00; display: none; }
 .intoterica .quest-status.completed { color: #2b8a3e; }
 .intoterica .quest-status.failed { color: #c92a2a; }
 

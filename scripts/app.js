@@ -1,7 +1,7 @@
 export class IntotericaApp extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
-  static VERSION = "0.9.8";
+  static VERSION = "0.9.8-beta";
 
   static DEFAULT_OPTIONS = {
     id: "intoterica",
@@ -24,6 +24,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   };
 
   constructor(options = {}) {
+    const savedState = game.settings.get('intoterica', 'windowState');
+    if (savedState && !foundry.utils.isEmpty(savedState)) {
+        options.position = foundry.utils.mergeObject(options.position || {}, savedState);
+    }
     super(options);
     this.currentView = game.settings.get('intoterica', 'defaultView') || 'dashboard';
     this.selectedFaction = null;
@@ -117,6 +121,17 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   async close(options = {}) {
+    // Save window state
+    if (this.position) {
+        const state = {
+            width: this.position.width,
+            height: this.position.height,
+            top: this.position.top,
+            left: this.position.left
+        };
+        await game.settings.set('intoterica', 'windowState', state);
+    }
+
     // Stop and clean up idle sound
     if (this._idleSound) {
       this._idleSound.stop();
@@ -305,12 +320,21 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const useFQL = game.modules.get("forien-quest-log")?.active;
 
     if (useFQL) {
+      let pinnedQuests = game.user.getFlag("forien-quest-log", "pinnedQuests");
+      
+      // Fallback: Direct flag access if getFlag fails or returns nothing
+      if (!pinnedQuests && game.user.flags["forien-quest-log"]?.pinnedQuests) {
+          pinnedQuests = game.user.flags["forien-quest-log"].pinnedQuests;
+      }
+      
+      if (!Array.isArray(pinnedQuests)) pinnedQuests = [];
+      
       allQuests = game.journal.filter(j => j.getFlag("forien-quest-log", "json")).map(j => {
         const fql = j.getFlag("forien-quest-log", "json");
         const s = (fql.status || "active").toLowerCase();
         
         let status = "Hidden";
-        if (s === "active") status = "In Progress";
+        if (s === "active") status = "Active";
         else if (s === "completed") status = "Completed";
         else if (s === "failed") status = "Failed";
 
@@ -318,24 +342,33 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         div.innerHTML = fql.description || "";
         const description = div.textContent || div.innerText || "";
 
+        // Check for 'personal' flag in FQL data (often used for specific character quests)
+        const isPersonal = fql.personal === true;
+        const isIntotericaPrimary = j.getFlag("intoterica", "isPrimary");
+
         return {
           id: j.id,
           title: fql.name || j.name,
           description: description,
-          difficulty: "Medium",
+          difficulty: null,
           status: status,
           image: fql.splash || null,
-          actors: fql.actors || []
+          actors: fql.actors || [],
+          isPrimary: pinnedQuests.includes(j.id) || isPersonal || isIntotericaPrimary
         };
       }).filter(q => q.status !== "Hidden");
 
-      // Sort: In Progress > Completed > Failed
-      const sortOrder = { "In Progress": 0, "Completed": 1, "Failed": 2 };
-      allQuests.sort((a, b) => (sortOrder[a.status] ?? 9) - (sortOrder[b.status] ?? 9));
+      // Sort: Primary > Active > Completed > Failed
+      const sortOrder = { "Active": 0, "Completed": 1, "Failed": 2 };
+      allQuests.sort((a, b) => {
+          if (a.isPrimary && !b.isPrimary) return -1;
+          if (!a.isPrimary && b.isPrimary) return 1;
+          return (sortOrder[a.status] ?? 9) - (sortOrder[b.status] ?? 9);
+      });
     }
 
-    // Filter for Main Tab: Only show Active/In Progress
-    const activeQuests = allQuests.filter(q => q.status === 'In Progress' || q.status === 'Active');
+    // Filter for Main Tab: Only show Active
+    const activeQuests = allQuests.filter(q => q.status === 'Active');
 
     // World Clock Logic
     const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
@@ -840,12 +873,43 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       
       questItems.each((i, el) => {
         const $el = $(el);
-        const id = $el.find('[data-quest-id]').data('questId') || $el.data('questId');
+        // Use .attr() to ensure we get the raw string ID, avoiding jQuery type inference issues
+        const id = $el.attr('data-quest-id') || $el.find('[data-quest-id]').attr('data-quest-id');
         const quest = _context.quests.find(q => q.id === id);
         
         // Inject Splash Art if available
         if (quest && quest.image) {
           $el.prepend(`<img src="${quest.image}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #4a3b28; flex-shrink: 0;">`);
+        }
+        
+        // Inject Pin Button
+        if ($el.find('.quest-pin-btn').length === 0) {
+             const isPrimary = quest && quest.isPrimary;
+             const pinColor = isPrimary ? '#2b8a3e' : 'var(--theme-dim)';
+             
+             const pinBtn = $(`<i class="fas fa-thumbtack quest-pin-btn" title="Toggle Primary Objective" style="margin-left: auto; margin-right: 8px; cursor: pointer; color: ${pinColor}; z-index: 20; opacity: ${isPrimary ? 1 : 0.5};"></i>`);
+             
+             pinBtn.click(ev => {
+                 ev.preventDefault();
+                 ev.stopPropagation();
+                 this._onToggleQuestPin(id);
+             });
+             
+             $el.find('.quest-header').append(pinBtn);
+        }
+        
+        // Highlight Primary (Pinned) Quests
+        if (quest && quest.isPrimary) {
+            $el.addClass('primary-quest');
+            // Force styles inline to ensure visibility
+            $el.css({
+                'border': '2px solid #2b8a3e',
+                'box-shadow': '0 0 10px rgba(43, 138, 62, 0.4)'
+            });
+            
+            if ($el.find('.primary-label').length === 0) {
+                $el.find('.quest-content').prepend('<div class="primary-label" style="font-size: 10px; color: #2b8a3e; font-weight: bold; text-transform: uppercase; margin-bottom: 2px;">Primary Objective</div>');
+            }
         }
         
         $el.css('cursor', 'pointer').attr('title', 'Open Quest Log').click(ev => {
@@ -1079,44 +1143,48 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             </div>
           `;
 
-          if (isEditing) {
+          if (faction.ranks.length === 0) {
+              const dropZoneClass = isEditing ? 'npc-drop-zone' : '';
+              const borderStyle = isEditing ? 'border: 2px dashed var(--theme-dim);' : 'border: 1px solid var(--theme-border);';
+              
               contentHtml += `
-                <div class="npc-drop-zone" style="min-height: 200px; border: 2px dashed var(--theme-dim); border-radius: 4px; padding: 10px;">
-                    <div style="font-size: 11px; opacity: 0.7; margin-bottom: 10px; text-align: center;">Drag actors here to add NPCs.</div>
-                    <div class="member-card-grid">
-                        ${faction.npcMembers.map(m => {
+                <div class="rank-tier ${dropZoneClass}" data-rank-index="0" style="${borderStyle} border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.05);">
+                    <div class="rank-tier-header" style="font-weight: bold; border-bottom: 1px solid var(--theme-border); margin-bottom: 5px; padding-bottom: 2px; font-size: 12px;">
+                        Members ${isEditing ? '<span style="font-weight:normal; opacity:0.7; font-size:10px;">(Drag actors here)</span>' : ''}
+                    </div>
+                    <div class="member-card-grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
+                        ${(faction.members || []).map(m => {
                             const actor = game.actors.get(m.id);
                             const img = actor?.img || "icons/svg/mystery-man.svg";
+                            const isPlayer = m.type === 'Player';
                             return `
-                            <div class="member-card-small">
+                            <div class="member-card-small" style="${isPlayer ? 'border: 1px solid var(--color-text-hyperlink);' : ''}">
                                 <div class="member-card-header">
                                     <img src="${img}" class="member-card-img">
                                     <div style="overflow: hidden;">
-                                        <div style="font-weight: bold;">${m.name}</div>
+                                        <div style="font-weight: bold; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.name}</div>
+                                        <div style="font-size: 9px; opacity: 0.7;">${isPlayer ? 'Player' : 'NPC'}</div>
                                     </div>
-                                    <i class="fas fa-times remove-member" data-faction-id="${faction.id}" data-member-id="${m.id}" style="margin-left: auto; cursor: pointer; color: #c92a2a;"></i>
-                                </div>
-                                <div style="margin-top: 5px;">
-                                    <select class="update-member-rank" data-faction-id="${faction.id}" data-member-id="${m.id}" style="font-size: 11px; padding: 2px; width: 100%;">
-                                        ${faction.ranks.map((r, i) => `<option value="${i}" ${m.rank === i ? 'selected' : ''}>${r.name}</option>`).join('')}
-                                    </select>
+                                    ${isEditing ? `<i class="fas fa-times remove-member" data-faction-id="${faction.id}" data-member-id="${m.id}" style="margin-left: auto; cursor: pointer; color: #c92a2a;"></i>` : ''}
                                 </div>
                             </div>`;
                         }).join('')}
+                        ${(faction.members || []).length === 0 ? '<div style="font-size: 10px; opacity: 0.5; padding: 5px;">No members</div>' : ''}
                     </div>
-                    ${faction.npcMembers.length === 0 ? '<div style="text-align: center; padding: 20px; opacity: 0.5;">No NPC members</div>' : ''}
-                </div>
-              `;
+                </div>`;
           } else {
               const ranksReversed = [...faction.ranks].map((r, i) => ({...r, index: i})).reverse();
               contentHtml += `<div class="hierarchy-tree" style="display: flex; flex-direction: column; gap: 10px;">`;
               
               ranksReversed.forEach(rank => {
                   const membersInRank = (faction.members || []).filter(m => m.rank === rank.index);
+                  const dropZoneClass = isEditing ? 'npc-drop-zone' : '';
+                  const borderStyle = isEditing ? 'border: 2px dashed var(--theme-dim);' : 'border: 1px solid var(--theme-border);';
+
                   contentHtml += `
-                    <div class="rank-tier" style="border: 1px solid var(--theme-border); border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.05);">
+                    <div class="rank-tier ${dropZoneClass}" data-rank-index="${rank.index}" style="${borderStyle} border-radius: 4px; padding: 5px; background: rgba(0,0,0,0.05);">
                         <div class="rank-tier-header" style="font-weight: bold; border-bottom: 1px solid var(--theme-border); margin-bottom: 5px; padding-bottom: 2px; font-size: 12px; display: flex; justify-content: space-between;">
-                            <span>${rank.name}</span>
+                            <span>${rank.name} ${isEditing ? '<span style="font-weight:normal; opacity:0.7; font-size:10px; margin-left:5px;">(Drag to add)</span>' : ''}</span>
                             <span style="opacity: 0.6; font-size: 10px;">XP: ${rank.xp}</span>
                         </div>
                         <div class="member-card-grid" style="grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));">
@@ -1124,27 +1192,22 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                                 const actor = game.actors.get(m.id);
                                 const img = actor?.img || "icons/svg/mystery-man.svg";
                                 const isPlayer = m.type === 'Player';
-                                const canEditRank = isGM && (!isPlayer || !enableFactionXP);
+                                const draggable = isEditing ? 'draggable="true"' : '';
+                                const dragStyle = isEditing ? 'cursor: grab;' : '';
 
                                 return `
-                                <div class="member-card-small" style="${isPlayer ? 'border: 1px solid var(--color-text-hyperlink);' : ''}">
+                                <div class="member-card-small" ${draggable} data-member-id="${m.id}" data-faction-id="${faction.id}" style="${isPlayer ? 'border: 1px solid var(--color-text-hyperlink);' : ''} ${dragStyle}">
                                     <div class="member-card-header">
                                         <img src="${img}" class="member-card-img">
                                         <div style="overflow: hidden;">
                                             <div style="font-weight: bold; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${m.name}</div>
                                             <div style="font-size: 9px; opacity: 0.7;">${isPlayer ? 'Player' : 'NPC'}</div>
                                         </div>
+                                        ${isEditing ? `<i class="fas fa-times remove-member" data-faction-id="${faction.id}" data-member-id="${m.id}" style="margin-left: auto; cursor: pointer; color: #c92a2a;"></i>` : ''}
                                     </div>
-                                    ${canEditRank ? `
-                                    <div style="margin-top: 5px;">
-                                        <select class="update-member-rank" data-faction-id="${faction.id}" data-member-id="${m.id}" style="font-size: 10px; padding: 1px; width: 100%;">
-                                            ${faction.ranks.map((r, i) => `<option value="${i}" ${m.rank === i ? 'selected' : ''}>${r.name}</option>`).join('')}
-                                        </select>
-                                    </div>` : `
                                     <div style="margin-top: 5px; font-size: 10px; opacity: 0.8;">
                                         ${faction.ranks[m.rank]?.name || 'Rank ' + m.rank}
                                     </div>
-                                    `}
                                 </div>`;
                             }).join('')}
                             ${membersInRank.length === 0 ? '<div style="font-size: 10px; opacity: 0.5; padding: 5px;">No members</div>' : ''}
@@ -1224,9 +1287,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       if (isGM) {
           container.find('.party-rep-slider').change(this._onPartyRepChange.bind(this));
           container.find('.faction-rep-slider').change(this._onFactionRepSliderChange.bind(this));
-          container.find('.npc-drop-zone')[0]?.addEventListener('drop', this._onDropFactionMember.bind(this));
-          container.find('.npc-drop-zone')[0]?.addEventListener('dragover', e => e.preventDefault());
-          container.find('.update-member-rank').change(this._onUpdateMemberRank.bind(this));
+          container.find('.npc-drop-zone').each((i, el) => {
+              el.addEventListener('drop', this._onDropFactionMember.bind(this));
+              el.addEventListener('dragover', e => e.preventDefault());
+          });
+          container.find('.member-card-small').on('dragstart', this._onDragMemberStart.bind(this));
           container.find('.rank-input').change(this._onUpdateRank.bind(this));
           container.find('.add-rank-btn').click(this._onAddRank.bind(this));
           container.find('.delete-rank-btn').click(this._onDeleteRank.bind(this));
@@ -1294,6 +1359,19 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     event.preventDefault();
     this.isEditingMembers = !this.isEditingMembers;
     this.render();
+  }
+
+  async _onToggleQuestPin(questId) {
+      const useFQL = game.modules.get("forien-quest-log")?.active;
+      
+      if (useFQL) {
+          const journal = game.journal.get(questId);
+          if (journal) {
+              const currentState = journal.getFlag('intoterica', 'isPrimary');
+              await journal.setFlag('intoterica', 'isPrimary', !currentState);
+              this.render();
+          }
+      }
   }
 
   async _onReadMessage(event) {
@@ -2277,27 +2355,63 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       }
   }
 
+  _onDragMemberStart(event) {
+      const memberId = event.currentTarget.dataset.memberId;
+      const factionId = event.currentTarget.dataset.factionId;
+      if (memberId && factionId) {
+          const dragData = {
+              type: 'FactionMember',
+              factionId: factionId,
+              memberId: memberId
+          };
+          event.originalEvent.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+      }
+  }
+
   async _onDropFactionMember(event) {
       event.preventDefault();
+      event.stopPropagation();
       if (!this.selectedFaction) return;
       
-      const data = JSON.parse(event.dataTransfer.getData('text/plain'));
-      if (data.type !== 'Actor') return;
+      let data;
+      try {
+          data = JSON.parse(event.dataTransfer.getData('text/plain'));
+      } catch (e) { return; }
 
       const settings = game.settings.get('intoterica', 'data');
       const faction = settings.factions.find(f => f.id === this.selectedFaction.id);
+      if (!faction) return;
+
+      let targetRank = 0;
+      if (event.currentTarget.dataset.rankIndex !== undefined) {
+          targetRank = parseInt(event.currentTarget.dataset.rankIndex);
+      }
+
+      if (data.type === 'FactionMember') {
+          if (data.factionId !== faction.id) return;
+          const member = faction.members.find(m => m.id === data.memberId);
+          if (member && member.rank !== targetRank) {
+              member.rank = targetRank;
+              await this._saveData(settings);
+              this._broadcastUpdate();
+              this.render();
+          }
+          return;
+      }
+      
+      if (data.type !== 'Actor' && !data.uuid) return;
       
       let actorId = data.uuid ? data.uuid.split('.').pop() : data.id;
       const actor = game.actors.get(actorId);
 
-      if (faction && actor) {
+      if (actor) {
           if (faction.members.some(m => m.id === actor.id)) return;
           
           faction.members.push({
               id: actor.id,
               name: actor.name,
               type: actor.hasPlayerOwner ? "Player" : "NPC",
-              rank: 0,
+              rank: targetRank,
               xp: 0,
               reputation: 0
           });
@@ -3204,4 +3318,13 @@ Hooks.on('ready', async () => {
       await game.settings.set('intoterica', key, newVal);
     }
   }
+
+  // React to FQL Pin changes to update highlighting immediately
+  Hooks.on('updateUser', (user, data) => {
+      if (user.isSelf && data.flags?.['forien-quest-log']) {
+          if (window.IntotericaApp?._instance?.rendered) {
+              window.IntotericaApp._instance.render();
+          }
+      }
+  });
 });
