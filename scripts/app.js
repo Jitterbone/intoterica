@@ -55,7 +55,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         nav: "modules/intoterica/sounds/NavSound.ogg",
         mail: "modules/intoterica/sounds/VeilMailSound.ogg"
       },
-      volumeScale: 2.0
+      volumeScale: 1.5
     },
     "soviet": {
       label: "Soviet Retro",
