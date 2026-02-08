@@ -1,10 +1,12 @@
 export class IntotericaApp extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
+  static VERSION = "0.9.6";
+
   static DEFAULT_OPTIONS = {
     id: "intoterica",
     window: {
-      title: "Intoterica (Beta 0.9.6)",
+      title: `Intoterica (Beta ${this.VERSION})`,
       resizable: true,
       minimizable: true
     },

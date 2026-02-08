@@ -1,0 +1,1267 @@
+/* Intoterica - Theming System */
+@import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Roboto+Slab:wght@400;700&family=Cinzel:wght@400;700&family=Crimson+Text:wght@400;700&family=VT323&display=swap');
+
+/* Default (Foundry Standard) */
+.intoterica-container.theme-foundry,
+.intoterica-chat-card.theme-foundry {
+  --theme-bg: url(/ui/denim075.png);
+  --theme-sidebar: rgba(0, 0, 0, 0.2);
+  --theme-surface: rgba(255, 255, 255, 0.05);
+  --theme-border: #000;
+  --theme-accent: #ff6400;
+  --theme-text: #f0f0e0;
+  --theme-dim: #aaa;
+  --theme-glow: none;
+  --theme-font-main: 'Signika', sans-serif;
+  --theme-font-header: 'Signika', sans-serif;
+  --theme-bg-image: url(/ui/denim075.png);
+  --crt-display: none;
+  --nav-active-bg: rgba(255, 255, 255, 0.15);
+  --nav-active-color: #fff;
+}
+
+/* Access Point (Formerly Default) */
+.intoterica-container.theme-access-point,
+.intoterica-chat-card.theme-access-point {
+  --theme-bg: #f0e6d2;
+  --theme-sidebar: #1a2639;
+  --theme-surface: #fdf6e3;
+  --theme-border: #3b6ea5;
+  --theme-accent: #4facfe;
+  --theme-text: #2b1d0e;
+  --theme-dim: #666;
+  --theme-glow: 0 0 10px rgba(79, 172, 254, 0.4);
+  --theme-font-main: 'Signika', 'Palatino Linotype', serif;
+  --theme-font-header: 'Modesto Condensed', serif;
+  --theme-bg-image: radial-gradient(circle at center, #fbf2dc 0%, #f0e6d2 100%);
+  --crt-display: block;
+  --nav-active-bg: linear-gradient(90deg, rgba(59, 110, 165, 0.3), transparent);
+  --nav-active-color: #fff;
+}
+
+/* Soviet Retro Theme */
+.intoterica-container.theme-soviet,
+.intoterica-chat-card.theme-soviet {
+  --theme-bg: #f3f0e6; /* Off-white Paper */
+  --theme-sidebar: #8b0000; /* Deep Red */
+  --theme-surface: #fffbf0; /* Lighter Off-white */
+  --theme-border: #d4af37; /* Gold */
+  --theme-accent: #cc0000; /* Bright Red */
+  --theme-text: #2a2a2a; /* Dark Ink */
+  --theme-dim: #665c54;
+  --theme-glow: 0 0 0 transparent;
+  --theme-font-main: 'Roboto Slab', serif;
+  --theme-font-header: 'Russo One', sans-serif;
+  --theme-bg-image: none;
+  --crt-display: block;
+  --nav-active-bg: #d4af37;
+  --nav-active-color: #8b0000;
+}
+
+/* Soviet Specific Overrides */
+.intoterica-container.theme-soviet .intoterica-sidebar {
+  border-right: 4px double var(--theme-border);
+  box-shadow: 5px 0 10px rgba(0,0,0,0.2);
+}
+
+.intoterica-container.theme-soviet .intoterica-main {
+  background-image: radial-gradient(#d4af37 1px, transparent 1px);
+  background-size: 20px 20px;
+  background-color: var(--theme-bg);
+}
+
+.intoterica-container.theme-soviet .nav-item {
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+  color: #d4af37;
+}
+
+.intoterica-container.theme-soviet .nav-item:hover {
+  background: rgba(212, 175, 55, 0.1);
+  color: #fff;
+}
+
+.intoterica-container.theme-soviet .nav-item.active {
+  background: var(--theme-border);
+  color: var(--theme-sidebar);
+  border-left: none;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+}
+
+.intoterica-container.theme-soviet .stat-card,
+.intoterica-container.theme-soviet .quest-item,
+.intoterica-container.theme-soviet .faction-card,
+.intoterica-container.theme-soviet .inbox-item {
+  border: 2px solid var(--theme-border);
+  border-radius: 0;
+  box-shadow: 3px 3px 0 rgba(0,0,0,0.1);
+}
+
+/* Dark Fantasy 80s Theme */
+.intoterica-container.theme-dark-fantasy,
+.intoterica-chat-card.theme-dark-fantasy {
+  --theme-bg: #0f0a15; /* Deep Void Purple */
+  --theme-sidebar: #050205; /* Abyssal Black */
+  --theme-surface: #1a1220; /* Dark Stone */
+  --theme-border: #8a6d3b; /* Tarnished Bronze */
+  --theme-accent: #b026ff; /* Neon Magick */
+  --theme-text: #d0c0d0; /* Ghostly White */
+  --theme-dim: #6a5a7a;
+  --theme-glow: 0 0 15px rgba(176, 38, 255, 0.3);
+  --theme-font-main: 'Crimson Text', serif;
+  --theme-font-header: 'Cinzel', serif;
+  --theme-bg-image: radial-gradient(circle at center, #1a1220 0%, #0f0a15 100%);
+  --crt-display: block;
+  --nav-active-bg: linear-gradient(90deg, rgba(138, 109, 59, 0.3), transparent);
+  --nav-active-color: #fff;
+}
+
+/* Dark Fantasy Specific Overrides */
+.intoterica-container.theme-dark-fantasy .intoterica-sidebar {
+  border-right: 1px solid var(--theme-border);
+  box-shadow: 10px 0 30px rgba(0,0,0,0.8);
+}
+
+.intoterica-container.theme-dark-fantasy .nav-item {
+  font-family: 'Cinzel', serif;
+  letter-spacing: 2px;
+}
+
+.intoterica-container.theme-dark-fantasy .nav-item.active {
+  border-left: 3px solid var(--theme-accent);
+  box-shadow: 0 0 15px var(--theme-accent);
+  text-shadow: 0 0 10px var(--theme-accent);
+}
+
+.intoterica-container.theme-dark-fantasy .stat-card,
+.intoterica-container.theme-dark-fantasy .quest-item,
+.intoterica-container.theme-dark-fantasy .faction-card,
+.intoterica-container.theme-dark-fantasy .inbox-item {
+  border: 1px solid var(--theme-border);
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  background: rgba(26, 18, 32, 0.8);
+}
+
+/* Vaporwave Theme */
+.intoterica-container.theme-vaporwave,
+.intoterica-chat-card.theme-vaporwave {
+  --theme-bg: #050505; /* Deep Black */
+  --theme-sidebar: #240046; /* Deep Purple */
+  --theme-surface: #111111; /* Dark Grey */
+  --theme-border: #00f0ff; /* Neon Blue */
+  --theme-accent: #00f0ff; /* Neon Blue */
+  --theme-text: #00f0ff; /* Blue Text */
+  --theme-dim: #008f99; /* Blue Dim */
+  --theme-glow: 0 0 10px rgba(0, 240, 255, 0.6);
+  --theme-font-main: 'VT323', monospace;
+  --theme-font-header: 'VT323', monospace;
+  --theme-bg-image: linear-gradient(180deg, #000000 0%, #000000 40%, #4a0028 60%, #b51700 75%, #ff9e00 90%, #ff71ce 100%); /* Sunset Horizon */
+  --crt-display: block;
+  --nav-active-bg: linear-gradient(90deg, rgba(0, 240, 255, 0.3), transparent);
+  --nav-active-color: #fff;
+}
+
+/* Vaporwave Specific Overrides */
+.intoterica-container.theme-vaporwave .intoterica-sidebar {
+  border-right: 2px solid var(--theme-accent);
+  box-shadow: 5px 0 20px rgba(0, 240, 255, 0.2);
+}
+
+.intoterica-container.theme-vaporwave .nav-item {
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+.intoterica-container.theme-vaporwave .nav-item.active {
+  border-left: 3px solid var(--theme-border);
+  box-shadow: 0 0 15px var(--theme-border);
+  text-shadow: 2px 2px 0px #00f0ff;
+}
+
+.intoterica-container.theme-vaporwave .stat-card,
+.intoterica-container.theme-vaporwave .quest-item,
+.intoterica-container.theme-vaporwave .faction-card,
+.intoterica-container.theme-vaporwave .inbox-item {
+  border: 1px solid var(--theme-accent);
+  box-shadow: 4px 4px 0 rgba(0, 240, 255, 0.3);
+  background: rgba(10, 10, 10, 0.9);
+}
+
+.intoterica-container.theme-vaporwave .intoterica-header {
+  background: var(--theme-sidebar);
+}
+
+/* Window Container */
+.intoterica .window-content {
+  background: #000; /* Fallback */
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  min-width: 1000px !important;
+  min-height: 700px !important;
+}
+
+/* CRT Scanline Overlay */
+.crt-overlay {
+  display: var(--crt-display);
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+              linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 3px, 3px 100%;
+  pointer-events: none;
+  z-index: 9999;
+  animation: flicker 0.15s steps(2) infinite;
+  opacity: 0.4;
+  box-shadow: inset 0 0 6rem rgba(0,0,0,0.6);
+}
+
+/* Bubble Glare Effect */
+.crt-overlay::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 60%);
+  pointer-events: none;
+}
+
+@keyframes flicker {
+  0% { opacity: 0.38; }
+  50% { opacity: 0.42; }
+  100% { opacity: 0.39; }
+}
+
+/* Main Layout */
+.intoterica-container {
+  display: flex;
+  height: 100%;
+  position: relative;
+  background: var(--theme-bg-image);
+  color: var(--theme-text);
+  font-family: var(--theme-font-main);
+  border: 2px solid var(--theme-border);
+  box-shadow: 0 0 15px rgba(0,0,0,0.5);
+}
+
+/* Sidebar */
+.intoterica-sidebar {
+  width: 220px;
+  background: var(--theme-sidebar);
+  border-right: 2px solid var(--theme-border);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 5px 0 15px rgba(0,0,0,0.3);
+  z-index: 10;
+}
+
+.intoterica-nav {
+  gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-item {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--theme-dim);
+  padding: 0.75rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--theme-font-header);
+  font-size: 16px;
+}
+
+.nav-item:hover {
+  color: var(--theme-text);
+  text-shadow: 0 0 5px var(--theme-accent);
+  background: rgba(255,255,255,0.1);
+}
+
+.nav-item.active {
+  background: var(--nav-active-bg);
+  border-left: 3px solid var(--theme-accent);
+  color: var(--nav-active-color);
+  text-shadow: 0 0 8px var(--theme-accent);
+}
+
+/* Main Content Area */
+.intoterica-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 10;
+}
+
+/* Header */
+.intoterica-header {
+  padding: 1rem;
+  border-bottom: 1px solid var(--theme-border);
+  background: rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-title {
+  font-size: 28px;
+  color: var(--theme-border);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-weight: 700;
+  font-family: var(--theme-font-header);
+  text-shadow: 0 0 5px var(--theme-dim);
+}
+
+.world-clock {
+  border: 1px solid var(--theme-border);
+  padding: 0.25rem 0.75rem;
+  color: var(--theme-text);
+  font-family: var(--theme-font-main);
+  background: rgba(0,0,0,0.2);
+  cursor: pointer;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+/* Content Scrollable */
+.intoterica-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-border) var(--theme-bg);
+}
+
+/* Scrollbar Styling */
+.intoterica-content::-webkit-scrollbar {
+  width: 8px;
+}
+.intoterica-content::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.05);
+}
+.intoterica-content::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 4px;
+}
+
+/* Cards & Panels */
+.intoterica .stat-card, 
+.intoterica .quest-item, 
+.intoterica .faction-card, 
+.intoterica .inbox-item, 
+.intoterica .content-card, 
+.intoterica .faction-detail,
+.intoterica .player-card {
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  border-radius: 2px;
+  margin-bottom: 1rem;
+  position: relative;
+  transition: all 0.2s;
+}
+
+/* Hover Effects for Interactive Cards */
+.intoterica .stat-card:hover, 
+.intoterica .quest-item:hover, 
+.intoterica .faction-card:hover, 
+.intoterica .inbox-item:hover,
+.intoterica .player-card:hover {
+  box-shadow: 0 0 10px var(--theme-accent);
+  border-color: var(--theme-accent);
+  transform: translateY(-1px);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.intoterica .stat-card { padding: 1rem; }
+
+.intoterica .stat-label {
+  color: var(--theme-border);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 12px;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: bold;
+}
+
+.intoterica .stat-value {
+  color: var(--theme-accent);
+  font-size: 32px;
+  font-family: var(--theme-font-header);
+  font-weight: bold;
+}
+
+/* Section Headers */
+.intoterica .section-header {
+  border-bottom: 2px solid var(--theme-border);
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.5rem;
+}
+
+.intoterica .section-title {
+  color: var(--theme-text);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 20px;
+  font-family: var(--theme-font-header);
+  font-weight: bold;
+}
+
+/* Buttons */
+.intoterica button, .intoterica .add-quest, .intoterica .add-faction, .intoterica .add-badge, .intoterica .add-message {
+  background: transparent;
+  border: 1px solid var(--theme-border);
+  color: var(--theme-border);
+  text-transform: uppercase;
+  font-family: var(--theme-font-main);
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 2px;
+  font-weight: bold;
+}
+
+.intoterica button:hover, .intoterica .add-quest:hover, .intoterica .add-faction:hover, .intoterica .add-badge:hover, .intoterica .add-message:hover {
+  background: var(--theme-border);
+  color: var(--theme-bg);
+  box-shadow: 0 0 10px var(--theme-accent);
+}
+
+/* Forms */
+.intoterica-form .form-group { margin-bottom: 0.75rem; }
+.intoterica-form .form-group label { display: block; margin-bottom: 0.25rem; color: var(--theme-text); font-weight: bold; }
+
+.intoterica-form input, .intoterica-form textarea, .intoterica-form select {
+  background: #ffffff;
+  border: 1px solid var(--theme-dim);
+  color: #000000;
+  font-family: inherit;
+  border-radius: 3px;
+  width: 100%;
+  padding: 0.375rem;
+}
+
+.intoterica-form input:focus, .intoterica-form textarea:focus {
+  box-shadow: 0 0 5px var(--theme-accent);
+  border-color: var(--theme-accent);
+  outline: none;
+}
+
+/* Content Grid */
+.content-grid { display: grid; gap: 1rem; }
+.content-grid.three-column { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+
+/* Badge Cards */
+.intoterica .badge-card {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.intoterica .badge-card.earned { border-color: var(--theme-border); background: rgba(0, 240, 255, 0.1); }
+.intoterica .badge-card.locked { opacity: 0.6; filter: grayscale(1); }
+
+.intoterica .badge-icon {
+  font-size: 32px;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 4px;
+}
+
+.intoterica .badge-info {
+  flex: 1;
+}
+
+.intoterica .badge-name {
+  font-weight: 600;
+  color: var(--theme-accent);
+  margin-bottom: 0.25rem;
+}
+
+.intoterica .badge-description {
+  font-size: 13px;
+  color: var(--theme-text);
+  margin-bottom: 0.5rem;
+}
+
+.intoterica .badge-status {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+  border-radius: 3px;
+}
+
+.intoterica .badge-status.earned { background: var(--theme-border); color: var(--theme-bg); }
+.intoterica .badge-status.locked { background: var(--theme-dim); color: #000; }
+
+.intoterica .badge-actions {
+  margin-top: 0.5rem;
+}
+
+/* Quest Items */
+.intoterica .quest-item {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+
+.intoterica .quest-indicator {
+  width: 4px;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+
+.intoterica .quest-indicator.active { background: #f59f00; }
+.intoterica .quest-indicator.completed { background: #2b8a3e; }
+.intoterica .quest-indicator.failed { background: #c92a2a; }
+
+.intoterica .quest-content {
+  flex: 1;
+}
+
+.intoterica .quest-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.intoterica .quest-title {
+  font-weight: 600;
+  color: var(--theme-accent);
+  font-size: 16px;
+  font-family: var(--theme-font-header);
+}
+
+.intoterica .quest-difficulty {
+  padding: 0.125rem 0.5rem;
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 600;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+}
+
+.intoterica .quest-difficulty.easy { color: #2b8a3e; border-color: #2b8a3e; }
+.intoterica .quest-difficulty.medium { color: #f59f00; border-color: #f59f00; }
+.intoterica .quest-difficulty.hard { color: #c92a2a; border-color: #c92a2a; }
+
+.intoterica .quest-description {
+  font-size: 13px;
+  color: var(--theme-text);
+  margin-top: 0.25rem;
+}
+
+.intoterica .quest-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.intoterica .quest-status {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.intoterica .quest-status.active { color: #f59f00; }
+.intoterica .quest-status.completed { color: #2b8a3e; }
+.intoterica .quest-status.failed { color: #c92a2a; }
+
+/* Faction Layout */
+.faction-layout {
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.faction-layout.details-open {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.faction-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.faction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-auto-rows: min-content;
+  gap: 1rem;
+  overflow-y: auto;
+  padding: 0.5rem;
+  align-content: start;
+  flex: 1;
+}
+
+.intoterica .faction-layout.details-open .faction-list {
+  padding-right: 0.5rem;
+  border-right: 1px solid var(--theme-border);
+}
+
+.intoterica .faction-layout.details-open .faction-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.intoterica .faction-card {
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 350px;
+}
+
+.intoterica .faction-card.selected {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: var(--theme-border);
+  box-shadow: 0 0 8px var(--theme-accent);
+}
+
+.intoterica .faction-layout.details-open .faction-card {
+  display: flex;
+  flex-direction: row;
+  text-align: left;
+  align-items: center;
+  height: auto;
+  padding: 8px;
+  width: 100%;
+  margin-bottom: 5px;
+}
+
+.intoterica .faction-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.intoterica .faction-layout.details-open .faction-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  margin-left: 10px;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.intoterica .faction-icon {
+  font-size: 32px;
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.1);
+  border: 2px solid var(--theme-border);
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-bottom: 0.25rem;
+}
+
+.intoterica .faction-layout.details-open .faction-icon {
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  margin-bottom: 0;
+}
+
+.intoterica .faction-name {
+  font-weight: 700;
+  font-size: 1.1em;
+  color: var(--theme-accent);
+  margin-bottom: 0.25rem;
+  word-break: break-word;
+  line-height: 1.2;
+}
+
+.intoterica .faction-layout.details-open .faction-name {
+  font-size: 14px;
+  margin-bottom: 0;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.intoterica .faction-rep-bar {
+  height: 4px;
+  background: rgba(0,0,0,0.1);
+  overflow: hidden;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  border-radius: 2px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.intoterica .faction-layout.details-open .faction-rep-bar {
+  display: none;
+}
+
+.intoterica .faction-rep-fill {
+  height: 100%;
+  transition: width 0.3s;
+}
+
+.intoterica .faction-rep-fill.positive { background: #2b8a3e; }
+.intoterica .faction-rep-fill.negative { background: #c92a2a; }
+
+.intoterica .faction-rep-value {
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.intoterica .faction-rep-value.positive { color: #2b8a3e; }
+.intoterica .faction-rep-value.negative { color: #c92a2a; }
+
+.intoterica .faction-layout.details-open .faction-rep-value {
+  margin-top: 0;
+}
+
+.faction-card-description {
+  font-size: 13px;
+  color: var(--theme-text);
+  margin-top: 10px;
+  line-height: 1.4;
+  border-top: 1px solid var(--theme-dim);
+  padding-top: 0.5rem;
+  word-break: break-word;
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+}
+
+.intoterica .faction-layout.details-open .faction-card-description {
+  display: none;
+}
+
+/* Faction Detail */
+.intoterica .faction-detail {
+  padding: 1rem;
+  display: none;
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.faction-layout.details-open .faction-detail {
+  display: block;
+}
+
+/* Access Point Theme - Desktop File Look */
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-card {
+  background: rgba(26, 38, 57, 0.9);
+  border: 1px solid var(--theme-border);
+  padding: 0.75rem;
+  height: 350px;
+  border-radius: 4px;
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-card:hover {
+  background: rgba(26, 38, 57, 1);
+  border: 1px solid var(--theme-accent);
+  box-shadow: 0 0 10px rgba(79, 172, 254, 0.3);
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-icon {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+  font-size: 32px;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 0.5rem;
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-name {
+  font-family: var(--theme-font-header);
+  font-size: 1.1em;
+  color: var(--theme-accent);
+  text-shadow: none;
+}
+
+.intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-card-description {
+  font-size: 13px;
+  color: #ccc;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  padding-top: 0.5rem;
+  opacity: 1;
+}
+
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-card {
+  background: rgba(26, 38, 57, 0.9);
+  border: 1px solid var(--theme-border);
+  margin-bottom: 5px;
+  border-radius: 4px;
+}
+
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-card:hover,
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-card.selected {
+  background: rgba(26, 38, 57, 1);
+  border: 1px solid var(--theme-accent);
+  box-shadow: 0 0 5px rgba(79, 172, 254, 0.3);
+}
+
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-icon {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.intoterica-container.theme-access-point .faction-layout.details-open .faction-name {
+  font-family: var(--theme-font-header);
+  color: var(--theme-accent);
+  text-shadow: none;
+  font-size: 14px;
+}
+
+.intoterica-container.theme-access-point .faction-detail {
+  background: rgba(235, 235, 235, 0.95);
+  color: var(--theme-text);
+}
+
+.intoterica-container.theme-access-point .faction-detail-description {
+  color: var(--theme-text);
+  background: rgba(0,0,0,0.05);
+  border: 1px solid var(--theme-dim);
+}
+
+.intoterica-container.theme-access-point .faction-section-title {
+  color: var(--theme-dim);
+  border-bottom: 1px solid var(--theme-dim);
+}
+
+.intoterica-container.theme-access-point .rank-name,
+.intoterica-container.theme-access-point .member-name,
+.intoterica-container.theme-access-point .standing-value.neutral {
+  color: var(--theme-text);
+}
+
+.intoterica-container.theme-access-point .faction-detail-header .standing-label {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 2px;
+  text-shadow: 1px 1px 1px #000;
+}
+
+.intoterica .faction-detail-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--theme-border);
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.intoterica .faction-detail-info { display: flex; gap: 1rem; align-items: center; }
+
+.intoterica .faction-detail-icon { font-size: 64px; width: 120px; height: 120px; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; flex-shrink: 0; }
+
+.intoterica .faction-detail-name { font-size: 24px; font-weight: 600; color: var(--theme-accent); margin-bottom: 0.25rem; font-family: var(--theme-font-header); text-shadow: var(--theme-glow); display: flex; align-items: center; gap: 10px; }
+
+.intoterica .edit-faction { font-size: 14px; color: var(--theme-dim); cursor: pointer; }
+
+.intoterica .faction-detail-description { font-size: 13px; color: var(--theme-text); white-space: pre-wrap; line-height: 1.4; max-height: 150px; overflow-y: auto; padding: 8px; background: rgba(0,0,0,0.1); border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); }
+
+.intoterica .faction-standing { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 4px; }
+
+.intoterica .standing-info { display: flex; align-items: center; gap: 10px; }
+
+.intoterica .standing-label { font-size: 11px; text-transform: uppercase; color: var(--theme-dim); font-weight: 600; margin: 0; }
+
+.intoterica .standing-value { font-size: 16px; font-weight: 700; }
+
+.intoterica .standing-value.honored { color: #2b8a3e; } .intoterica .standing-value.hostile { color: #c92a2a; } .intoterica .standing-value.neutral { color: var(--theme-text); }
+
+.intoterica .standing-actions { display: flex; gap: 10px; align-items: center; }
+
+.intoterica .toggle-control { font-size: 11px; color: var(--theme-dim); cursor: pointer; display: flex; align-items: center; gap: 5px; margin: 0; }
+
+.intoterica .enlist-faction { font-size: 11px; padding: 2px 8px; }
+
+/* Rep Visuals */ .rep-face-container { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px; margin-bottom: 1rem; }
+
+.rep-face { font-size: 64px; margin-bottom: 0.5rem; transition: all 0.3s ease; }
+
+.xp-modifier-badge { background: var(--theme-surface); border: 1px solid; padding: 0.25rem 0.75rem; border-radius: 12px; font-weight: bold; font-size: 16px; }
+
+.faction-slider-container { margin-bottom: 1rem; padding: 1rem; background: rgba(0,0,0,0.1); border-radius: 8px; }
+
+.faction-rep-slider { width: 100%; }
+
+.standing-controls { display: flex; justify-content: center; gap: 10px; margin-top: 10px; }
+
+.slider-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--theme-dim); margin-top: 5px; }
+
+.faction-sections { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+
+.intoterica .faction-section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; color: var(--theme-dim); margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.25rem; }
+
+.intoterica .rank-item, .intoterica .member-item { padding: 0.5rem; background: rgba(0,0,0,0.1); border-bottom: 1px solid rgba(0,0,0,0.05); margin-bottom: 0.25rem; border-radius: 4px; }
+
+.intoterica .rank-item { display: flex; align-items: center; justify-content: space-between; }
+
+.intoterica .member-item { display: flex; flex-direction: column; }
+
+.intoterica .member-header { display: flex; justify-content: space-between; align-items: center; }
+
+.intoterica .rank-name, .intoterica .member-name { color: var(--theme-text); font-weight: 500; display: flex; align-items: center; gap: 5px; }
+
+.intoterica .rank-stats { font-size: 10px; color: var(--theme-dim); }
+
+.intoterica .member-type { font-size: 10px; text-transform: uppercase; color: var(--theme-dim); }
+
+.intoterica .member-rank-badge { padding: 0.125rem 0.5rem; background: var(--theme-accent); color: #fff; font-size: 11px; font-weight: 600; border-radius: 10px; }
+
+.intoterica .member-actions { display: flex; gap: 5px; }
+
+.intoterica .member-actions button { font-size: 10px; }
+
+.intoterica .remove-member { cursor: pointer; color: #c92a2a; font-size: 10px; }
+
+.intoterica .member-rep-control { margin-top: 5px; display: flex; align-items: center; gap: 5px; }
+
+.intoterica .member-rep-control span { font-size: 10px; width: 30px; }
+
+.intoterica .member-rep-control .rep-val { width: 25px; text-align: right; }
+
+.intoterica .member-rep-slider { height: 4px; flex: 1; }
+
+/* Faction Tabs */ .faction-tabs { display: flex; gap: 5px; margin-bottom: 1rem; border-bottom: 1px solid var(--theme-border); }
+
+.faction-tab { padding: 0.5rem 1rem; cursor: pointer; background: rgba(0,0,0,0.1); border: 1px solid transparent; border-bottom: none; border-radius: 4px 4px 0 0; color: var(--theme-dim); font-weight: bold; font-size: 12px; text-transform: uppercase; }
+
+.faction-tab:hover { color: var(--theme-text); background: rgba(255,255,255,0.05); }
+
+.faction-tab.active { background: var(--theme-surface); border-color: var(--theme-border); color: var(--theme-accent); margin-bottom: -1px; border-bottom: 1px solid var(--theme-surface); }
+
+/* Member Cards (Small) */ .member-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 0.5rem; }
+
+.member-card-small { background: rgba(0,0,0,0.1); border: 1px solid var(--theme-border); padding: 0.5rem; border-radius: 3px; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.member-card-header { display: flex; align-items: center; gap: 0.5rem; }
+
+.member-card-img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 1px solid var(--theme-dim); }
+
+/* Rank Editor Table */ .rank-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+.rank-table th, .rank-table td { padding: 0.5rem; text-align: left; border-bottom: 1px solid rgba(0,0,0,0.1); }
+
+/* Rank Display Cards */ .rank-display-card { background: rgba(0,0,0,0.1); border: 1px solid var(--theme-border); border-radius: 3px; margin-bottom: 0.5rem; padding: 0.5rem; }
+
+.rank-display-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--theme-dim); padding-bottom: 0.25rem; margin-bottom: 0.25rem; }
+
+.rank-display-name { font-weight: bold; color: var(--theme-accent); font-size: 14px; }
+
+.rank-display-stats { font-size: 11px; color: var(--theme-dim); }
+
+.rank-display-desc { font-size: 12px; color: var(--theme-text); font-style: italic; }
+
+/* Inbox */ .intoterica .inbox-item { padding: 0.75rem; display: flex; gap: 0.75rem; cursor: pointer; border-left: 3px solid transparent; }
+
+.intoterica .inbox-item.unread { background: rgba(255, 255, 255, 0.05); border-left-color: var(--theme-accent); }
+
+.intoterica .inbox-item.selected { background: rgba(0, 240, 255, 0.1); }
+
+.intoterica .inbox-avatar { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; }
+
+.intoterica .inbox-content { flex: 1; min-width: 0; }
+
+.intoterica .inbox-header { display: flex; justify-content: space-between; margin-bottom: 0.25rem; font-size: 12px; }
+
+.intoterica .inbox-from { font-weight: 600; color: var(--theme-accent); }
+
+.intoterica .inbox-date { color: var(--theme-dim); }
+
+.intoterica .inbox-subject { font-weight: 600; margin-bottom: 0.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.intoterica .inbox-body { font-size: 12px; color: var(--theme-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Player Grid (GM Dashboard) */
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.intoterica .player-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.player-img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--theme-border);
+}
+
+.player-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-name {
+  font-weight: 700;
+  color: var(--theme-accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-user {
+  font-size: 11px;
+  color: var(--theme-dim);
+}
+
+.player-stats {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.25rem;
+  font-size: 11px;
+  color: var(--theme-text);
+}
+
+/* Profile View */
+.profile-header-card {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+  background: var(--theme-surface);
+  border: 1px solid var(--theme-border);
+  margin-bottom: 1.5rem;
+  border-radius: 2px;
+}
+
+.profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--theme-accent);
+  box-shadow: 0 0 10px var(--theme-glow);
+}
+
+.profile-name {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--theme-accent);
+  font-family: var(--theme-font-header);
+}
+
+.profile-subtitle {
+  color: var(--theme-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 12px;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.mini-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.1);
+  margin-bottom: 0.5rem;
+  border-radius: 2px;
+}
+
+.mini-icon {
+  font-size: 20px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.1);
+  border-radius: 2px;
+}
+
+.mini-title {
+  font-weight: 600;
+  color: var(--theme-text);
+  font-size: 13px;
+}
+
+.mini-sub {
+  font-size: 11px;
+  color: var(--theme-dim);
+}
+
+.empty-text {
+  font-style: italic;
+  color: var(--theme-dim);
+  font-size: 12px;
+  padding: 0.5rem;
+}
+
+/* Scene Control Button */
+.scene-control[data-tool="intoterica"] {
+  cursor: pointer;
+}
+
+.scene-control[data-tool="intoterica"]:hover {
+  color: var(--color-text-light-highlight);
+  text-shadow: 0 0 10px var(--color-shadow-primary);
+}
+
+/* Fix for ApplicationV2 Window Header Controls - Using ID for Maximum Specificity */
+.window-app.v2[id="intoterica"] .window-header .header-control {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  color: var(--color-text-light-heading, #e0e0e0) !important;
+  width: 30px !important;
+  height: 30px !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  appearance: none !important;
+}
+
+.window-app.v2[id="intoterica"] .window-header .header-control:hover {
+  color: var(--color-text-light-highlight, #fff) !important;
+  text-shadow: 0 0 10px var(--color-shadow-primary, #000) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Quest Section Headers (File Folder Look) */
+.quest-section-header {
+  font-family: var(--theme-font-header);
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--theme-text);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 5px 10px;
+  margin-top: 15px;
+  margin-bottom: 5px;
+  border-bottom: 2px solid var(--theme-border);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.quest-section-header.in-progress { color: #f59f00; border-color: #f59f00; }
+.quest-section-header.completed { color: #2b8a3e; border-color: #2b8a3e; }
+.quest-section-header.failed { color: #c92a2a; border-color: #c92a2a; }
+
+/* Chat Card Styles */
+.intoterica-chat-card {
+  border: 2px solid var(--theme-border);
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--theme-surface);
+  color: var(--theme-text);
+  font-family: var(--theme-font-main);
+  text-align: center;
+  box-shadow: 0 0 5px rgba(0,0,0,0.3);
+}
+
+.intoterica-chat-card h3 {
+  background: var(--theme-sidebar);
+  color: var(--theme-accent);
+  margin: 0;
+  padding: 5px;
+  border-bottom: 1px solid var(--theme-border);
+  font-family: var(--theme-font-header);
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.intoterica-chat-card .card-content {
+  padding: 10px;
+}
+
+.intoterica-chat-card button {
+  background: var(--theme-sidebar);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
+}
+
+.intoterica-chat-card.theme-access-point button {
+  color: #ffffff;
+}
+
+/* Default Theme: Use dark background for readability */
+.intoterica-chat-card.theme-foundry {
+  background: var(--theme-bg);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+
+/* Soviet Theme: Fix contrast */
+.intoterica-chat-card.theme-soviet h3,
+.intoterica-chat-card.theme-soviet button {
+  color: var(--theme-border);
+}

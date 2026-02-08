@@ -1,4 +1,4 @@
-# Intoterica
+# Intoterica (Beta 0.9.6)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jitterbone)
 
@@ -62,8 +62,7 @@ A native Foundry VTT campaign management system for tracking quests, factions, a
 ## Usage
 
 **Opening the App:**
-- Click the 📖 book icon in the Token Controls (left sidebar).
-- Or use the macro: `new IntotericaApp().render(true);`
+- Make a new macro script and execute the macro: `new IntotericaApp().render(true);`
 
 **Factions:**
 - GMs can create factions in the Factions tab.
