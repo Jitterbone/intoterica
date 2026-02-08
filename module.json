@@ -3,7 +3,7 @@
   "name": "intoterica",
   "title": "Intoterica",
   "description": "Campaign management system for tracking quests, factions, achievements, and communications. GMs have full control while players can view shared content.",
-  "version": "0.9.5",
+  "version": "0.9.7",
   "compatibility": {
     "minimum": "13",
     "verified": "13"

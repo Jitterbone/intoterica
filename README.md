@@ -1,4 +1,4 @@
-# Intoterica (Beta 0.9.6)
+# Intoterica (Beta 0.9.7)
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jitterbone)
 

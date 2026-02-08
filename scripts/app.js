@@ -1,7 +1,7 @@
 export class IntotericaApp extends foundry.applications.api.HandlebarsApplicationMixin(
   foundry.applications.api.ApplicationV2
 ) {
-  static VERSION = "0.9.6";
+  static VERSION = "0.9.7";
 
   static DEFAULT_OPTIONS = {
     id: "intoterica",
