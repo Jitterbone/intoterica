@@ -98,7 +98,7 @@
   <!-- Quest List -->
   <div class="quest-list">
     {{#each quests}}
-      <div class="quest-card {{#if isPrimary}}primary-quest{{/if}} status-{{lowercase status}}" data-quest-id="{{id}}">
+      <div class="quest-card {{#if isPrimary}}primary-quest{{/if}} {{#if hidden}}quest-hidden-gm{{/if}} status-{{lowercase status}}" data-quest-id="{{id}}">
         <!-- Quest Banner / Header -->
         <div class="quest-card-header quest-header-clickable" data-quest-id="{{id}}">
           <div class="quest-card-icon-container">
@@ -131,6 +131,9 @@
                   <span class="quest-difficulty-badge" style="color: {{difficultyColor}}; border-color: {{difficultyColor}};">{{difficulty}}</span>
                 {{/if}}
                 <span class="quest-status-badge status-{{lowercase status}}">{{status}}</span>
+                {{#if hidden}}
+                  <span class="quest-hidden-indicator" title="Hidden from Players" style="font-size: 10px; color: #fa5252; background: rgba(250, 82, 82, 0.12); border: 1px solid rgba(250, 82, 82, 0.4); padding: 1px 6px; border-radius: 3px; font-weight: 600; display: inline-flex; align-items: center; gap: 3px;"><i class="fas fa-eye-slash"></i> Hidden</span>
+                {{/if}}
               </div>
             </div>
             
@@ -170,13 +173,9 @@
         <!-- Quest Collapsible Details Body -->
         <div class="quest-card-body {{#if isExpanded}}show{{/if}}">
           {{#if descriptionHtml}}
-            <div class="quest-description-block">
-              {{{descriptionHtml}}}
-            </div>
+            <div class="quest-description-block">{{{descriptionHtml}}}</div>
           {{else if description}}
-            <div class="quest-description-block">
-              {{{description}}}
-            </div>
+            <div class="quest-description-block">{{{description}}}</div>
           {{/if}}
 
           <!-- Tasks / Objectives List -->
@@ -185,25 +184,51 @@
               <div class="quest-section-label"><i class="fas fa-tasks"></i> Objectives</div>
               <div class="quest-tasks-list">
                 {{#each tasks}}
-                  {{#if isSubquest}}
-                    <div class="quest-task-subquest-header" data-quest-id="{{../id}}" data-task-id="{{id}}">
-                      <i class="fas fa-folder-open"></i>
-                      <span>{{text}}</span>
-                    </div>
-                  {{else}}
-                    <div class="quest-task-item {{#if isSubquestChild}}subquest-child{{/if}} {{#if failed}}failed{{else if completed}}completed{{/if}} {{#if optional}}optional{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}">
-                      <input type="checkbox" class="quest-task-checkbox" data-quest-id="{{../id}}" data-task-id="{{id}}" {{#if completed}}checked{{/if}} {{#if failed}}disabled{{/if}} {{#unless @root.perms.quests}}disabled{{/unless}}>
-                      <span class="quest-task-text {{#if failed}}task-failed{{/if}}">{{text}}</span>
-                      {{#if optional}}<span class="quest-task-optional">(Optional)</span>{{/if}}
-                      {{#if failed}}
-                        <span class="quest-task-failed-badge" title="This objective has failed"><i class="fas fa-times"></i> Failed</span>
-                      {{/if}}
-                      {{#if @root.perms.quests}}
-                        <button type="button" class="quest-task-fail-toggle {{#if failed}}active{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}" title="{{#if failed}}Clear Failed State{{else}}Mark Objective as Failed{{/if}}">
-                          <i class="fas {{#if failed}}fa-undo{{else}}fa-ban{{/if}}"></i>
-                        </button>
-                      {{/if}}
-                    </div>
+                  {{#if (or (not hidden) @root.perms.quests)}}
+                    {{#if (or isSubstory isSubquest)}}
+                      <div class="quest-task-substory-header {{#if hidden}}task-hidden{{/if}}" {{#if @root.perms.quests}}draggable="true"{{/if}} data-quest-id="{{../id}}" data-task-id="{{id}}">
+                        {{#if @root.perms.quests}}
+                          <i class="fas fa-grip-vertical task-drag-handle" title="Drag to reorder"></i>
+                        {{/if}}
+                        <i class="fas fa-folder-open substory-icon"></i>
+                        <span class="substory-title">{{text}}</span>
+                        {{#if hidden}}
+                          <span class="quest-task-hidden-badge" title="This substory is hidden from players"><i class="fas fa-eye-slash"></i> Hidden</span>
+                        {{/if}}
+                        {{#if @root.perms.quests}}
+                          <div class="task-actions-group" style="margin-left: auto; display: inline-flex; align-items: center; gap: 4px;">
+                            <button type="button" class="quest-task-visibility-toggle {{#if hidden}}active-hidden{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}" title="{{#if hidden}}Hidden from Players (Click to Reveal){{else}}Visible to Players (Click to Hide){{/if}}">
+                              <i class="fas {{#if hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+                            </button>
+                          </div>
+                        {{/if}}
+                      </div>
+                    {{else}}
+                      <div class="quest-task-item {{#if (or isSubstoryChild isSubquestChild)}}substory-child{{/if}} {{#if failed}}failed{{else if completed}}completed{{/if}} {{#if optional}}optional{{/if}} {{#if hidden}}task-hidden{{/if}}" {{#if @root.perms.quests}}draggable="true"{{/if}} data-quest-id="{{../id}}" data-task-id="{{id}}">
+                        {{#if @root.perms.quests}}
+                          <i class="fas fa-grip-vertical task-drag-handle" title="Drag to reorder"></i>
+                        {{/if}}
+                        <input type="checkbox" class="quest-task-checkbox" data-quest-id="{{../id}}" data-task-id="{{id}}" {{#if completed}}checked{{/if}} {{#if failed}}disabled{{/if}} {{#unless @root.perms.quests}}disabled{{/unless}}>
+                        <span class="quest-task-text {{#if failed}}task-failed{{/if}}">{{text}}</span>
+                        {{#if optional}}<span class="quest-task-optional">(Optional)</span>{{/if}}
+                        {{#if failed}}
+                          <span class="quest-task-failed-badge" title="This objective has failed"><i class="fas fa-times"></i> Failed</span>
+                        {{/if}}
+                        {{#if hidden}}
+                          <span class="quest-task-hidden-badge" title="This objective is hidden from players"><i class="fas fa-eye-slash"></i> Hidden</span>
+                        {{/if}}
+                        {{#if @root.perms.quests}}
+                          <div class="task-actions-group" style="margin-left: auto; display: inline-flex; align-items: center; gap: 4px;">
+                            <button type="button" class="quest-task-visibility-toggle {{#if hidden}}active-hidden{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}" title="{{#if hidden}}Hidden from Players (Click to Reveal){{else}}Visible to Players (Click to Hide){{/if}}">
+                              <i class="fas {{#if hidden}}fa-eye-slash{{else}}fa-eye{{/if}}"></i>
+                            </button>
+                            <button type="button" class="quest-task-fail-toggle {{#if failed}}active{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}" title="{{#if failed}}Clear Failed State{{else}}Mark Objective as Failed{{/if}}">
+                              <i class="fas {{#if failed}}fa-undo{{else}}fa-ban{{/if}}"></i>
+                            </button>
+                          </div>
+                        {{/if}}
+                      </div>
+                    {{/if}}
                   {{/if}}
                 {{/each}}
               </div>
@@ -265,10 +290,13 @@
           <div class="quest-card-footer">
             <button type="button" class="share-quest-chat" data-quest-id="{{id}}" title="Share to Chat"><i class="fas fa-comment-alt"></i> Share</button>
             {{#if @root.perms.quests}}
-              {{#if (ne status 'Completed')}}
+              {{#if (or (eq status 'Available') (eq status 'Inactive'))}}
+                <button type="button" class="activate-quest-btn" data-quest-id="{{id}}"><i class="fas fa-play"></i> Make Active</button>
+              {{/if}}
+              {{#if (and (ne status 'Completed') (ne status 'Available') (ne status 'Inactive'))}}
                 <button type="button" class="complete-quest" data-quest-id="{{id}}"><i class="fas fa-check"></i> Complete</button>
               {{/if}}
-              {{#if (ne status 'Failed')}}
+              {{#if (and (ne status 'Failed') (ne status 'Available') (ne status 'Inactive'))}}
                 <button type="button" class="fail-quest" data-quest-id="{{id}}"><i class="fas fa-times"></i> Fail</button>
               {{/if}}
               {{#if (or (eq status 'Completed') (eq status 'Failed'))}}

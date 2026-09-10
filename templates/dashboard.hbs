@@ -138,6 +138,30 @@
       </div>
 
       <div>
+        <h3 class="section-title">Completed Quests</h3>
+        {{#if profile.completedQuests.length}}
+          {{#each profile.completedQuests}}
+            <div class="mini-card profile-quest-link" data-quest-id="{{id}}" style="cursor: pointer;" title="Click to view quest in Quest Journal">
+              {{#if image}}
+                <div class="mini-icon" style="flex-shrink: 0; width: 36px; height: 36px; min-width: 36px; border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                  <img src="{{image}}" style="width: 100%; height: 100%; object-fit: cover; border: none;">
+                </div>
+              {{/if}}
+              <div style="flex: 1; min-width: 0;">
+                <div class="mini-title">{{#if isPrimary}}⭐ {{/if}}{{title}}</div>
+                <div class="mini-sub">
+                  <span style="color: #2b8a3e; font-weight: 700;">Completed</span> • {{difficulty}}
+                  {{#if commissionedFaction}} • {{commissionedFaction}}{{else if giver}} • {{giver}}{{/if}}
+                </div>
+              </div>
+            </div>
+          {{/each}}
+        {{else}}
+          <p class="empty-text">No completed quests</p>
+        {{/if}}
+      </div>
+
+      <div>
         <h3 class="section-title">Messages</h3>
         {{#if profile.messages.length}}
           {{#each profile.messages}}

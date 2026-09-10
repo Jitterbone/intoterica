@@ -62,10 +62,10 @@
               {{#each factions}}
                 <button class="faction-card {{#if (eq ../selectedFaction.id id)}}selected{{/if}}" data-faction-id="{{id}}">
                   <div class="faction-icon">
-                    {{#if isImage}}<img src="{{image}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{image}}{{/if}}
+                    {{#if isImage}}<img src="{{image}}" alt="{{name}}">{{else}}<span class="faction-icon-emoji">{{image}}</span>{{/if}}
                   </div>
                   <div class="faction-header">
-                    <div class="faction-name">{{name}}</div>
+                    <div class="faction-name" title="{{name}}">{{name}}</div>
                     <div class="faction-rep-value" style="color: {{statusColor}};">
                       {{statusLabel}} ({{reputation}})
                     </div>
@@ -281,11 +281,9 @@
                                 <img src="{{mailContext.compose.currentFrom.image}}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover;">
                                 <span style="font-size: 12px; font-weight: bold; color: var(--theme-text);">{{mailContext.compose.currentFrom.name}}</span>
                             </div>
-                            {{#if (or isGM (gt mailContext.compose.fromOptions.length 1))}}
-                                <select name="fromId" style="width: 20px; opacity: 0.5; cursor: pointer;" title="Change Sender">
-                                {{#each mailContext.compose.fromOptions}}
-                                    <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
-                                {{/each}}
+                            {{#if mailContext.compose.fromOptionsHtml}}
+                                <select name="fromId" style="max-width: 220px; font-size: 11px; cursor: pointer; padding: 2px 6px; height: 26px; border-radius: 4px; background: rgba(0,0,0,0.2); color: var(--theme-text); border: 1px solid var(--theme-border);" title="Change Sender">
+                                    {{{mailContext.compose.fromOptionsHtml}}}
                                 </select>
                             {{else}}
                                 <input type="hidden" name="fromId" value="{{mailContext.compose.currentFrom.id}}">

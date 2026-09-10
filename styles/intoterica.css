@@ -419,6 +419,150 @@
   font-weight: 900 !important;
 }
 
+/* ─── Window Header Theming for Main Intoterica Window ───────────────── */
+.intoterica.theme-foundry header.window-header,
+.intoterica.theme-default header.window-header,
+div.intoterica:has(.theme-foundry) header.window-header,
+div.intoterica:has(.theme-default) header.window-header {
+  background: linear-gradient(180deg, #5a221b 0%, #3d140e 100%) !important;
+  border-bottom: 2px solid #782e22 !important;
+  color: #fdf6e6 !important;
+}
+.intoterica.theme-foundry header.window-header .window-title,
+.intoterica.theme-default header.window-header .window-title,
+div.intoterica:has(.theme-foundry) header.window-header .window-title,
+div.intoterica:has(.theme-default) header.window-header .window-title {
+  color: #fdf6e6 !important;
+  font-family: 'Modesto Condensed', 'Signika', sans-serif !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+}
+.intoterica.theme-foundry header.window-header .header-button,
+.intoterica.theme-default header.window-header .header-button,
+div.intoterica:has(.theme-foundry) header.window-header .header-button,
+div.intoterica:has(.theme-default) header.window-header .header-button {
+  color: #fdf6e6 !important;
+}
+.intoterica.theme-foundry header.window-header .intoterica-header-date,
+.intoterica.theme-default header.window-header .intoterica-header-date,
+div.intoterica:has(.theme-foundry) header.window-header .intoterica-header-date,
+div.intoterica:has(.theme-default) header.window-header .intoterica-header-date {
+  color: #ffd700 !important;
+  font-family: 'Signika', sans-serif !important;
+  font-weight: 600 !important;
+}
+
+.intoterica.theme-access-point header.window-header,
+div.intoterica:has(.theme-access-point) header.window-header {
+  background: linear-gradient(180deg, #1a2639 0%, #0e1724 100%) !important;
+  border-bottom: 2px solid #3b6ea5 !important;
+  color: #4facfe !important;
+}
+.intoterica.theme-access-point header.window-header .window-title,
+div.intoterica:has(.theme-access-point) header.window-header .window-title {
+  color: #4facfe !important;
+  font-family: 'Modesto Condensed', serif !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 8px rgba(79, 172, 254, 0.6) !important;
+}
+.intoterica.theme-access-point header.window-header .header-button,
+div.intoterica:has(.theme-access-point) header.window-header .header-button {
+  color: #4facfe !important;
+}
+.intoterica.theme-access-point header.window-header .intoterica-header-date,
+div.intoterica:has(.theme-access-point) header.window-header .intoterica-header-date {
+  color: #4facfe !important;
+  font-family: 'Signika', sans-serif !important;
+  text-shadow: 0 0 5px rgba(79, 172, 254, 0.4) !important;
+}
+
+.intoterica.theme-soviet header.window-header,
+div.intoterica:has(.theme-soviet) header.window-header {
+  background: linear-gradient(180deg, #8b0000 0%, #5a0000 100%) !important;
+  border-bottom: 2px solid #d4af37 !important;
+  color: #ffd700 !important;
+}
+.intoterica.theme-soviet header.window-header .window-title,
+div.intoterica:has(.theme-soviet) header.window-header .window-title {
+  color: #ffd700 !important;
+  font-family: 'Russo One', sans-serif !important;
+  font-weight: 700 !important;
+  letter-spacing: 1px !important;
+}
+.intoterica.theme-soviet header.window-header .header-button,
+div.intoterica:has(.theme-soviet) header.window-header .header-button {
+  color: #ffd700 !important;
+}
+.intoterica.theme-soviet header.window-header .intoterica-header-date,
+div.intoterica:has(.theme-soviet) header.window-header .intoterica-header-date {
+  color: #ffffff !important;
+  font-family: 'Roboto Slab', serif !important;
+}
+
+.intoterica.theme-dark-fantasy header.window-header,
+div.intoterica:has(.theme-dark-fantasy) header.window-header {
+  background: linear-gradient(180deg, #2b1020 0%, #160810 100%) !important;
+  border-bottom: 2px solid #ff0055 !important;
+  color: #ff0055 !important;
+}
+.intoterica.theme-dark-fantasy header.window-header .window-title,
+div.intoterica:has(.theme-dark-fantasy) header.window-header .window-title {
+  color: #ff0055 !important;
+  font-family: 'Cinzel', serif !important;
+  font-weight: 700 !important;
+  text-shadow: 0 0 10px rgba(255, 0, 85, 0.7) !important;
+}
+.intoterica.theme-dark-fantasy header.window-header .header-button,
+div.intoterica:has(.theme-dark-fantasy) header.window-header .header-button {
+  color: #ff0055 !important;
+}
+.intoterica.theme-dark-fantasy header.window-header .intoterica-header-date,
+div.intoterica:has(.theme-dark-fantasy) header.window-header .intoterica-header-date {
+  color: #00ffcc !important;
+  font-family: 'Cinzel', serif !important;
+  text-shadow: 0 0 6px rgba(0, 255, 204, 0.6) !important;
+}
+
+.intoterica.theme-vaporwave header.window-header,
+div.intoterica:has(.theme-vaporwave) header.window-header {
+  background: linear-gradient(90deg, #ff71ce 0%, #01cdfe 100%) !important;
+  border-bottom: 2px solid #05ffa1 !important;
+  color: #ffffff !important;
+}
+.intoterica.theme-vaporwave header.window-header .window-title,
+div.intoterica:has(.theme-vaporwave) header.window-header .window-title {
+  color: #ffffff !important;
+  font-family: 'VT323', monospace !important;
+  font-size: 1.25rem !important;
+  text-shadow: 0 0 8px rgba(255, 113, 206, 0.8), 2px 2px #01cdfe !important;
+}
+.intoterica.theme-vaporwave header.window-header .header-button,
+div.intoterica:has(.theme-vaporwave) header.window-header .header-button {
+  color: #ffffff !important;
+}
+.intoterica.theme-vaporwave header.window-header .intoterica-header-date,
+div.intoterica:has(.theme-vaporwave) header.window-header .intoterica-header-date {
+  color: #fffb96 !important;
+  font-family: 'VT323', monospace !important;
+  font-size: 1.1rem !important;
+  text-shadow: 0 0 5px rgba(255, 251, 150, 0.8) !important;
+}
+
+.intoterica.theme-custom header.window-header,
+div.intoterica:has(.theme-custom) header.window-header {
+  background: linear-gradient(180deg, var(--theme-sidebar, #1a2639) 0%, rgba(0,0,0,0.85) 100%) !important;
+  border-bottom: 2px solid var(--theme-border, #3b6ea5) !important;
+  color: var(--theme-accent, #4facfe) !important;
+}
+.intoterica.theme-custom header.window-header .window-title,
+div.intoterica:has(.theme-custom) header.window-header .window-title {
+  color: var(--theme-accent, #4facfe) !important;
+}
+.intoterica.theme-custom header.window-header .header-button,
+div.intoterica:has(.theme-custom) header.window-header .header-button {
+  color: var(--theme-accent, #4facfe) !important;
+}
+
 /* ─── Intoterica Themed Dialogs ─────────────────────────────── */
 .intoterica-dialog,
 .intoterica-dialog.dialog,
@@ -681,20 +825,66 @@
 }
 
 /* Task Builder Items */
+/* Task Builder Items */
+.intoterica-dialog .quest-tasks-builder {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  max-height: 280px !important;
+  box-sizing: border-box !important;
+}
+
 .intoterica-dialog .quest-task-entry {
   display: flex !important;
-  align-items: center !important;
-  gap: 6px !important;
+  flex-direction: column !important;
+  gap: 4px !important;
   background: var(--dialog-input-bg, #ffffff) !important;
   border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)) !important;
   border-radius: 4px !important;
-  padding: 4px 6px !important;
+  padding: 6px 8px !important;
   margin-bottom: 6px !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
   transition: border-color 0.2s ease !important;
 }
 
 .intoterica-dialog .quest-task-entry:hover {
   border-color: var(--theme-accent, #ff6400) !important;
+}
+
+.intoterica-dialog .quest-task-main-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100% !important;
+}
+
+.intoterica-dialog .quest-task-badges-row {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+  width: 100% !important;
+  padding-left: 22px !important;
+}
+
+.intoterica-dialog .delete-task-row {
+  background: transparent !important;
+  border: none !important;
+  color: #e03131 !important;
+  cursor: pointer !important;
+  padding: 2px 6px !important;
+  font-size: 12px !important;
+  border-radius: 3px !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+}
+
+.intoterica-dialog .delete-task-row:hover {
+  background: rgba(224, 49, 49, 0.15) !important;
+  color: #c92a2a !important;
 }
 
 .intoterica-dialog .quest-task-entry input[type="text"] {
@@ -704,6 +894,8 @@
   padding: 2px 4px !important;
   font-size: 0.85rem !important;
   height: auto !important;
+  flex: 1 !important;
+  min-width: 0 !important;
 }
 
 .intoterica-dialog .quest-task-opt-badge {
@@ -727,6 +919,7 @@
   border-color: var(--dialog-btn-primary-border, #4a1810) !important;
 }
 
+.intoterica-dialog .quest-task-substory-badge,
 .intoterica-dialog .quest-task-subquest-badge {
   font-size: 10px !important;
   padding: 2px 6px !important;
@@ -742,16 +935,88 @@
   transition: all 0.2s ease !important;
 }
 
+.intoterica-dialog .quest-task-substory-badge.active,
 .intoterica-dialog .quest-task-subquest-badge.active {
   background: #1971c2 !important;
   color: #ffffff !important;
   border-color: #1864ab !important;
 }
 
+.intoterica-dialog .quest-task-hide-badge {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  background: rgba(0, 0, 0, 0.06) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  color: var(--dialog-label-color, #666) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
+}
+
+.intoterica-dialog .quest-task-hide-badge.active {
+  background: #e03131 !important;
+  color: #ffffff !important;
+  border-color: #c92a2a !important;
+}
+
+.intoterica-dialog .quest-task-fail-badge {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  background: rgba(201, 42, 42, 0.08) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  color: #c92a2a !important;
+  border: 1px solid rgba(201, 42, 42, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+.intoterica-dialog .quest-task-fail-badge.active {
+  background: #c92a2a !important;
+  color: #ffffff !important;
+  border-color: #a82222 !important;
+}
+
+.intoterica-dialog .quest-task-entry.is-substory-header,
 .intoterica-dialog .quest-task-entry.is-subquest-header {
-  background: rgba(25, 113, 194, 0.08) !important;
-  border-left: 3px solid #1971c2 !important;
+  background: rgba(25, 113, 194, 0.12) !important;
+  border-left: 4px solid #1971c2 !important;
   font-weight: 600 !important;
+  margin-top: 8px !important;
+}
+
+.intoterica-dialog .quest-task-entry.is-substory-child {
+  margin-left: 18px !important;
+  border-left: 3px solid rgba(25, 113, 194, 0.45) !important;
+  background: rgba(25, 113, 194, 0.04) !important;
+}
+
+.intoterica-dialog .add-child-task-btn {
+  background: rgba(25, 113, 194, 0.15) !important;
+  border: 1px solid rgba(25, 113, 194, 0.4) !important;
+  color: #1971c2 !important;
+  border-radius: 3px !important;
+  padding: 2px 7px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  white-space: nowrap !important;
+  transition: all 0.15s ease !important;
+}
+
+.intoterica-dialog .add-child-task-btn:hover {
+  background: #1971c2 !important;
+  color: #ffffff !important;
 }
 
 /* Reward Bar */
@@ -856,7 +1121,10 @@
   box-sizing: border-box !important;
 }
 
+.intoterica-dialog .faction-xp-row,
+.faction-xp-container .faction-xp-row,
 .intoterica-dialog .rep-row,
+.rep-container .rep-row,
 .rep-row {
   display: flex !important;
   align-items: center !important;
@@ -871,6 +1139,8 @@
   overflow: hidden !important;
 }
 
+.intoterica-dialog .faction-xp-row .faction-xp-select,
+.faction-xp-container .faction-xp-row .faction-xp-select,
 .intoterica-dialog .rep-row .rep-faction-select,
 .rep-row .rep-faction-select {
   flex: 1 1 0% !important;
@@ -884,6 +1154,8 @@
   margin: 0 !important;
 }
 
+.intoterica-dialog .faction-xp-row .faction-xp-amount-group,
+.faction-xp-container .faction-xp-row .faction-xp-amount-group,
 .intoterica-dialog .rep-row .rep-standing-group,
 .rep-row .rep-standing-group {
   display: flex !important;
@@ -894,6 +1166,9 @@
   white-space: nowrap !important;
 }
 
+.intoterica-dialog .faction-xp-row input.faction-xp-amount,
+.window-app .window-content form .faction-xp-row input.faction-xp-amount,
+.faction-xp-container .faction-xp-row input.faction-xp-amount,
 .intoterica-dialog .rep-row input.rep-delta-input,
 .window-app .window-content form .rep-row input.rep-delta-input,
 .rep-row input.rep-delta-input {
@@ -909,12 +1184,18 @@
   padding: 2px 4px !important;
 }
 
+.intoterica-dialog .faction-xp-row .remove-faction-xp-row,
+.faction-xp-container .faction-xp-row .remove-faction-xp-row,
 .intoterica-dialog .rep-row .remove-rep-row,
 .rep-row .remove-rep-row {
   flex: 0 0 auto !important;
   flex-shrink: 0 !important;
   cursor: pointer !important;
   padding: 2px 4px !important;
+  background: transparent !important;
+  border: none !important;
+  color: #c92a2a !important;
+  font-size: 12px !important;
 }
 
 /* System Currency Grid & Cards in Dialogs */
@@ -1807,6 +2088,7 @@
   display: block;
   height: 100%;
   width: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -1814,12 +2096,16 @@
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 1rem;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .faction-list {
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -1829,20 +2115,45 @@
   grid-auto-rows: min-content;
   gap: 1rem;
   overflow-y: auto;
-  padding: 0.5rem;
+  overflow-x: hidden;
+  padding: 0.5rem 0.5rem 3rem 0.5rem;
   align-content: start;
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-border) transparent;
+}
+
+.faction-grid::-webkit-scrollbar {
+  width: 6px;
+}
+.faction-grid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+.faction-grid::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 3px;
 }
 
 .intoterica .faction-layout.details-open .faction-list {
   padding-right: 0.5rem;
   border-right: 1px solid var(--theme-border);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .intoterica .faction-layout.details-open .faction-grid {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 6px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 6px 3.5rem 4px;
+  flex: 1 1 0%;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-border) transparent;
 }
 
 .intoterica .faction-card {
@@ -1854,6 +2165,8 @@
   flex-direction: column;
   align-items: center;
   height: 350px;
+  border-radius: 6px;
+  box-sizing: border-box;
 }
 
 .intoterica .faction-card.selected {
@@ -1867,10 +2180,15 @@
   flex-direction: row;
   text-align: left;
   align-items: center;
+  gap: 8px;
   height: auto;
-  padding: 8px;
+  min-height: 52px;
+  padding: 6px 8px;
   width: 100%;
-  margin-bottom: 5px;
+  margin-bottom: 2px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .intoterica .faction-header {
@@ -1885,31 +2203,60 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  margin-left: 10px;
+  margin-left: 0;
   gap: 2px;
-  flex: 1;
+  flex: 1 1 0%;
   min-width: 0;
+  overflow: hidden;
 }
 
 .intoterica .faction-icon {
   font-size: 32px;
   width: 64px;
   height: 64px;
+  min-width: 64px;
+  min-height: 64px;
+  max-width: 64px;
+  max-height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.1);
-  border: 2px solid var(--theme-border);
-  border-radius: 4px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--theme-border);
+  border-radius: 6px;
   flex-shrink: 0;
   margin-bottom: 0.25rem;
+  padding: 3px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.intoterica .faction-icon img {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 4px;
+  display: block;
+  border: none;
 }
 
 .intoterica .faction-layout.details-open .faction-icon {
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 44px;
+  max-height: 44px;
   font-size: 20px;
   margin-bottom: 0;
+  padding: 2px;
+  border-radius: 5px;
+}
+
+.intoterica .faction-layout.details-open .faction-icon img {
+  border-radius: 3px;
 }
 
 .intoterica .faction-name {
@@ -1922,13 +2269,15 @@
 }
 
 .intoterica .faction-layout.details-open .faction-name {
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 700;
   margin-bottom: 0;
   flex: 0 0 auto;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
+  line-height: 1.2;
 }
 
 .intoterica .faction-rep-bar {
@@ -1964,7 +2313,14 @@
 .intoterica .faction-rep-value.negative { color: #c92a2a; }
 
 .intoterica .faction-layout.details-open .faction-rep-value {
-  margin-top: 0;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .faction-card-description {
@@ -2006,7 +2362,7 @@
   border: 1px solid var(--theme-border);
   padding: 0.75rem;
   height: 350px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
 .intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-card:hover {
@@ -2016,12 +2372,16 @@
 }
 
 .intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-icon {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(79, 172, 254, 0.3);
   font-size: 32px;
   width: 64px;
   height: 64px;
+  min-width: 64px;
+  min-height: 64px;
   margin-bottom: 0.5rem;
+  border-radius: 6px;
+  padding: 3px;
 }
 
 .intoterica-container.theme-access-point .faction-layout:not(.details-open) .faction-name {
@@ -2042,8 +2402,8 @@
 .intoterica-container.theme-access-point .faction-layout.details-open .faction-card {
   background: rgba(26, 38, 57, 0.9);
   border: 1px solid var(--theme-border);
-  margin-bottom: 5px;
-  border-radius: 4px;
+  margin-bottom: 2px;
+  border-radius: 6px;
 }
 
 .intoterica-container.theme-access-point .faction-layout.details-open .faction-card:hover,
@@ -2054,15 +2414,17 @@
 }
 
 .intoterica-container.theme-access-point .faction-layout.details-open .faction-icon {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(79, 172, 254, 0.3);
+  border-radius: 5px;
+  padding: 2px;
 }
 
 .intoterica-container.theme-access-point .faction-layout.details-open .faction-name {
   font-family: var(--theme-font-header);
   color: var(--theme-accent);
   text-shadow: none;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .intoterica-container.theme-access-point .faction-detail {
@@ -2441,26 +2803,163 @@
   display: block;
 }
 
+.quest-task-substory-header,
 .quest-task-subquest-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 8px;
-  background: rgba(0, 0, 0, 0.22);
-  border-left: 3px solid var(--theme-accent, #ff6400);
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(25, 113, 194, 0.15);
+  border-left: 4px solid var(--theme-accent, #1971c2);
   border-radius: 3px;
-  margin-top: 8px;
+  margin-top: 10px;
   margin-bottom: 4px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--theme-light, #f0f0e0);
+  color: var(--theme-text, #f0f0e0);
 }
 
+.quest-task-substory-header .substory-icon {
+  color: var(--theme-accent, #1971c2);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.quest-task-substory-header .substory-title {
+  flex: 1;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: inherit;
+}
+
+.quest-task-substory-header.task-hidden,
+.quest-task-item.task-hidden {
+  opacity: 0.65;
+  border-style: dashed;
+}
+
+.quest-task-item.substory-child,
 .quest-task-item.subquest-child {
-  margin-left: 18px;
-  border-left: 2px solid rgba(255, 255, 255, 0.15);
-  padding-left: 8px;
-  background: rgba(0, 0, 0, 0.05);
+  margin-left: 20px;
+  border-left: 2px solid rgba(25, 113, 194, 0.45);
+  padding-left: 10px;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Access Point Theme Specific Readability Overrides */
+.intoterica-container.theme-access-point .quest-task-substory-header,
+.theme-access-point .quest-task-substory-header {
+  background: rgba(26, 38, 57, 0.08) !important;
+  border-left: 4px solid #1a2639 !important;
+  border-bottom: 1px solid rgba(26, 38, 57, 0.15) !important;
+  color: #1a2639 !important;
+}
+
+.intoterica-container.theme-access-point .quest-task-substory-header .substory-icon,
+.theme-access-point .quest-task-substory-header .substory-icon {
+  color: #1a2639 !important;
+}
+
+.intoterica-container.theme-access-point .quest-task-substory-header .substory-title,
+.theme-access-point .quest-task-substory-header .substory-title {
+  color: #1a2639 !important;
+  font-weight: 700 !important;
+}
+
+.intoterica-container.theme-access-point .quest-task-item.substory-child,
+.theme-access-point .quest-task-item.substory-child {
+  border-left: 2px solid rgba(26, 38, 57, 0.35) !important;
+  background: rgba(26, 38, 57, 0.03) !important;
+  color: #2b1d0e !important;
+}
+
+.task-drag-handle {
+  cursor: grab !important;
+  color: var(--theme-dim, #888) !important;
+  font-size: 11px !important;
+  padding: 0 4px !important;
+  opacity: 0.55 !important;
+  transition: opacity 0.15s ease, color 0.15s ease !important;
+  user-select: none !important;
+  flex-shrink: 0 !important;
+}
+
+.task-drag-handle:hover,
+.quest-task-entry:hover .task-drag-handle,
+.quest-task-item:hover .task-drag-handle,
+.quest-task-substory-header:hover .task-drag-handle {
+  opacity: 1 !important;
+  color: var(--theme-accent, #339af0) !important;
+}
+
+.task-drag-handle:active {
+  cursor: grabbing !important;
+}
+
+.quest-task-entry.dragging,
+.quest-task-item.dragging,
+.quest-task-substory-header.dragging {
+  opacity: 0.45 !important;
+  outline: 2px dashed var(--theme-accent, #339af0) !important;
+}
+
+.quest-task-entry.drag-over-top,
+.quest-task-item.drag-over-top,
+.quest-task-substory-header.drag-over-top {
+  border-top: 2px solid var(--theme-accent, #339af0) !important;
+}
+
+.quest-task-entry.drag-over-bottom,
+.quest-task-item.drag-over-bottom,
+.quest-task-substory-header.drag-over-bottom {
+  border-bottom: 2px solid var(--theme-accent, #339af0) !important;
+}
+
+.quest-task-hidden-badge {
+  font-size: 9px;
+  color: #fa5252;
+  border: 1px solid rgba(250, 82, 82, 0.4);
+  background: rgba(250, 82, 82, 0.1);
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.quest-task-visibility-toggle,
+.quest-task-substory-toggle {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  color: var(--theme-dim);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 11px;
+  line-height: 1;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.quest-task-visibility-toggle:hover,
+.quest-task-substory-toggle:hover {
+  color: var(--theme-accent);
+  border-color: var(--theme-accent);
+}
+
+.quest-task-visibility-toggle.active-hidden {
+  color: #fa5252;
+  border-color: rgba(250, 82, 82, 0.4);
+  background: rgba(250, 82, 82, 0.1);
+}
+
+.quest-task-substory-toggle.active {
+  color: #339af0;
+  border-color: rgba(51, 154, 240, 0.4);
+  background: rgba(51, 154, 240, 0.1);
 }
 
 .quest-visibility-btn {
@@ -2477,6 +2976,20 @@
 
 .quest-visibility-btn.hidden-quest {
   color: #e03131;
+}
+
+.activate-quest-btn {
+  background: rgba(43, 138, 62, 0.25) !important;
+  border: 1px solid rgba(43, 138, 62, 0.6) !important;
+  color: #2b8a3e !important;
+  font-weight: 700 !important;
+  transition: all 0.2s ease !important;
+}
+
+.activate-quest-btn:hover {
+  background: rgba(43, 138, 62, 0.45) !important;
+  color: #fff !important;
+  box-shadow: 0 0 8px rgba(43, 138, 62, 0.4) !important;
 }
 
 .badge-profile-text {
@@ -3182,7 +3695,7 @@
 
 .quest-card-body {
   display: none;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
   background: rgba(0, 0, 0, 0.03);
 }
@@ -3193,9 +3706,38 @@
 
 .quest-description-block {
   font-size: 13px;
-  line-height: 1.5;
-  margin-bottom: 1rem;
-  white-space: pre-wrap;
+  line-height: 1.55;
+  margin-bottom: 0.75rem;
+  color: var(--theme-text);
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+.quest-description-block p {
+  margin: 0 0 0.55em 0;
+  line-height: 1.55;
+}
+
+.quest-description-block p:last-child {
+  margin-bottom: 0;
+}
+
+.quest-description-block h1,
+.quest-description-block h2,
+.quest-description-block h3,
+.quest-description-block h4 {
+  margin: 0.5em 0 0.25em 0;
+}
+
+.quest-description-block ul,
+.quest-description-block ol {
+  margin: 0.35em 0 0.55em 1.2em;
+  padding: 0;
+}
+
+.quest-description-block blockquote {
+  margin: 0.5em 0;
+  padding: 0.35em 0.75em;
 }
 
 .quest-section-label {
@@ -4093,6 +4635,81 @@
   background: var(--dialog-input-bg, #ffffff);
   overflow: hidden;
   min-height: 180px;
+}
+
+.rich-editor-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.2));
+  user-select: none;
+}
+
+.rich-editor-mode-bar .rich-mode-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dialog-section-title, #3b6ea5);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.rich-mode-toggle-btn {
+  background: var(--dialog-input-bg, #ffffff);
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.3));
+  color: var(--dialog-input-text, #191813);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.rich-mode-toggle-btn:hover {
+  background: var(--theme-accent, #339af0);
+  color: #ffffff;
+  border-color: var(--theme-accent, #339af0);
+}
+
+.rich-mode-toggle-btn.active {
+  background: #2b8a3e;
+  color: #ffffff;
+  border-color: #237032;
+}
+
+.rich-view-mode {
+  cursor: pointer;
+  min-height: 160px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--dialog-input-bg, #ffffff);
+  padding: 8px 10px;
+  box-sizing: border-box;
+}
+
+.rich-view-content {
+  font-family: var(--theme-font-main, 'Signika', sans-serif);
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--dialog-input-text, #191813);
+  word-wrap: break-word;
+}
+
+.rich-empty-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--theme-dim, #888);
+  padding: 20px 10px;
+  border: 1px dashed rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.02);
 }
 
 .rich-editor-toolbar {

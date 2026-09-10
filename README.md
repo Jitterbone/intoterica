@@ -1,7 +1,7 @@
-# Intoterica (v1.1.0) 📖
+# Intoterica (v1.5.0) 📖
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jitterbone)
 
-A system-agnostic Foundry VTT campaign management suite for tracking quests, factions, achievements, and communications across any game system.
+A system-agnostic Foundry VTT campaign management suite for tracking quests, substories, factions, achievements, and communications across any game system.
 
 ---
 
@@ -12,40 +12,46 @@ A system-agnostic Foundry VTT campaign management suite for tracking quests, fac
 - Individual quick-link icons for each page (Dashboard, Quests, Factions, Inbox, Achievements, NPCs)
 - Click any page icon to open Intoterica directly on that tab — no extra clicks
 
-### 📊 Dashboard
+### 📊 Dashboard & Character Profiles
 - Live stats: active quests, unread messages, achievements earned
 - Faction reputation overview
 - Recent messages feed
-- Player profiles with badge, faction, and quest summaries
+- Comprehensive player profiles retaining completed quest history, faction rankings/XP, and merit badges
 
-### 📖 Quest Journal & Tracker
-- Standalone quest tracker with no external dependencies
-- Objective checklists with real-time task completion
-- Difficulty tiers (Trivial → Legendary) and reward descriptions
-- Primary quest pinning to surface main storyline quests
-- Status filtering: All, Active, Available, Completed, Failed
-- Player assignment and hidden GM-only notes
-- Chat sharing with formatted quest summary cards
+### 📖 Quest Journal, Substories & Reward Distribution
+- Standalone quest tracker with zero required external dependencies
+- **Substories & Objective Hierarchy**: Convert objectives into nested substories with draggable reordering and sub-tasks
+- **Dynamic Difficulty Scales**: Standard RPG tiers (Trivial → Legendary) and customizable metal rankings
+- **Automated Reward Distribution**: Directly award currencies (split or full), equipment/items, faction standing, and faction XP on quest completion
+- **Quest Giver Folder Hierarchy**: Browse and select quest givers organized neatly by Foundry Actor folders, with automatic registration into Known NPCs
+- Primary quest pinning to surface main storylines
+- Comprehensive filtering: Search, difficulty, quest givers, and status (Active, Available, Completed, Failed)
+- Player assignment with "Whole Party" default and hidden GM-only notes
+- One-click chat sharing with formatted quest summary cards
 
-### 🏛️ Factions
+### 🏛️ Factions & Standing System
 - Reputation sliders (–100 to +100) with named tiers (Nemesis → Devoted)
-- Custom ranks with XP thresholds and reputation modifiers
-- XP award system with auto-promotion
-- Optional player enlistment
-- Weighted reputation auto-calculation from member standings and party rep
-- Dynamic faction icons and rep-tier faces
+- Custom ranks with configurable XP thresholds and reputation modifiers
+- **Member-Strict Faction XP Awards**: Faction XP and promotions are strictly granted to enrolled faction members, while reputation applies to everyone/party standing
+- Optional player enlistment allowing player-initiated membership requests
+- Weighted reputation auto-calculation blending individual member standings with party standing
+- Dynamic faction icons, fixed-ratio emblems, and rep-tier status faces
 
 ### 🏆 Achievements (Merit Badges)
-- Create custom badges with images and descriptions
-- GM grant/revoke controls
-- Chat notifications on award
+- Create custom badges with images, descriptions, and rank badges
+- GM grant/revoke controls with instant player profile updates
+- Automated chat announcements on award
 
-### 📧 Inbox (Communications)
+### 📧 Inbox & Communications
 - Threaded email-style conversations grouped by subject
-- Address book with players and Known NPCs
+- Address book featuring player characters and Known NPCs with folder-based sender selection
 - Unknown NPC sender masking for players
-- Offline delivery — messages queued when GM is offline
-- Chat "Access Inbox" notification buttons
+- Offline delivery queueing for when GM or recipients are offline
+- Interactive chat "Access Inbox" notification cards
+
+### 💾 Data Manager & Character Migration Tool
+- Standalone migration utility for seamless transfer of character progress (quests, faction standings, merit badges, mail messages, and profile history) between actors
+- Full JSON backup export, import, validation, and in-app editor
 
 ---
 
