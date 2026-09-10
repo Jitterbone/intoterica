@@ -204,7 +204,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this._idleSound = null;
     this.mailComposeData = null;
     this.mailViewSubject = null;
-    this.questFilter = 'all';
+    this.questFilter = 'active';
+    this.questSearch = '';
+    this._preserveSearchFocus = false;
+    this._questSearchTimer = null;
     this.expandedQuestIds = new Set();
     this._isClosing = false;
     IntotericaApp._instance = this;
@@ -544,22 +547,39 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return q.assignedTo.some(id => myActorIds.includes(id));
     });
 
+    if (!this.questFilter || this.questFilter === 'all') {
+      this.questFilter = 'active';
+    }
+
     const questStats = {
-      all: visibleQuests.length,
       active: visibleQuests.filter(q => q.status === 'Active').length,
-      available: visibleQuests.filter(q => q.status === 'Available').length,
+      available: visibleQuests.filter(q => q.status === 'Available' || q.status === 'Inactive').length,
       completed: visibleQuests.filter(q => q.status === 'Completed').length,
       failed: visibleQuests.filter(q => q.status === 'Failed').length
     };
 
     // Filter by current quest filter tab
     let filteredQuests = visibleQuests;
-    if (this.questFilter && this.questFilter !== 'all') {
+    if (this.questFilter === 'available') {
+      filteredQuests = visibleQuests.filter(q => (q.status || '').toLowerCase() === 'available' || (q.status || '').toLowerCase() === 'inactive');
+    } else if (this.questFilter) {
       filteredQuests = visibleQuests.filter(q => (q.status || '').toLowerCase() === this.questFilter.toLowerCase());
     }
 
+    // Filter by search query (by quest title, giver, description, or task objective text)
+    const searchQuery = (this.questSearch || '').trim().toLowerCase();
+    if (searchQuery) {
+      filteredQuests = filteredQuests.filter(q => {
+        const titleMatch = (q.title || '').toLowerCase().includes(searchQuery);
+        const giverMatch = (q.giver || '').toLowerCase().includes(searchQuery);
+        const descMatch = (q.description || '').toLowerCase().includes(searchQuery);
+        const taskMatch = (q.tasks || []).some(t => (t.text || '').toLowerCase().includes(searchQuery));
+        return titleMatch || giverMatch || descMatch || taskMatch;
+      });
+    }
+
     // Sort: Primary > Active > Available > Completed > Failed
-    const sortOrder = { "Active": 0, "Available": 1, "Completed": 2, "Failed": 3 };
+    const sortOrder = { "Active": 0, "Available": 1, "Inactive": 1, "Completed": 2, "Failed": 3 };
     filteredQuests.sort((a, b) => {
       if (a.isPrimary && !b.isPrimary) return -1;
       if (!a.isPrimary && b.isPrimary) return 1;
@@ -877,7 +897,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         isImage: b.icon && (b.icon.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(b.icon))
       })),
       quests: filteredQuests,
-      questFilter: this.questFilter || 'all',
+      questFilter: this.questFilter || 'active',
+      questSearch: this.questSearch || '',
       questStats,
       factions: processedFactions,
       players: players,
@@ -1099,6 +1120,20 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       html.find('.quest-pin-btn').click(this._onToggleQuestPin.bind(this));
       html.find('.quest-task-checkbox').change(this._onToggleQuestTask.bind(this));
       html.find('.share-quest-chat').click(this._onShareQuestChat.bind(this));
+      html.find('.quest-search-input').on('input', this._onSearchQuests.bind(this));
+      html.find('.clear-quest-search').click(this._onClearQuestSearch.bind(this));
+
+      if (this._preserveSearchFocus) {
+        const searchInput = html.find('.quest-search-input');
+        if (searchInput.length) {
+          searchInput.focus();
+          const val = searchInput.val() || '';
+          if (searchInput[0]?.setSelectionRange) {
+            searchInput[0].setSelectionRange(val.length, val.length);
+          }
+        }
+        this._preserveSearchFocus = false;
+      }
     }
 
     // Inject Faction Progress Bars in Profile
@@ -1978,7 +2013,24 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   _onFilterQuests(event) {
     event.preventDefault();
     event.stopPropagation();
-    this.questFilter = event.currentTarget.dataset.filter || 'all';
+    this.questFilter = event.currentTarget.dataset.filter || 'active';
+    this.render();
+  }
+
+  _onSearchQuests(event) {
+    this.questSearch = event.currentTarget.value || '';
+    this._preserveSearchFocus = true;
+    clearTimeout(this._questSearchTimer);
+    this._questSearchTimer = setTimeout(() => {
+      this.render();
+    }, 120);
+  }
+
+  _onClearQuestSearch(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.questSearch = '';
+    this._preserveSearchFocus = false;
     this.render();
   }
 

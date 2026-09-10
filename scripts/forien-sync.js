@@ -47,8 +47,7 @@ export class ForienQuestSync {
     const rawStatus = String(raw.status || '').toLowerCase();
     if (rawStatus === 'completed') status = "Completed";
     else if (rawStatus === 'failed') status = "Failed";
-    else if (rawStatus === 'available') status = "Available";
-    else if (rawStatus === 'inactive') status = "Inactive";
+    else if (rawStatus === 'available' || rawStatus === 'inactive') status = "Available";
     else status = "Active";
 
     // Description extraction
@@ -96,10 +95,10 @@ export class ForienQuestSync {
     }
 
     // Quest Image / Splash
-    let image = raw.splash || raw.image || "";
-    if (!image || image === 'actor' || image === 'token') {
+    let image = (typeof raw.splash === 'string' ? raw.splash : '') || (typeof raw.image === 'string' ? raw.image : '');
+    if (!image || image === 'actor' || image === 'token' || image === 'icons/svg/book.svg') {
       const imgPage = journal.pages?.contents?.find(p => p.type === 'image');
-      image = imgPage?.src || "icons/svg/book.svg";
+      image = imgPage?.src || "";
     }
 
     // Giver Name
