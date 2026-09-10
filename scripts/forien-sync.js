@@ -103,10 +103,14 @@ export class ForienQuestSync {
 
     // Giver Name
     let giver = raw.giverName || "";
-    if (!giver && typeof raw.giver === 'string' && raw.giver !== 'abstract') {
-      const giverDoc = fromUuidSync?.(raw.giver);
-      if (giverDoc) giver = giverDoc.name || "";
+    if (!giver && raw.giver === 'actor' && raw.actor) {
+      const actorDoc = fromUuidSync?.(raw.actor) || game.actors?.get(raw.actor);
+      if (actorDoc) giver = actorDoc.name || "";
+    } else if (!giver && typeof raw.giver === 'string' && raw.giver !== 'abstract' && raw.giver !== 'actor' && raw.giver !== 'custom') {
+      const giverDoc = fromUuidSync?.(raw.giver) || game.actors?.get(raw.giver);
+      if (giverDoc) giver = giverDoc.name || raw.giver;
     }
+    if (giver === 'actor' || giver === 'custom') giver = "";
 
     // Primary Quest check
     let isPrimary = Boolean(raw.isPrimary);

@@ -298,6 +298,92 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     return optionsHtml;
   }
 
+  static getPlayerActors() {
+    const userCharMap = new Map();
+    // 1. Assigned player characters from users
+    for (const u of game.users) {
+      if (!u.isGM && u.character) {
+        userCharMap.set(u.character.id, u.character);
+      }
+    }
+    // 2. Player-owned character actors on the dashboard/app
+    for (const a of game.actors) {
+      if (a.hasPlayerOwner && (a.type === 'character' || a.type === 'pc')) {
+        userCharMap.set(a.id, a);
+      }
+    }
+    return Array.from(userCharMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  static getQuestGiverOptions(selectedGiver = "") {
+    const selectedClean = String(selectedGiver || "").trim().toLowerCase();
+    let hasMatch = !selectedClean; // empty string matches "None"
+
+    let html = `<option value="">— None / Independent —</option>`;
+
+    // 1. Known NPCs (from Module Settings)
+    const settings = game.settings.get('intoterica', 'data') || {};
+    const knownNPCs = settings.knownNPCs || [];
+    if (knownNPCs.length) {
+      html += `<optgroup label="📜 Known NPCs">`;
+      for (const npc of knownNPCs) {
+        if (!npc.name) continue;
+        const isSel = selectedClean === npc.name.toLowerCase();
+        if (isSel) hasMatch = true;
+        html += `<option value="${Handlebars.escapeExpression(npc.name)}" ${isSel ? 'selected' : ''}>${Handlebars.escapeExpression(npc.name)}</option>`;
+      }
+      html += `</optgroup>`;
+    }
+
+    // 2. Factions (from Module Settings)
+    const factions = settings.factions || [];
+    if (factions.length) {
+      html += `<optgroup label="🛡️ Factions & Organizations">`;
+      for (const f of factions) {
+        if (!f.name) continue;
+        const isSel = selectedClean === f.name.toLowerCase();
+        if (isSel) hasMatch = true;
+        html += `<option value="${Handlebars.escapeExpression(f.name)}" ${isSel ? 'selected' : ''}>${Handlebars.escapeExpression(f.name)}</option>`;
+      }
+      html += `</optgroup>`;
+    }
+
+    // 3. Actors in Folders (Foundry Folder File Structure!)
+    const actorFolders = game.folders ? game.folders.filter(f => f.type === 'Actor').sort((a, b) => a.name.localeCompare(b.name)) : [];
+    for (const folder of actorFolders) {
+      const folderActors = folder.contents || [];
+      if (folderActors.length) {
+        html += `<optgroup label="📁 ${Handlebars.escapeExpression(folder.name)}">`;
+        for (const actor of folderActors) {
+          const isSel = selectedClean === actor.name.toLowerCase();
+          if (isSel) hasMatch = true;
+          html += `<option value="${Handlebars.escapeExpression(actor.name)}" ${isSel ? 'selected' : ''}>${Handlebars.escapeExpression(actor.name)}</option>`;
+        }
+        html += `</optgroup>`;
+      }
+    }
+
+    // 4. Root Actors (Actors not in any folder)
+    const rootActors = game.actors ? game.actors.filter(a => !a.folder).sort((a, b) => a.name.localeCompare(b.name)) : [];
+    if (rootActors.length) {
+      html += `<optgroup label="👤 Root Actors & Characters">`;
+      for (const actor of rootActors) {
+        const isSel = selectedClean === actor.name.toLowerCase();
+        if (isSel) hasMatch = true;
+        html += `<option value="${Handlebars.escapeExpression(actor.name)}" ${isSel ? 'selected' : ''}>${Handlebars.escapeExpression(actor.name)}</option>`;
+      }
+      html += `</optgroup>`;
+    }
+
+    // 5. Custom / Freeform fallback option
+    if (selectedGiver && !hasMatch) {
+      html = `<option value="${Handlebars.escapeExpression(selectedGiver)}" selected>${Handlebars.escapeExpression(selectedGiver)} (Custom)</option>` + html;
+    }
+    html += `<option value="__custom__">✏️ Custom Name...</option>`;
+
+    return html;
+  }
+
   static THEMES = {
     "default": {
       label: "Default",
@@ -595,15 +681,19 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const myActorIds = game.actors.filter(a => a.isOwner).map(a => a.id);
     if (game.user.character) myActorIds.push(game.user.character.id);
 
+    const isGM = Boolean(game.user.isGM);
+    const canEditQuests = isGM || perms.quests;
+
     const processedQuests = rawQuests.map(q => {
       const tasks = Array.isArray(q.tasks) ? q.tasks : [];
       const totalTasks = tasks.length;
       const completedTasks = tasks.filter(t => t.completed).length;
       const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : (q.status === 'Completed' ? 100 : 0);
       
+      const isAssignAll = q.assignedAll !== false && (!q.assignedTo || q.assignedTo.length === 0);
       const assignedTo = Array.isArray(q.assignedTo) ? q.assignedTo : (q.assignedTo ? [q.assignedTo] : []);
       const assignedActors = assignedTo.map(id => game.actors.get(id)).filter(Boolean);
-      const assignedNames = assignedActors.map(a => a.name).join(', ');
+      const assignedNames = isAssignAll ? "Whole Party" : (assignedActors.map(a => a.name).join(', ') || "Whole Party");
 
       const isExpanded = this.expandedQuestIds.has(q.id);
       const isPrimary = !!q.isPrimary;
@@ -637,6 +727,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         totalTasks,
         completedTasks,
         taskProgress,
+        isAssignAll,
         assignedTo,
         assignedActors,
         assignedNames,
@@ -654,9 +745,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     // Visibility filter (GM sees all; players see assigned or party quests that are not Hidden)
     const visibleQuests = processedQuests.filter(q => {
-      if (perms.quests) return true;
+      if (canEditQuests) return true;
       if (q.status === 'Hidden') return false;
-      if (q.assignedTo.length === 0) return true; // Party quest
+      if (q.assignedAll === true || (!q.assignedTo || q.assignedTo.length === 0)) return true; // Whole Party quest
       return q.assignedTo.some(id => myActorIds.includes(id));
     });
 
@@ -807,7 +898,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         
         // Determine quests for this actor
         const actorQuests = processedQuests.filter(q => 
-          (q.assignedTo.length === 0 || q.assignedTo.includes(actorId)) &&
+          (q.assignedAll === true || (!q.assignedTo || q.assignedTo.length === 0) || q.assignedTo.includes(actorId)) &&
           !profileHistory.hidden.includes(q.id)
         );
         let historyQuests = [...actorQuests];
@@ -1360,18 +1451,58 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       
       const generateQuestHtml = (quests, statusClass) => {
         if (!quests || quests.length === 0) return '<div class="empty-text">None recorded</div>';
-        return quests.map(q => `
-          <div class="quest-item" style="cursor: pointer; position: relative;" data-quest-id="${q.id}" data-is-manual="${q.isManual || false}">
-            ${q.image ? `<img src="${q.image}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #4a3b28; flex-shrink: 0;">` : ''}
-            <div class="quest-content">
-              <div class="quest-header">
-                <div class="quest-title">${q.title}</div>
-                ${IntotericaApp.hasPermission('permQuests') ? `<i class="fas fa-trash remove-profile-quest" title="Remove from Report" style="margin-left: auto; color: #c92a2a; cursor: pointer; z-index: 10;"></i>` : ''}
+        return quests.map(q => {
+          const rewards = q.rewards || {};
+          const tasks = Array.isArray(q.tasks) ? q.tasks : [];
+          const completedTasks = tasks.filter(t => t.completed).length;
+          const totalTasks = tasks.length;
+          const diffInfo = IntotericaApp.getDifficultyInfo(q.difficulty);
+
+          const rewardsPills = [];
+          if (rewards.xp) rewardsPills.push(`<span class="reward-pill xp"><i class="fas fa-star"></i> +${rewards.xp} XP</span>`);
+          if (rewards.currency) rewardsPills.push(`<span class="reward-pill currency"><i class="fas fa-coins"></i> ${rewards.currency}</span>`);
+          if (rewards.text) rewardsPills.push(`<span class="reward-pill item"><i class="fas fa-box-open"></i> ${rewards.text}</span>`);
+
+          return `
+            <div class="report-quest-card status-${statusClass}" data-quest-id="${q.id}" data-is-manual="${q.isManual || false}">
+              <div class="report-quest-header">
+                ${q.image ? `<img src="${q.image}" class="report-quest-thumb" />` : `<div class="report-quest-thumb-fallback"><i class="fas fa-scroll"></i></div>`}
+                <div class="report-quest-info">
+                  <div class="report-quest-title-row">
+                    <span class="report-quest-title">${q.isPrimary ? '<i class="fas fa-star" style="color: #f59f00;"></i> ' : ''}${q.title || q.name || 'Untitled Quest'}</span>
+                    <span class="quest-difficulty-badge" style="color: ${diffInfo.color}; border-color: ${diffInfo.color}; font-size: 8px; padding: 1px 5px;">${diffInfo.label}</span>
+                  </div>
+                  <div class="report-quest-meta-row">
+                    ${q.commissionedFaction ? `<span title="Commissioned Faction"><i class="fas fa-shield-alt"></i> ${q.commissionedFaction}</span>` : ''}
+                    ${q.giver ? `<span title="Quest Giver"><i class="fas fa-user-circle"></i> ${q.giver}</span>` : ''}
+                    ${q.date ? `<span title="Date Completed"><i class="fas fa-calendar-alt"></i> ${q.date}</span>` : ''}
+                  </div>
+                </div>
+                ${IntotericaApp.hasPermission('permQuests') ? `<i class="fas fa-trash remove-profile-quest" title="Remove from Report" data-quest-id="${q.id}" data-is-manual="${q.isManual || false}" style="color: #c92a2a; cursor: pointer; margin-left: auto; padding: 4px;"></i>` : ''}
               </div>
-              <div class="quest-status ${statusClass}">${statusClass.charAt(0).toUpperCase() + statusClass.slice(1)}</div>
+
+              ${q.description ? `
+                <div class="report-quest-desc">${q.description}</div>
+              ` : ''}
+
+              ${tasks.length ? `
+                <div class="report-quest-tasks">
+                  <div class="report-tasks-title"><i class="fas fa-tasks"></i> Objectives (${completedTasks}/${totalTasks})</div>
+                  <div class="report-tasks-list">
+                    ${tasks.map(t => `<div class="report-task-item ${t.completed ? 'completed' : ''}"><i class="fas ${t.completed ? 'fa-check-circle' : 'fa-circle'}"></i> <span>${t.text}</span></div>`).join('')}
+                  </div>
+                </div>
+              ` : ''}
+
+              ${rewardsPills.length ? `
+                <div class="report-quest-rewards">
+                  <div class="report-rewards-title"><i class="fas fa-trophy"></i> Rewards:</div>
+                  <div class="report-rewards-pills">${rewardsPills.join('')}</div>
+                </div>
+              ` : ''}
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       };
 
       const reportHtml = `
@@ -2276,6 +2407,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   async _onToggleQuestPin(event) {
     event.preventDefault();
     event.stopPropagation();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can manage quests.");
+      return;
+    }
     const questId = event.currentTarget.dataset.questId;
     const settings = game.settings.get('intoterica', 'data');
     const quest = (settings.quests || []).find(q => q.id === questId);
@@ -2290,6 +2425,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   async _onToggleQuestTask(event) {
     event.stopPropagation();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can update quest objectives.");
+      return;
+    }
     const questId = event.currentTarget.dataset.questId;
     const taskId = event.currentTarget.dataset.taskId;
     const isChecked = event.currentTarget.checked;
@@ -2310,6 +2449,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   async _onCompleteQuest(event) {
     event.preventDefault();
     event.stopPropagation();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can complete quests.");
+      return;
+    }
     const questId = event.currentTarget.dataset.questId;
     const settings = game.settings.get('intoterica', 'data');
     const quest = (settings.quests || []).find(q => q.id === questId);
@@ -2330,6 +2473,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   async _onFailQuest(event) {
     event.preventDefault();
     event.stopPropagation();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can fail quests.");
+      return;
+    }
     const questId = event.currentTarget.dataset.questId;
     const settings = game.settings.get('intoterica', 'data');
     const quest = (settings.quests || []).find(q => q.id === questId);
@@ -2346,6 +2493,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   async _onReopenQuest(event) {
     event.preventDefault();
     event.stopPropagation();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can reopen quests.");
+      return;
+    }
     const questId = event.currentTarget.dataset.questId;
     const settings = game.settings.get('intoterica', 'data');
     const quest = (settings.quests || []).find(q => q.id === questId);
@@ -2423,8 +2574,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   async _onAddQuest(event) {
     event.preventDefault();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can create quests.");
+      return;
+    }
+
     const settings = game.settings.get('intoterica', 'data');
-    const playerActors = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
+    const playerActors = IntotericaApp.getPlayerActors();
     
     IntotericaApp.createDialog({
       title: "Create Quest",
@@ -2436,7 +2592,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               <i class="fas fa-scroll"></i> Quest Details
             </button>
             <button type="button" class="dialog-tab-btn" data-tab="gm">
-              <i class="fas fa-user-shield"></i> GM Controls & Assignment
+              <i class="fas fa-user-shield"></i> GM Secret Notes & Pin
             </button>
           </div>
 
@@ -2459,16 +2615,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                   <input type="text" name="title" placeholder="Quest Title (e.g. Investigate the Sunken Crypt)..." class="quest-title-large" autofocus required />
                 </div>
                 
-                <div class="quest-meta-strip" style="grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="quest-meta-strip">
                   <div class="quest-meta-pill">
                     <label><i class="fas fa-signal"></i> Difficulty</label>
-                    <select name="difficulty">
+                    <select name="difficulty" class="quest-dialog-select">
                       ${IntotericaApp.getDifficultyOptions("Medium")}
                     </select>
                   </div>
                   <div class="quest-meta-pill">
                     <label><i class="fas fa-hourglass-half"></i> Status</label>
-                    <select name="status">
+                    <select name="status" class="quest-dialog-select">
                       <option value="Active" selected>Active</option>
                       <option value="Available">Available</option>
                       <option value="Completed">Completed</option>
@@ -2479,25 +2635,52 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 </div>
 
                 <!-- Commissioned By & Giver Section -->
-                <div class="quest-commission-strip" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.04); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 6px 8px;">
+                <div class="quest-commission-strip">
                   <div class="quest-meta-pill">
                     <label><i class="fas fa-shield-alt"></i> Commissioned by (Faction)</label>
-                    <select name="commissionedFaction">
+                    <select name="commissionedFaction" class="quest-dialog-select">
                       <option value="">— Independent / None —</option>
                       ${(settings.factions || []).map(f => `<option value="${f.name}">${f.name}</option>`).join('')}
                     </select>
                   </div>
                   <div class="quest-meta-pill">
-                    <label><i class="fas fa-user-circle"></i> Quest Giver / NPC</label>
-                    <input type="text" name="giver" list="create-quest-npc-list" placeholder="e.g. Guildmaster Vane" />
-                    <datalist id="create-quest-npc-list">
-                      ${(settings.knownNPCs || []).map(n => `<option value="${n.name}">`).join('')}
-                    </datalist>
+                    <label><i class="fas fa-user-circle"></i> Quest Giver / Issuer</label>
+                    <select class="quest-giver-select quest-dialog-select" title="Choose from World Folders, NPCs, Factions...">
+                      ${IntotericaApp.getQuestGiverOptions("")}
+                    </select>
+                    <input type="text" name="giver" class="quest-giver-custom-input" style="display: none; margin-top: 4px;" placeholder="Type custom giver name..." />
                   </div>
                 </div>
 
               </div>
 
+            </div>
+
+            <!-- Player Assignment Section -->
+            <div class="quest-assignment-panel">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                <div style="font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dialog-section-title, #782e22); display: flex; align-items: center; gap: 5px;">
+                  <i class="fas fa-users"></i> Assigned Players / Characters
+                </div>
+                <label class="assign-all-label" style="font-size: 11px; font-weight: 700; color: var(--theme-accent, #ff6400); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; margin: 0; user-select: none;">
+                  <input type="checkbox" name="assignAll" class="assign-all-checkbox" checked style="margin: 0; width: 14px; height: 14px; cursor: pointer;" />
+                  <span>Assign to All Players (Whole Party)</span>
+                </label>
+              </div>
+              ${playerActors.length ? `
+                <div class="quest-player-assignments-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px;">
+                  ${playerActors.map(p => {
+                    const avatar = p.img || p.prototypeToken?.texture?.src || "icons/svg/mystery-man.svg";
+                    return `
+                      <label class="player-assign-card assigned" data-actor-id="${p.id}">
+                        <input type="checkbox" name="assign_${p.id}" class="player-assign-cb" value="${p.id}" checked style="margin: 0; width: 14px; height: 14px; cursor: pointer;" />
+                        <img src="${avatar}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0,0,0,0.2); flex-shrink: 0;" />
+                        <span style="font-size: 11px; font-weight: 600; color: var(--dialog-input-text, #191813); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;" title="${p.name}">${p.name}</span>
+                      </label>
+                    `;
+                  }).join('')}
+                </div>
+              ` : `<p style="font-size: 11px; font-style: italic; color: var(--theme-dim); margin: 0;">No player characters detected on the app.</p>`}
             </div>
 
             <!-- Bottom 2-Column Ledger: Briefing (Left) + Objectives & Rewards (Right) -->
@@ -2553,23 +2736,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
           </div>
 
-          <!-- TAB 2: GM Controls & Assignment -->
+          <!-- TAB 2: GM Controls -->
           <div class="dialog-tab-content" data-tab="gm" style="display: none; flex-direction: column; gap: 12px;">
-            <div class="form-section">
-              <div class="form-section-title"><i class="fas fa-users"></i> Character Assignment</div>
-              <p style="font-size: 12px; color: var(--dialog-label-color, var(--theme-dim)); margin: 0 0 8px 0;">Select assigned characters (leave all unchecked for Entire Party):</p>
-              ${playerActors.length ? `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 160px; overflow-y: auto;">
-                  ${playerActors.map(p => `
-                    <div class="form-toggle-card">
-                      <input type="checkbox" name="assign_${p.id}" id="q-assign-${p.id}" />
-                      <label for="q-assign-${p.id}">${p.name}</label>
-                    </div>
-                  `).join('')}
-                </div>
-              ` : '<p style="font-size: 12px; font-style: italic; opacity: 0.7;">No player characters found.</p>'}
-            </div>
-
             <div class="form-section">
               <div class="form-section-title"><i class="fas fa-user-shield"></i> GM Secret Notes</div>
               <div class="form-group">
@@ -2611,15 +2779,24 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             });
 
             // Extract assigned players
-            const assignedTo = Object.keys(formData)
-              .filter(k => k.startsWith('assign_') && formData[k])
-              .map(k => k.replace('assign_', ''));
+            const assignAll = html.find('.assign-all-checkbox').is(':checked');
+            const assignedTo = assignAll ? [] : html.find('.player-assign-cb:checked').map((i, el) => el.value).get();
+
+            // Extract giver
+            let giverValue = "";
+            const giverSelectVal = html.find('.quest-giver-select').val();
+            if (giverSelectVal && giverSelectVal !== '__custom__') {
+              giverValue = giverSelectVal;
+            } else if (html.find('.quest-giver-custom-input').val()) {
+              giverValue = html.find('.quest-giver-custom-input').val().trim();
+            }
 
             const questData = {
               title: formData.title,
+              name: formData.title,
               difficulty: formData.difficulty || "Medium",
               status: formData.status || "Active",
-              giver: formData.giver || "",
+              giver: giverValue,
               commissionedFaction: formData.commissionedFaction || "",
               image: formData.image || "",
               description: formData.description || "",
@@ -2629,7 +2806,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 currency: formData.rewardCurrency || "",
                 text: formData.rewardText || ""
               },
-              assignedTo,
+              assignedAll: assignAll,
+              assignedTo: assignedTo,
               gmNotes: formData.gmNotes || "",
               isPrimary: formData.isPrimary === true
             };
@@ -2668,6 +2846,42 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           }).render(true);
         });
 
+        // Assign All vs Individual Player Checkboxes
+        const $assignAll = html.find('.assign-all-checkbox');
+        const $playerCbs = html.find('.player-assign-cb');
+
+        $assignAll.change(function() {
+          const isChecked = $(this).is(':checked');
+          $playerCbs.prop('checked', isChecked);
+          $playerCbs.each(function() {
+            const $card = $(this).closest('.player-assign-card');
+            $card.toggleClass('assigned', isChecked);
+          });
+        });
+
+        $playerCbs.change(function() {
+          const $card = $(this).closest('.player-assign-card');
+          const isChecked = $(this).is(':checked');
+          $card.toggleClass('assigned', isChecked);
+
+          const total = $playerCbs.length;
+          const checkedCount = $playerCbs.filter(':checked').length;
+          $assignAll.prop('checked', total > 0 && checkedCount === total);
+        });
+
+        // Quest Giver dropdown + custom input toggle
+        const $giverSelect = html.find('.quest-giver-select');
+        const $giverInput = html.find('.quest-giver-custom-input');
+
+        $giverSelect.change(function() {
+          const val = $(this).val();
+          if (val === '__custom__') {
+            $giverInput.show().val('').focus();
+          } else {
+            $giverInput.val(val).hide();
+          }
+        });
+
         // Optional badge toggle
         html.on('click', '.quest-task-opt-badge', function(ev) {
           ev.preventDefault();
@@ -2703,10 +2917,17 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   async _createQuest(data) {
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can create quests.");
+      return;
+    }
+
     const settings = game.settings.get('intoterica', 'data');
     if (!settings.quests) settings.quests = [];
 
     const questTitle = data.title || data.name || "Untitled Quest";
+    const assignAll = data.assignedAll !== false && (!data.assignedTo || data.assignedTo.length === 0);
+
     const newQuest = {
       id: foundry.utils.randomID(),
       title: questTitle,
@@ -2719,7 +2940,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       image: data.image || "",
       tasks: data.tasks || [],
       rewards: data.rewards || { xp: 0, currency: "", text: "" },
-      assignedTo: data.assignedTo || [],
+      assignedAll: assignAll,
+      assignedTo: assignAll ? [] : (Array.isArray(data.assignedTo) ? data.assignedTo : []),
       gmNotes: data.gmNotes || "",
       isPrimary: data.isPrimary === true,
       date: this._getGameDate()
@@ -2735,15 +2957,22 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   async _onEditQuest(event) {
     event.preventDefault();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can edit quests.");
+      return;
+    }
+
     const questId = event.currentTarget.dataset.questId;
     const settings = game.settings.get('intoterica', 'data');
     const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest) return;
 
     const questTitle = quest.title || quest.name || "";
-    const playerActors = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
+    const playerActors = IntotericaApp.getPlayerActors();
     const tasks = Array.isArray(quest.tasks) ? quest.tasks : [];
     const rewards = quest.rewards || {};
+    
+    const isAssignAll = quest.assignedAll !== false && (!quest.assignedTo || quest.assignedTo.length === 0);
     const assignedTo = Array.isArray(quest.assignedTo) ? quest.assignedTo : [];
 
     const tasksHtml = tasks.map((t) => {
@@ -2771,7 +3000,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               <i class="fas fa-scroll"></i> Quest Details
             </button>
             <button type="button" class="dialog-tab-btn" data-tab="gm">
-              <i class="fas fa-user-shield"></i> GM Controls & Assignment
+              <i class="fas fa-user-shield"></i> GM Secret Notes & Pin
             </button>
           </div>
 
@@ -2794,16 +3023,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                   <input type="text" name="title" value="${questTitle}" placeholder="Quest Title (e.g. The Sunken Crypt)..." class="quest-title-large" autofocus required />
                 </div>
                 
-                <div class="quest-meta-strip" style="grid-template-columns: 1fr 1fr; gap: 8px;">
+                <div class="quest-meta-strip">
                   <div class="quest-meta-pill">
                     <label><i class="fas fa-signal"></i> Difficulty</label>
-                    <select name="difficulty">
+                    <select name="difficulty" class="quest-dialog-select">
                       ${IntotericaApp.getDifficultyOptions(quest.difficulty)}
                     </select>
                   </div>
                   <div class="quest-meta-pill">
                     <label><i class="fas fa-hourglass-half"></i> Status</label>
-                    <select name="status">
+                    <select name="status" class="quest-dialog-select">
                       <option value="Active" ${quest.status === 'Active' ? 'selected' : ''}>Active</option>
                       <option value="Available" ${quest.status === 'Available' ? 'selected' : ''}>Available</option>
                       <option value="Completed" ${quest.status === 'Completed' ? 'selected' : ''}>Completed</option>
@@ -2814,25 +3043,53 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 </div>
 
                 <!-- Commissioned By & Giver Section -->
-                <div class="quest-commission-strip" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.04); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 6px 8px;">
+                <div class="quest-commission-strip">
                   <div class="quest-meta-pill">
                     <label><i class="fas fa-shield-alt"></i> Commissioned by (Faction)</label>
-                    <select name="commissionedFaction">
+                    <select name="commissionedFaction" class="quest-dialog-select">
                       <option value="">— Independent / None —</option>
                       ${(settings.factions || []).map(f => `<option value="${f.name}" ${quest.commissionedFaction === f.name ? 'selected' : ''}>${f.name}</option>`).join('')}
                     </select>
                   </div>
                   <div class="quest-meta-pill">
-                    <label><i class="fas fa-user-circle"></i> Quest Giver / NPC</label>
-                    <input type="text" name="giver" value="${quest.giver || ''}" list="edit-quest-npc-list" placeholder="e.g. Guildmaster Vane" />
-                    <datalist id="edit-quest-npc-list">
-                      ${(settings.knownNPCs || []).map(n => `<option value="${n.name}">`).join('')}
-                    </datalist>
+                    <label><i class="fas fa-user-circle"></i> Quest Giver / Issuer</label>
+                    <select class="quest-giver-select quest-dialog-select" title="Choose from World Folders, NPCs, Factions...">
+                      ${IntotericaApp.getQuestGiverOptions(quest.giver)}
+                    </select>
+                    <input type="text" name="giver" value="${quest.giver || ''}" class="quest-giver-custom-input" style="display: none; margin-top: 4px;" placeholder="Type custom giver name..." />
                   </div>
                 </div>
 
               </div>
 
+            </div>
+
+            <!-- Player Assignment Section -->
+            <div class="quest-assignment-panel">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                <div style="font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dialog-section-title, #782e22); display: flex; align-items: center; gap: 5px;">
+                  <i class="fas fa-users"></i> Assigned Players / Characters
+                </div>
+                <label class="assign-all-label" style="font-size: 11px; font-weight: 700; color: var(--theme-accent, #ff6400); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; margin: 0; user-select: none;">
+                  <input type="checkbox" name="assignAll" class="assign-all-checkbox" ${isAssignAll ? 'checked' : ''} style="margin: 0; width: 14px; height: 14px; cursor: pointer;" />
+                  <span>Assign to All Players (Whole Party)</span>
+                </label>
+              </div>
+              ${playerActors.length ? `
+                <div class="quest-player-assignments-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 6px;">
+                  ${playerActors.map(p => {
+                    const isAssigned = isAssignAll || assignedTo.includes(p.id);
+                    const avatar = p.img || p.prototypeToken?.texture?.src || "icons/svg/mystery-man.svg";
+                    return `
+                      <label class="player-assign-card ${isAssigned ? 'assigned' : ''}" data-actor-id="${p.id}">
+                        <input type="checkbox" name="assign_${p.id}" class="player-assign-cb" value="${p.id}" ${isAssigned ? 'checked' : ''} style="margin: 0; width: 14px; height: 14px; cursor: pointer;" />
+                        <img src="${avatar}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(0,0,0,0.2); flex-shrink: 0;" />
+                        <span style="font-size: 11px; font-weight: 600; color: var(--dialog-input-text, #191813); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;" title="${p.name}">${p.name}</span>
+                      </label>
+                    `;
+                  }).join('')}
+                </div>
+              ` : `<p style="font-size: 11px; font-style: italic; color: var(--theme-dim); margin: 0;">No player characters detected on the app.</p>`}
             </div>
 
             <!-- Bottom 2-Column Ledger: Briefing (Left) + Objectives & Rewards (Right) -->
@@ -2881,23 +3138,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
           </div>
 
-          <!-- TAB 2: GM Controls & Assignment -->
+          <!-- TAB 2: GM Controls -->
           <div class="dialog-tab-content" data-tab="gm" style="display: none; flex-direction: column; gap: 12px;">
-            <div class="form-section">
-              <div class="form-section-title"><i class="fas fa-users"></i> Character Assignment</div>
-              <p style="font-size: 12px; color: var(--dialog-label-color, var(--theme-dim)); margin: 0 0 8px 0;">Select assigned characters (leave all unchecked for Entire Party):</p>
-              ${playerActors.length ? `
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 160px; overflow-y: auto;">
-                  ${playerActors.map(p => `
-                    <div class="form-toggle-card">
-                      <input type="checkbox" name="assign_${p.id}" id="q-assign-edit-${p.id}" ${assignedTo.includes(p.id) ? 'checked' : ''} />
-                      <label for="q-assign-edit-${p.id}">${p.name}</label>
-                    </div>
-                  `).join('')}
-                </div>
-              ` : '<p style="font-size: 12px; font-style: italic; opacity: 0.7;">No player characters found.</p>'}
-            </div>
-
             <div class="form-section">
               <div class="form-section-title"><i class="fas fa-user-shield"></i> GM Secret Notes</div>
               <div class="form-group">
@@ -2936,16 +3178,24 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             });
 
             // Extract assigned players
-            const updatedAssignedTo = Object.keys(formData)
-              .filter(k => k.startsWith('assign_') && formData[k])
-              .map(k => k.replace('assign_', ''));
+            const assignAll = html.find('.assign-all-checkbox').is(':checked');
+            const updatedAssignedTo = assignAll ? [] : html.find('.player-assign-cb:checked').map((i, el) => el.value).get();
+
+            // Extract giver
+            let giverValue = "";
+            const giverSelectVal = html.find('.quest-giver-select').val();
+            if (giverSelectVal && giverSelectVal !== '__custom__') {
+              giverValue = giverSelectVal;
+            } else if (html.find('.quest-giver-custom-input').val()) {
+              giverValue = html.find('.quest-giver-custom-input').val().trim();
+            }
 
             const updatedData = {
               title: formData.title,
               name: formData.title,
               difficulty: formData.difficulty || "Medium",
               status: formData.status || "Active",
-              giver: formData.giver || "",
+              giver: giverValue,
               commissionedFaction: formData.commissionedFaction || "",
               image: formData.image || "",
               description: formData.description || "",
@@ -2955,6 +3205,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 currency: formData.rewardCurrency || "",
                 text: formData.rewardText || ""
               },
+              assignedAll: assignAll,
               assignedTo: updatedAssignedTo,
               gmNotes: formData.gmNotes || "",
               isPrimary: formData.isPrimary === true
@@ -3001,6 +3252,42 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           }).render(true);
         });
 
+        // Assign All vs Individual Player Checkboxes
+        const $assignAll = html.find('.assign-all-checkbox');
+        const $playerCbs = html.find('.player-assign-cb');
+
+        $assignAll.change(function() {
+          const isChecked = $(this).is(':checked');
+          $playerCbs.prop('checked', isChecked);
+          $playerCbs.each(function() {
+            const $card = $(this).closest('.player-assign-card');
+            $card.toggleClass('assigned', isChecked);
+          });
+        });
+
+        $playerCbs.change(function() {
+          const $card = $(this).closest('.player-assign-card');
+          const isChecked = $(this).is(':checked');
+          $card.toggleClass('assigned', isChecked);
+
+          const total = $playerCbs.length;
+          const checkedCount = $playerCbs.filter(':checked').length;
+          $assignAll.prop('checked', total > 0 && checkedCount === total);
+        });
+
+        // Quest Giver dropdown + custom input toggle
+        const $giverSelect = html.find('.quest-giver-select');
+        const $giverInput = html.find('.quest-giver-custom-input');
+
+        $giverSelect.change(function() {
+          const val = $(this).val();
+          if (val === '__custom__') {
+            $giverInput.show().val('').focus();
+          } else {
+            $giverInput.val(val).hide();
+          }
+        });
+
         // Optional badge toggle
         html.on('click', '.quest-task-opt-badge', function(ev) {
           ev.preventDefault();
@@ -3038,6 +3325,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   async _updateQuest(questId, data) {
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can edit quests.");
+      return;
+    }
+
     const settings = game.settings.get('intoterica', 'data');
     const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest) return;
@@ -3050,6 +3342,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   async _deleteQuest(questId) {
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can delete quests.");
+      return;
+    }
+
     const settings = game.settings.get('intoterica', 'data');
     settings.quests = (settings.quests || []).filter(q => q.id !== questId);
     await this._saveData(settings);

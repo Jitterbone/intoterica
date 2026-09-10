@@ -109,7 +109,11 @@
               {{/if}}
               <div style="flex: 1; overflow: hidden;">
                 <div class="mini-title">{{#if isPrimary}}⭐ {{/if}}{{title}}</div>
-                <div class="mini-sub">{{difficulty}} • {{status}} {{#if totalTasks}}({{completedTasks}}/{{totalTasks}}){{/if}}</div>
+                <div class="mini-sub">
+                  <span style="color: {{difficultyColor}};">{{difficulty}}</span> • {{status}}
+                  {{#if commissionedFaction}} • {{commissionedFaction}}{{else if giver}} • {{giver}}{{/if}}
+                  {{#if totalTasks}} ({{completedTasks}}/{{totalTasks}}){{/if}}
+                </div>
               </div>
             </div>
           {{/each}}
