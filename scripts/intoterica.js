@@ -1,6 +1,7 @@
 import { registerSettings } from './settings.js';
 import { registerHelpers } from './helpers.js';
 import { initializeSocket } from './socket.js';
+import { ForienQuestSync } from './forien-sync.js';
 
 // Register Handlebars Helpers and Settings
 Hooks.once('init', async () => {
@@ -180,7 +181,18 @@ Hooks.on('renderTokenHUD', (hud, html, data) => {
   col.appendChild(button);
 });
 
-Hooks.once('ready', () => {
+Hooks.once('ready', async () => {
   console.log("Intoterica | Ready");
   initializeSocket();
+
+  // Auto-sync Forien quests if enabled
+  if (game.user.isGM) {
+    try {
+      if (game.settings.get('intoterica', 'syncForienQuests')) {
+        await ForienQuestSync.sync({ notify: false });
+      }
+    } catch (err) {
+      console.warn("Intoterica | Forien auto-sync error:", err);
+    }
+  }
 });

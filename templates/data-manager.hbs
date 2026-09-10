@@ -1,6 +1,7 @@
 <div class="intoterica-data-manager-root">
   <nav class="sheet-tabs tabs data-manager-tabs" aria-label="Data Manager Navigation">
     <a class="item active" data-tab="migration"><i class="fas fa-people-arrows"></i> Character Migration</a>
+    <a class="item" data-tab="forien"><i class="fas fa-scroll"></i> Forien's Quests</a>
     <a class="item" data-tab="raw-data"><i class="fas fa-code"></i> Raw Data & Backup</a>
   </nav>
 
@@ -101,7 +102,50 @@
     </div>
   </div>
 
-  <!-- Tab 2: Raw Data & Backup -->
+  <!-- Tab 2: Forien's Quest Log Integration -->
+  <div class="tab-content" data-tab="forien">
+    <div class="dm-section">
+      <div class="dm-section-header">
+        <i class="fas fa-scroll"></i>
+        <span>Forien's Quest Log Integration</span>
+      </div>
+      <p class="dm-desc">
+        Source and merge quest data directly from Forien's Quest Log into Intoterica. Merging updates quest details, objectives, and rewards while preserving all player assignments.
+      </p>
+
+      <div class="forien-status-card">
+        <div class="forien-status-header">
+          <span class="forien-title"><i class="fas fa-plug"></i> Module Status:</span>
+          {{#if forien.active}}
+            <span class="forien-badge active"><i class="fas fa-check-circle"></i> Active ({{forien.count}} Quests Detected)</span>
+          {{else if forien.installed}}
+            <span class="forien-badge warning"><i class="fas fa-exclamation-triangle"></i> Installed (Module Inactive in World)</span>
+          {{else}}
+            <span class="forien-badge inactive"><i class="fas fa-times-circle"></i> Not Installed</span>
+          {{/if}}
+        </div>
+        <p class="forien-status-desc">
+          When active, Intoterica reads backing JournalEntries created in Forien's Quest Log and maps them into Intoterica's Quest Journal layout.
+        </p>
+      </div>
+
+      <div class="dm-options-section">
+        <div class="dm-options-title"><i class="fas fa-cogs"></i> Synchronization Settings:</div>
+        <label class="dm-checkbox-label" style="margin-bottom: 6px;">
+          <input type="checkbox" class="opt-auto-sync-forien" {{#if forien.autoSync}}checked{{/if}} />
+          <span><strong>Auto-Sync Quests on World Startup</strong> (Automatically source Forien quests when Foundry starts)</span>
+        </label>
+      </div>
+
+      <div class="dm-action-bar">
+        <button type="button" class="dm-btn dm-btn-primary btn-sync-forien" {{#unless forien.count}}disabled{{/unless}}>
+          <i class="fas fa-sync-alt"></i> Import & Merge Quests
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 3: Raw Data & Backup -->
   <div class="tab-content" data-tab="raw-data">
     <div class="dm-section">
       <div class="dm-section-header">

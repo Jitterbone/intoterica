@@ -1,4 +1,5 @@
 import { IntotericaDataManager } from './data-manager.js';
+import { ForienQuestSync } from './forien-sync.js';
 
 export const registerSettings = () => {
 
@@ -11,6 +12,25 @@ export const registerSettings = () => {
     icon: 'fas fa-database',
     type: IntotericaDataManager,
     restricted: true
+  });
+
+  // ─── Forien's Quest Log Integration ───────────────────────────────────────
+
+  game.settings.register('intoterica', 'syncForienQuests', {
+    name: 'Auto-Sync Forien\'s Quest Log',
+    hint: 'If enabled, automatically source and sync quests from Forien\'s Quest Log into Intoterica\'s Quest Journal.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false,
+    onChange: async (enabled) => {
+      if (enabled && game.user.isGM) {
+        await ForienQuestSync.sync({ notify: true });
+      }
+      Object.values(ui.windows).forEach(app => {
+        if (app.constructor.name === "IntotericaApp") app.render();
+      });
+    }
   });
 
   // ─── Hidden / internal ────────────────────────────────────────────────────
@@ -414,6 +434,12 @@ export const registerSettings = () => {
       'fas fa-database', '#38bdf8',
       'Data Management & Migration', mainHeaderStyle,
       findRow('dataManager'));
+
+    // ── Forien Integration ──
+    insertHeader('h3', 'intoterica-forien-header',
+      'fas fa-scroll', '#f59e0b',
+      'Forien\'s Quest Log Integration', mainHeaderStyle,
+      findRow('syncForienQuests'));
 
     // ── Appearance ──
     insertHeader('h3', 'intoterica-appearance-header',

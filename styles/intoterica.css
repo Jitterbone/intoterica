@@ -2957,5 +2957,68 @@
   color: #ffffff;
 }
 
+/* ─── Forien Integration Card & Badges ──────────────────────────────────── */
+.forien-status-card {
+  background: var(--dialog-section-bg, rgba(0, 0, 0, 0.03));
+  border: 1px solid var(--dialog-section-border, rgba(0, 0, 0, 0.15));
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.forien-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.forien-title {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--dialog-label-color, inherit);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.forien-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.forien-badge.active {
+  background: rgba(39, 174, 96, 0.15);
+  color: #27ae60;
+  border: 1px solid rgba(39, 174, 96, 0.4);
+}
+
+.forien-badge.warning {
+  background: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+  border: 1px solid rgba(243, 156, 18, 0.4);
+}
+
+.forien-badge.inactive {
+  background: rgba(127, 140, 141, 0.15);
+  color: #7f8c8d;
+  border: 1px solid rgba(127, 140, 141, 0.4);
+}
+
+.forien-status-desc {
+  font-size: 11px;
+  color: var(--theme-dim, #666);
+  margin: 0;
+  line-height: 1.3;
+}
+
+
 
 
