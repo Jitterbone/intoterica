@@ -124,7 +124,7 @@
             <div class="quest-title-row">
               <div class="quest-title">
                 {{#if isPrimary}}<i class="fas fa-star primary-star" title="Primary Objective"></i>{{/if}}
-                <span class="quest-title-text">{{title}}</span>
+                <span class="quest-title-text">{{#if title}}{{title}}{{else if name}}{{name}}{{else}}Untitled Quest{{/if}}</span>
               </div>
               <div class="quest-badges">
                 {{#if difficulty}}

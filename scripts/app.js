@@ -231,8 +231,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       { id: "Bronze Tier", label: "Bronze Tier", color: "#cd7f32", tier: 2 },
       { id: "Silver Tier", label: "Silver Tier", color: "#a0aab2", tier: 3 },
       { id: "Gold Tier", label: "Gold Tier", color: "#f59f00", tier: 4 },
-      { id: "Platinum Tier", label: "Platinum Tier", color: "#00d2d3", tier: 5 },
-      { id: "Mithral Tier", label: "Mithral Tier", color: "#b026ff", tier: 6 }
+      { id: "Platinum Tier", label: "Platinum Tier", color: "#00d2d3", tier: 5 }
     ],
     "rank": [
       { id: "E-Rank", label: "E-Rank", color: "#6c757d", tier: 1 },
@@ -616,6 +615,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const difficultyTier = diffInfo.tier || 2;
       const commissionedFaction = q.commissionedFaction || "";
       const giver = q.giver || "";
+      const title = q.title || q.name || "Untitled Quest";
 
       // Calculate approximate numeric reward score for sorting
       let rewardValue = Number(rewards.xp || 0);
@@ -631,6 +631,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
       return {
         ...q,
+        title,
+        name: title,
         tasks,
         totalTasks,
         completedTasks,
@@ -2704,13 +2706,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const settings = game.settings.get('intoterica', 'data');
     if (!settings.quests) settings.quests = [];
 
+    const questTitle = data.title || data.name || "Untitled Quest";
     const newQuest = {
       id: foundry.utils.randomID(),
-      title: data.title,
+      title: questTitle,
+      name: questTitle,
       description: data.description || "",
       difficulty: data.difficulty || "Medium",
       status: data.status || "Active",
       giver: data.giver || "",
+      commissionedFaction: data.commissionedFaction || "",
       image: data.image || "",
       tasks: data.tasks || [],
       rewards: data.rewards || { xp: 0, currency: "", text: "" },
@@ -2725,7 +2730,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this._broadcastUpdate();
     this.render();
     this._sendQuestChatNotification(newQuest, 'new');
-    ui.notifications.info(`Quest "${data.title}" created`);
+    ui.notifications.info(`Quest "${questTitle}" created`);
   }
 
   async _onEditQuest(event) {
@@ -2735,6 +2740,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest) return;
 
+    const questTitle = quest.title || quest.name || "";
     const playerActors = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
     const tasks = Array.isArray(quest.tasks) ? quest.tasks : [];
     const rewards = quest.rewards || {};
@@ -2756,7 +2762,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     }).join('');
 
     IntotericaApp.createDialog({
-      title: `Edit Quest: ${quest.title}`,
+      title: `Edit Quest: ${questTitle || 'Untitled Quest'}`,
       content: `
         <form class="intoterica-form" style="max-height: 600px; overflow-y: auto; padding-right: 2px;">
           <!-- Tab Navigation -->
@@ -2785,7 +2791,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               <!-- Right: Title + Metadata Strip -->
               <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; gap: 6px;">
                 <div>
-                  <input type="text" name="title" value="${quest.title || ''}" placeholder="Quest Title (e.g. The Sunken Crypt)..." class="quest-title-large" autofocus required />
+                  <input type="text" name="title" value="${questTitle}" placeholder="Quest Title (e.g. The Sunken Crypt)..." class="quest-title-large" autofocus required />
                 </div>
                 
                 <div class="quest-meta-strip" style="grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -2936,6 +2942,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
             const updatedData = {
               title: formData.title,
+              name: formData.title,
               difficulty: formData.difficulty || "Medium",
               status: formData.status || "Active",
               giver: formData.giver || "",

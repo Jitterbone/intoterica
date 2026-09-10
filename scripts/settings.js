@@ -203,7 +203,7 @@ export const registerSettings = () => {
     type: String,
     choices: {
       "standard": "Standard (Easy, Medium, Hard, Epic, Legendary)",
-      "metal": "Metal Tiers (Copper, Bronze, Silver, Gold, Platinum, Mithral)",
+      "metal": "Metal Tiers (Copper, Bronze, Silver, Gold, Platinum)",
       "rank": "Guild Rank (E-Rank, D-Rank, C-Rank, B-Rank, A-Rank, S-Rank)",
       "stars": "Star Rating (1-Star, 2-Star, 3-Star, 4-Star, 5-Star)",
       "numeric": "Tiers (Tier I, Tier II, Tier III, Tier IV, Tier V)"
