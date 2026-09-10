@@ -1,4 +1,18 @@
+# OS files
 .DS_Store
 Thumbs.db
-LOG
+Desktop.ini
+
+# Logs & LevelDB locks
 *.log
+LOG
+LOG.old
+LOCK
+**/LOCK
+**/LOG
+**/LOG.old
+
+# Editor / Workspace configs
+.vscode/
+.idea/
+.claude/

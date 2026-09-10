@@ -1,0 +1,139 @@
+<div class="intoterica-data-manager-root">
+  <nav class="sheet-tabs tabs data-manager-tabs" aria-label="Data Manager Navigation">
+    <a class="item active" data-tab="migration"><i class="fas fa-people-arrows"></i> Character Migration</a>
+    <a class="item" data-tab="raw-data"><i class="fas fa-code"></i> Raw Data & Backup</a>
+  </nav>
+
+  <!-- Tab 1: Character Data Migration -->
+  <div class="tab-content active" data-tab="migration">
+    <div class="dm-section">
+      <div class="dm-section-header">
+        <i class="fas fa-exchange-alt"></i>
+        <span>Transfer Character Progress</span>
+      </div>
+      <p class="dm-desc">
+        Select the source and target actor sheets. All selected progress (completed quests, faction standing, badges, mail history) will be migrated to the target sheet.
+      </p>
+
+      <div class="dm-grid-actors">
+        <div class="dm-actor-col">
+          <label class="dm-label"><i class="fas fa-user-minus"></i> Source Character (Old Sheet)</label>
+          <select class="dm-select source-actor-select">
+            <option value="">-- Select Source Actor --</option>
+            {{#each actorGroups}}
+              <optgroup label="📂 {{this.folderName}}">
+                {{#each this.actors}}
+                  <option value="{{this.id}}">{{this.name}} [{{this.type}}]</option>
+                {{/each}}
+              </optgroup>
+            {{/each}}
+          </select>
+          <div class="dm-actor-preview source-preview">
+            <div class="dm-preview-title">Source Data Found:</div>
+            <div class="dm-preview-stats">
+              <span class="stat-badge"><i class="fas fa-scroll"></i> <b class="stat-quests">0</b> Quests</span>
+              <span class="stat-badge"><i class="fas fa-users"></i> <b class="stat-factions">0</b> Factions</span>
+              <span class="stat-badge"><i class="fas fa-trophy"></i> <b class="stat-badges">0</b> Badges</span>
+              <span class="stat-badge"><i class="fas fa-envelope"></i> <b class="stat-messages">0</b> Messages</span>
+              <span class="stat-badge"><i class="fas fa-id-card"></i> <b class="stat-history">0</b> Profile Edits</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="dm-arrow-col">
+          <i class="fas fa-arrow-right dm-flow-arrow"></i>
+        </div>
+
+        <div class="dm-actor-col">
+          <label class="dm-label"><i class="fas fa-user-plus"></i> Target Character (New Sheet)</label>
+          <select class="dm-select target-actor-select">
+            <option value="">-- Select Target Actor --</option>
+            {{#each actorGroups}}
+              <optgroup label="📂 {{this.folderName}}">
+                {{#each this.actors}}
+                  <option value="{{this.id}}">{{this.name}} [{{this.type}}]</option>
+                {{/each}}
+              </optgroup>
+            {{/each}}
+          </select>
+          <div class="dm-actor-preview target-preview">
+            <div class="dm-preview-title">Target Character Info:</div>
+            <div class="dm-target-info">Select a target actor to receive the transferred progress.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dm-options-section">
+        <div class="dm-options-title"><i class="fas fa-tasks"></i> Data Components to Transfer:</div>
+        <div class="dm-checkbox-grid">
+          <label class="dm-checkbox-label">
+            <input type="checkbox" class="opt-transfer-quests" checked />
+            <span><strong>Quests</strong> (Active, completed & custom quests)</span>
+          </label>
+          <label class="dm-checkbox-label">
+            <input type="checkbox" class="opt-transfer-factions" checked />
+            <span><strong>Factions</strong> (Membership, Ranks, XP & Notes)</span>
+          </label>
+          <label class="dm-checkbox-label">
+            <input type="checkbox" class="opt-transfer-badges" checked />
+            <span><strong>Merit Badges</strong> (Earned achievements)</span>
+          </label>
+          <label class="dm-checkbox-label">
+            <input type="checkbox" class="opt-transfer-messages" checked />
+            <span><strong>Inbox & Mail</strong> (Sent, received, read & stars)</span>
+          </label>
+          <label class="dm-checkbox-label">
+            <input type="checkbox" class="opt-transfer-history" checked />
+            <span><strong>Profile History</strong> (Custom added & hidden quest lists)</span>
+          </label>
+          <label class="dm-checkbox-label">
+            <input type="checkbox" class="opt-transfer-npcs" checked />
+            <span><strong>Known NPCs</strong> (Known relationship flags)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="dm-action-bar">
+        <button type="button" class="dm-btn dm-btn-primary btn-execute-migration">
+          <i class="fas fa-bolt"></i> Migrate Character Data
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab 2: Raw Data & Backup -->
+  <div class="tab-content" data-tab="raw-data">
+    <div class="dm-section">
+      <div class="dm-section-header">
+        <i class="fas fa-database"></i>
+        <span>Module Storage & Raw JSON</span>
+      </div>
+      <p class="dm-desc">
+        Directly inspect, edit, export, or restore the Intoterica module world storage.
+      </p>
+
+      <div class="dm-toolbar">
+        <button type="button" class="dm-btn btn-export-backup" title="Download timestamped JSON backup">
+          <i class="fas fa-file-download"></i> Export Backup (.json)
+        </button>
+        <label class="dm-btn btn-import-label" title="Upload and restore a JSON backup">
+          <i class="fas fa-file-upload"></i> Import Backup
+          <input type="file" class="input-import-file" accept=".json" style="display: none;" />
+        </label>
+        <button type="button" class="dm-btn btn-copy-json" title="Copy raw JSON to clipboard">
+          <i class="fas fa-clipboard"></i> Copy JSON
+        </button>
+        <button type="button" class="dm-btn btn-format-json" title="Re-format and beautify JSON">
+          <i class="fas fa-magic"></i> Format
+        </button>
+        <button type="button" class="dm-btn dm-btn-save btn-save-raw-json" title="Save modifications to world settings">
+          <i class="fas fa-save"></i> Save JSON
+        </button>
+      </div>
+
+      <div class="dm-editor-wrapper">
+        <textarea class="dm-raw-textarea" spellcheck="false">{{rawJson}}</textarea>
+      </div>
+    </div>
+  </div>
+</div>

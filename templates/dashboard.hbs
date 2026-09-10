@@ -102,9 +102,14 @@
         {{#if profile.quests.length}}
           {{#each profile.quests}}
             <div class="mini-card">
-              <div>
-                <div class="mini-title">{{title}}</div>
-                <div class="mini-sub">{{difficulty}}</div>
+              {{#if image}}
+                <div class="mini-icon" style="display: flex; align-items: center; justify-content: center;">
+                  <img src="{{image}}" style="max-width: 100%; max-height: 100%; object-fit: cover; border-radius: 2px; border: none;">
+                </div>
+              {{/if}}
+              <div style="flex: 1; overflow: hidden;">
+                <div class="mini-title">{{#if isPrimary}}⭐ {{/if}}{{title}}</div>
+                <div class="mini-sub">{{difficulty}} • {{status}} {{#if totalTasks}}({{completedTasks}}/{{totalTasks}}){{/if}}</div>
               </div>
             </div>
           {{/each}}

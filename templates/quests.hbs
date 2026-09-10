@@ -1,35 +1,159 @@
-<div class="section-header">
-  <h2 class="section-title">Quest Journal</h2>
-  {{#if isGM}}
-    <button class="add-quest"><i class="fas fa-plus"></i> Add Quest</button>
-  {{/if}}
-</div>
-
-{{#if quests.length}}
-  {{#each quests}}
-    <div class="quest-item">
-      <div class="quest-indicator {{lowercase status}}"></div>
-      <div class="quest-content">
-        <div class="quest-header">
-          <div class="quest-title">{{title}}</div>
-          <div class="quest-difficulty {{lowercase difficulty}}">{{difficulty}}</div>
-        </div>
-        <div class="quest-status {{lowercase status}}">{{status}}</div>
-        <div class="quest-description">{{description}}</div>
-        {{#if ../isGM}}
-          <div class="quest-actions">
-            {{#if (eq status "Active")}}
-              <button class="complete-quest" data-quest-id="{{id}}">Complete</button>
-            {{/if}}
-            <button class="edit-quest" data-quest-id="{{id}}">Edit</button>
-          </div>
-        {{/if}}
-      </div>
+<div class="quests-container">
+  <div class="section-header quest-page-header">
+    <div class="section-title"><i class="fas fa-scroll"></i> Quest Journal</div>
+    <div class="quest-header-actions" style="display: flex; gap: 6px;">
+      {{#if perms.quests}}
+        <button type="button" class="add-quest"><i class="fas fa-plus"></i> New Quest</button>
+      {{/if}}
     </div>
-  {{/each}}
-{{else}}
-  <div class="empty-state">
-    <i class="fas fa-scroll"></i>
-    <p>No quests available</p>
   </div>
-{{/if}}
+
+  <!-- Quest Filter Tabs -->
+  <div class="quest-filter-bar">
+    <button type="button" class="quest-filter-btn {{#if (eq questFilter 'all')}}active{{/if}}" data-filter="all">
+      All <span class="filter-count">({{questStats.all}})</span>
+    </button>
+    <button type="button" class="quest-filter-btn {{#if (eq questFilter 'active')}}active{{/if}}" data-filter="active">
+      Active <span class="filter-count">({{questStats.active}})</span>
+    </button>
+    <button type="button" class="quest-filter-btn {{#if (eq questFilter 'available')}}active{{/if}}" data-filter="available">
+      Available <span class="filter-count">({{questStats.available}})</span>
+    </button>
+    <button type="button" class="quest-filter-btn {{#if (eq questFilter 'completed')}}active{{/if}}" data-filter="completed">
+      Completed <span class="filter-count">({{questStats.completed}})</span>
+    </button>
+    <button type="button" class="quest-filter-btn {{#if (eq questFilter 'failed')}}active{{/if}}" data-filter="failed">
+      Failed <span class="filter-count">({{questStats.failed}})</span>
+    </button>
+  </div>
+
+  <!-- Quest List -->
+  <div class="quest-list">
+    {{#each quests}}
+      <div class="quest-card {{#if isPrimary}}primary-quest{{/if}} status-{{lowercase status}}" data-quest-id="{{id}}">
+        <!-- Quest Banner / Header -->
+        <div class="quest-card-header quest-header-clickable" data-quest-id="{{id}}">
+          {{#if image}}
+            <div class="quest-card-splash">
+              <img src="{{image}}" alt="{{title}}">
+            </div>
+          {{/if}}
+          <div class="quest-card-main-info">
+            <div class="quest-title-row">
+              <div class="quest-title">
+                {{#if isPrimary}}<i class="fas fa-star primary-star" title="Primary Objective"></i>{{/if}}
+                {{title}}
+              </div>
+              <div class="quest-badges">
+                {{#if difficulty}}
+                  <span class="quest-difficulty-badge {{lowercase difficulty}}">{{difficulty}}</span>
+                {{/if}}
+                <span class="quest-status-badge status-{{lowercase status}}">{{status}}</span>
+              </div>
+            </div>
+            
+            <div class="quest-meta-row">
+              {{#if giver}}
+                <span class="quest-giver"><i class="fas fa-user-circle"></i> Giver: {{giver}}</span>
+              {{/if}}
+              {{#if assignedNames}}
+                <span class="quest-assigned"><i class="fas fa-users"></i> {{assignedNames}}</span>
+              {{else}}
+                <span class="quest-assigned party"><i class="fas fa-users"></i> Whole Party</span>
+              {{/if}}
+              {{#if tasks.length}}
+                <span class="quest-task-count"><i class="fas fa-tasks"></i> {{completedTasks}}/{{totalTasks}} Tasks ({{taskProgress}}%)</span>
+              {{/if}}
+            </div>
+
+            {{#if tasks.length}}
+              <div class="quest-mini-progress">
+                <div class="quest-mini-progress-fill" style="width: {{taskProgress}}%;"></div>
+              </div>
+            {{/if}}
+          </div>
+
+          <div class="quest-quick-actions">
+            {{#if @root.perms.quests}}
+              <i class="fas fa-thumbtack quest-pin-btn {{#if isPrimary}}pinned{{/if}}" data-quest-id="{{id}}" title="Toggle Primary Objective"></i>
+            {{/if}}
+            <i class="fas fa-chevron-down quest-expand-icon {{#if isExpanded}}expanded{{/if}}"></i>
+          </div>
+        </div>
+
+        <!-- Quest Collapsible Details Body -->
+        <div class="quest-card-body {{#if isExpanded}}show{{/if}}">
+          {{#if description}}
+            <div class="quest-description-block">
+              {{{description}}}
+            </div>
+          {{/if}}
+
+          <!-- Tasks / Objectives List -->
+          {{#if tasks.length}}
+            <div class="quest-tasks-section">
+              <div class="quest-section-label"><i class="fas fa-tasks"></i> Objectives</div>
+              <div class="quest-tasks-list">
+                {{#each tasks}}
+                  <div class="quest-task-item {{#if completed}}completed{{/if}} {{#if optional}}optional{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}">
+                    <input type="checkbox" class="quest-task-checkbox" data-quest-id="{{../id}}" data-task-id="{{id}}" {{#if completed}}checked{{/if}} {{#unless @root.perms.quests}}disabled{{/unless}}>
+                    <span class="quest-task-text">{{text}}</span>
+                    {{#if optional}}<span class="quest-task-optional">(Optional)</span>{{/if}}
+                  </div>
+                {{/each}}
+              </div>
+            </div>
+          {{/if}}
+
+          <!-- Rewards Section -->
+          {{#if (or rewards.xp rewards.currency rewards.text)}}
+            <div class="quest-rewards-section">
+              <div class="quest-section-label"><i class="fas fa-gift"></i> Rewards</div>
+              <div class="quest-rewards-pills">
+                {{#if rewards.xp}}
+                  <span class="reward-pill xp"><i class="fas fa-star"></i> {{rewards.xp}} XP</span>
+                {{/if}}
+                {{#if rewards.currency}}
+                  <span class="reward-pill currency"><i class="fas fa-coins"></i> {{rewards.currency}}</span>
+                {{/if}}
+                {{#if rewards.text}}
+                  <span class="reward-pill item"><i class="fas fa-box-open"></i> {{rewards.text}}</span>
+                {{/if}}
+              </div>
+            </div>
+          {{/if}}
+
+          <!-- GM Secret Notes -->
+          {{#if (and @root.perms.quests gmNotes)}}
+            <div class="quest-gm-notes-section">
+              <div class="quest-section-label"><i class="fas fa-user-secret"></i> GM Secret Notes</div>
+              <div class="quest-gm-notes-content">{{gmNotes}}</div>
+            </div>
+          {{/if}}
+
+          <!-- Quest Actions Footer -->
+          <div class="quest-card-footer">
+            <button type="button" class="share-quest-chat" data-quest-id="{{id}}" title="Share to Chat"><i class="fas fa-comment-alt"></i> Share</button>
+            {{#if @root.perms.quests}}
+              {{#if (ne status 'Completed')}}
+                <button type="button" class="complete-quest" data-quest-id="{{id}}"><i class="fas fa-check"></i> Complete</button>
+              {{/if}}
+              {{#if (ne status 'Failed')}}
+                <button type="button" class="fail-quest" data-quest-id="{{id}}"><i class="fas fa-times"></i> Fail</button>
+              {{/if}}
+              {{#if (or (eq status 'Completed') (eq status 'Failed'))}}
+                <button type="button" class="reopen-quest" data-quest-id="{{id}}"><i class="fas fa-redo"></i> Reopen</button>
+              {{/if}}
+              <button type="button" class="edit-quest" data-quest-id="{{id}}"><i class="fas fa-edit"></i> Edit</button>
+            {{/if}}
+          </div>
+        </div>
+      </div>
+    {{else}}
+      <div class="empty-state">
+        <i class="fas fa-scroll"></i>
+        <div>No quests found in this category.</div>
+      </div>
+    {{/each}}
+  </div>
+</div>

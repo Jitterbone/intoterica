@@ -1,7 +1,0 @@
-2026/08/24-09:54:49.187 add4 Recovering log #492
-2026/08/24-09:54:49.193 add4 Delete type=0 #492
-2026/08/24-09:54:49.193 add4 Delete type=3 #490
-2026/08/24-10:00:57.434 996c Level-0 table #497: started
-2026/08/24-10:00:57.434 996c Level-0 table #497: 0 bytes OK
-2026/08/24-10:00:57.436 996c Delete type=0 #495
-2026/08/24-10:00:57.441 996c Manual compaction at level-0 from '!macros!YFliIQRmYpfTnTRS' @ 72057594037927935 : 1 .. '!macros!YFliIQRmYpfTnTRS' @ 0 : 0; will stop at (end)

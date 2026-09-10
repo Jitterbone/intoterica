@@ -1,4 +1,4 @@
-<div class="intoterica-container theme-{{theme}}">
+<div class="intoterica-container {{themeClass}}">
   <div class="crt-overlay"></div>
   <nav class="intoterica-sidebar">
     <div class="intoterica-nav">
@@ -376,7 +376,7 @@
                         {{else}}
                             <button class="end-conversation-btn"><i class="fas fa-ban"></i> End Conversation</button>
                         {{/if}}
-                        <button class="delete-thread-btn" onclick="new IntotericaApp()._deleteThread('{{mailContext.thread.subject}}')"><i class="fas fa-trash"></i> Delete Thread</button>
+                        <button class="delete-thread-btn"><i class="fas fa-trash"></i> Delete Thread</button>
                         {{/if}}
                     </div>
                 </div>

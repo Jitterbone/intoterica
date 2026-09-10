@@ -23,6 +23,172 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     }
   };
 
+  static toggle() {
+    if (IntotericaApp._instance?.rendered) {
+      IntotericaApp._instance.close();
+    } else {
+      new IntotericaApp().render(true);
+    }
+  }
+
+  static openTo(view) {
+    if (IntotericaApp._instance?.rendered) {
+      IntotericaApp._instance.currentView = view;
+      IntotericaApp._instance.selectedFaction = null;
+      IntotericaApp._instance.profileActorId = null;
+      IntotericaApp._instance.render();
+    } else {
+      const app = new IntotericaApp();
+      app.currentView = view;
+      app.render(true);
+    }
+  }
+
+  static _profileDebounceTimer = null;
+
+  static openProfile(actorOrId) {
+    if (IntotericaApp._profileDebounceTimer) {
+      clearTimeout(IntotericaApp._profileDebounceTimer);
+    }
+    IntotericaApp._profileDebounceTimer = setTimeout(() => {
+      IntotericaApp._profileDebounceTimer = null;
+      IntotericaApp._executeOpenProfile(actorOrId);
+    }, 40);
+  }
+
+  static _executeOpenProfile(target) {
+    if (!target) return;
+    let actor = null;
+    let actorId = null;
+
+    if (typeof target === 'string') {
+      actorId = target;
+      actor = game.actors.get(actorId) || canvas?.tokens?.placeables?.find(t => t.actor?.id === actorId || t.id === actorId || t.document?.actorId === actorId)?.actor;
+    } else if (target.documentName === 'Actor' || (target.constructor && target.constructor.name === 'Actor')) {
+      actor = target;
+      actorId = target.id;
+    } else if (target.actor) {
+      // Target is Token or TokenDocument
+      actor = target.actor;
+      actorId = actor?.id || target.document?.actorId || target.actorId;
+    } else if (target.document?.actor) {
+      actor = target.document.actor;
+      actorId = actor?.id;
+    } else if (target.id) {
+      actorId = target.id;
+      actor = game.actors.get(actorId) || canvas?.tokens?.placeables?.find(t => t.actor?.id === actorId || t.id === actorId)?.actor;
+    }
+
+    if (!actor) return;
+    actorId = actor.id || actorId;
+    if (!actorId) return;
+
+    const isGM = game.user.isGM;
+    const isOwner = actor.isOwner || (game.user.character && game.user.character.id === actorId);
+
+    // GMs can open profile for ANY token; players are restricted to tokens they own
+    if (!isGM && !isOwner) {
+      return;
+    }
+
+    let app = IntotericaApp._instance;
+    if (!app || !app.rendered) {
+      app = new IntotericaApp();
+      IntotericaApp._instance = app;
+    }
+    app.currentView = 'dashboard';
+    app.selectedFaction = null;
+    app.profileActorId = actorId;
+    app.render(true);
+    if (typeof app.bringToTop === 'function') {
+      try { app.bringToTop(); } catch (_e) { /* ignore */ }
+    }
+  }
+
+  static getThemeClass() {
+    const themeKey = game.settings.get('intoterica', 'theme') || 'default';
+    const themeConfig = IntotericaApp.THEMES?.[themeKey] || IntotericaApp.THEMES?.['default'];
+    return themeConfig?.class || 'theme-foundry';
+  }
+
+  static createDialog(dialogData, options = {}) {
+    const themeClass = IntotericaApp.getThemeClass();
+    const customClasses = options.classes || [];
+    const classes = Array.from(new Set(["intoterica-dialog", themeClass, ...customClasses]));
+
+    if (foundry.applications?.api?.DialogV2) {
+      const buttons = Object.entries(dialogData.buttons || {}).map(([action, btn]) => {
+        const iconClass = btn.icon?.match(/class=["']([^"']+)["']/)?.[1] || (typeof btn.icon === 'string' && !btn.icon.includes('<') ? btn.icon : "");
+        return {
+          action: action,
+          label: btn.label || action,
+          icon: iconClass || undefined,
+          default: dialogData.default === action,
+          callback: async (event, button, dialog) => {
+            if (typeof btn.callback === 'function') {
+              const $html = $(dialog.element);
+              return await btn.callback($html, event, dialog);
+            }
+          }
+        };
+      });
+
+      const dialogV2Options = {
+        window: {
+          title: dialogData.title || "",
+          icon: dialogData.icon || undefined,
+          classes: classes
+        },
+        classes: classes,
+        content: dialogData.content || "",
+        buttons,
+        position: {
+          width: options.width || 480
+        },
+        modal: options.modal ?? false,
+        rejectClose: false
+      };
+
+      class IntotericaDialogV2 extends foundry.applications.api.DialogV2 {
+        constructor(opts, customRender, customClose) {
+          super(opts);
+          this._customRender = customRender;
+          this._customClose = customClose;
+        }
+
+        _onRender(context, renderOptions) {
+          super._onRender(context, renderOptions);
+          if (this.element) {
+            this.element.classList.add('intoterica-dialog', themeClass);
+          }
+          if (typeof this._customRender === 'function') {
+            this._customRender($(this.element));
+          }
+        }
+
+        _onClose(closeOptions) {
+          if (typeof this._customClose === 'function') {
+            this._customClose($(this.element));
+          }
+          return super._onClose(closeOptions);
+        }
+      }
+
+      return new IntotericaDialogV2(dialogV2Options, dialogData.render, dialogData.close);
+    }
+
+    // Fallback for V11 or older environments
+    const defaultClasses = ["dialog", "intoterica-dialog", themeClass];
+    const legacyClasses = Array.from(new Set([...defaultClasses, ...customClasses]));
+
+    const mergedOptions = foundry.utils.mergeObject({
+      classes: legacyClasses,
+      jQuery: true
+    }, options);
+
+    return new Dialog(dialogData, mergedOptions);
+  }
+
   constructor(options = {}) {
     const savedState = game.settings.get('intoterica', 'windowState');
     if (savedState && !foundry.utils.isEmpty(savedState)) {
@@ -38,6 +204,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this._idleSound = null;
     this.mailComposeData = null;
     this.mailViewSubject = null;
+    this.questFilter = 'all';
+    this.expandedQuestIds = new Set();
     this._isClosing = false;
     IntotericaApp._instance = this;
   }
@@ -324,65 +492,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       this.selectedFaction = processedFactions.find(f => f.id === this.selectedFaction.id) || null;
     }
 
-    // Quest Data Source (FQL Integration)
-    let allQuests = settings.quests || [];
-    const useFQL = game.modules.get("forien-quest-log")?.active;
-
-    if (useFQL) {
-      let pinnedQuests = game.user.getFlag("forien-quest-log", "pinnedQuests");
-      
-      // Fallback: Direct flag access if getFlag fails or returns nothing
-      if (!pinnedQuests && game.user.flags["forien-quest-log"]?.pinnedQuests) {
-          pinnedQuests = game.user.flags["forien-quest-log"].pinnedQuests;
-      }
-      
-      if (!Array.isArray(pinnedQuests)) pinnedQuests = [];
-      
-      allQuests = game.journal.filter(j => j.getFlag("forien-quest-log", "json")).map(j => {
-        const fql = j.getFlag("forien-quest-log", "json");
-        const s = (fql.status || "active").toLowerCase();
-        
-        let status = "Hidden";
-        if (s === "active") status = "Active";
-        else if (s === "completed") status = "Completed";
-        else if (s === "failed") status = "Failed";
-
-        const div = document.createElement("div");
-        div.innerHTML = fql.description || "";
-        const description = div.textContent || div.innerText || "";
-
-        // Check for 'personal' flag in FQL data (often used for specific character quests)
-        const isPersonal = fql.personal === true;
-        const isIntotericaPrimary = j.getFlag("intoterica", "isPrimary");
-
-        return {
-          id: j.id,
-          title: fql.name || j.name,
-          description: description,
-          difficulty: null,
-          status: status,
-          image: fql.splash || null,
-          actors: fql.actors || [],
-          isPrimary: pinnedQuests.includes(j.id) || isPersonal || isIntotericaPrimary
-        };
-      }).filter(q => q.status !== "Hidden");
-
-      // Sort: Primary > Active > Completed > Failed
-      const sortOrder = { "Active": 0, "Completed": 1, "Failed": 2 };
-      allQuests.sort((a, b) => {
-          if (a.isPrimary && !b.isPrimary) return -1;
-          if (!a.isPrimary && b.isPrimary) return 1;
-          return (sortOrder[a.status] ?? 9) - (sortOrder[b.status] ?? 9);
-      });
-    }
-
-    // Filter for Main Tab: Only show Active
-    const activeQuests = allQuests.filter(q => q.status === 'Active');
-
-    // World Clock Logic
-    const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
-    const clockDisplay = this._getGameDate();
-    
     // Permissions
     const perms = {
         factions: IntotericaApp.hasPermission('permFactions'),
@@ -392,6 +501,76 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         clock: IntotericaApp.hasPermission('permClock'),
         profiles: IntotericaApp.hasPermission('permProfiles')
     };
+
+    // Native Quest Tracker Processing
+    const rawQuests = settings.quests || [];
+    const myActorIds = game.actors.filter(a => a.isOwner).map(a => a.id);
+    if (game.user.character) myActorIds.push(game.user.character.id);
+
+    const processedQuests = rawQuests.map(q => {
+      const tasks = Array.isArray(q.tasks) ? q.tasks : [];
+      const totalTasks = tasks.length;
+      const completedTasks = tasks.filter(t => t.completed).length;
+      const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : (q.status === 'Completed' ? 100 : 0);
+      
+      const assignedTo = Array.isArray(q.assignedTo) ? q.assignedTo : (q.assignedTo ? [q.assignedTo] : []);
+      const assignedActors = assignedTo.map(id => game.actors.get(id)).filter(Boolean);
+      const assignedNames = assignedActors.map(a => a.name).join(', ');
+
+      const isExpanded = this.expandedQuestIds.has(q.id);
+      const isPrimary = !!q.isPrimary;
+      const rewards = q.rewards || {};
+
+      return {
+        ...q,
+        tasks,
+        totalTasks,
+        completedTasks,
+        taskProgress,
+        assignedTo,
+        assignedActors,
+        assignedNames,
+        isExpanded,
+        isPrimary,
+        rewards
+      };
+    });
+
+    // Visibility filter (GM sees all; players see assigned or party quests that are not Hidden)
+    const visibleQuests = processedQuests.filter(q => {
+      if (perms.quests) return true;
+      if (q.status === 'Hidden') return false;
+      if (q.assignedTo.length === 0) return true; // Party quest
+      return q.assignedTo.some(id => myActorIds.includes(id));
+    });
+
+    const questStats = {
+      all: visibleQuests.length,
+      active: visibleQuests.filter(q => q.status === 'Active').length,
+      available: visibleQuests.filter(q => q.status === 'Available').length,
+      completed: visibleQuests.filter(q => q.status === 'Completed').length,
+      failed: visibleQuests.filter(q => q.status === 'Failed').length
+    };
+
+    // Filter by current quest filter tab
+    let filteredQuests = visibleQuests;
+    if (this.questFilter && this.questFilter !== 'all') {
+      filteredQuests = visibleQuests.filter(q => (q.status || '').toLowerCase() === this.questFilter.toLowerCase());
+    }
+
+    // Sort: Primary > Active > Available > Completed > Failed
+    const sortOrder = { "Active": 0, "Available": 1, "Completed": 2, "Failed": 3 };
+    filteredQuests.sort((a, b) => {
+      if (a.isPrimary && !b.isPrimary) return -1;
+      if (!a.isPrimary && b.isPrimary) return 1;
+      return (sortOrder[a.status] ?? 9) - (sortOrder[b.status] ?? 9);
+    });
+
+    const activeQuests = visibleQuests.filter(q => q.status === 'Active');
+
+    // World Clock Logic
+    const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
+    const clockDisplay = this._getGameDate();
 
     // Player Overview Logic
     const players = [];
@@ -428,50 +607,35 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     // Profile Data
     let profile = null;
     if (this.profileActorId) {
-      const actor = game.actors.get(this.profileActorId);
-      const isOwnCharacter = game.user.character?.id === this.profileActorId;
+      const actor = game.actors.get(this.profileActorId) || canvas?.tokens?.placeables?.find(t => t.actor?.id === this.profileActorId || t.id === this.profileActorId)?.actor;
+      const isOwnCharacter = game.user.character?.id === this.profileActorId || actor?.isOwner;
 
-      if (actor && (perms.profiles || isOwnCharacter)) {
+      if (actor && (game.user.isGM || perms.profiles || isOwnCharacter)) {
         const actorId = actor.id;
         
         // Get Profile History (Hidden/Added quests)
         const profileHistory = (settings.profileHistory || {})[actorId] || { hidden: [], added: [] };
         
-        // Determine quests for this actor (For FQL, we show all history for now as assignment is complex)
-        let historyQuests = [];
-        if (useFQL) {
-          historyQuests = allQuests.filter(q => {
-             // Exclude manually hidden quests
-             if (profileHistory.hidden.includes(q.id)) return false;
-             // Check FQL actors (if specific assignment exists)
-             if (q.actors && q.actors.length > 0) {
-                 return q.actors.includes(actorId);
-             }
-             // Party quest (no specific actors) - include by default, GM can hide manually
-             return true;
-          });
-        } else {
-          historyQuests = (settings.quests || []).filter(q => 
-            ((q.assignedTo === actorId) || (Array.isArray(q.assignedTo) && q.assignedTo.includes(actorId))) &&
-            !profileHistory.hidden.includes(q.id)
-          );
-        }
-        
-        // Add Manual/Legacy Quests
+        // Determine quests for this actor
+        const actorQuests = processedQuests.filter(q => 
+          (q.assignedTo.length === 0 || q.assignedTo.includes(actorId)) &&
+          !profileHistory.hidden.includes(q.id)
+        );
+        let historyQuests = [...actorQuests];
         if (profileHistory.added) {
-            historyQuests = historyQuests.concat(profileHistory.added);
+          historyQuests = historyQuests.concat(profileHistory.added);
         }
 
         profile = {
           id: actorId,
-          name: actor.name,
-          img: actor.img,
+          name: actor.name || "Unknown",
+          img: actor.img || actor.prototypeToken?.texture?.src || "icons/svg/mystery-man.svg",
           badges: (settings.meritBadges || []).filter(b => (b.earnedBy || []).includes(actorId)).map(b => ({
             ...b,
             isImage: b.icon && (b.icon.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(b.icon))
           })),
           factions: processedFactions.filter(f => (f.members || []).some(m => m.id === actorId)).map(f => {
-            const member = f.members.find(m => m.id === actorId);
+            const member = (f.members || []).find(m => m.id === actorId);
             
             // Calculate Progress
             let progress = 0;
@@ -480,17 +644,17 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             let nextRankXP = 0;
             const currentXP = member ? (member.xp || 0) : 0;
             
-            if (member && f.ranks.length > 0) {
+            if (member && f.ranks && f.ranks.length > 0) {
                 const currentRankIdx = member.rank;
                 if (currentRankIdx < f.ranks.length - 1) {
-                    const currentRankXP = f.ranks[currentRankIdx].xp || 0;
+                    const currentRankXP = f.ranks[currentRankIdx]?.xp || 0;
                     const nextRank = f.ranks[currentRankIdx + 1];
-                    nextRankXP = nextRank.xp || 0;
+                    nextRankXP = nextRank?.xp || 0;
                     
                     if (nextRankXP > currentRankXP) {
                         progress = Math.min(100, Math.max(0, ((currentXP - currentRankXP) / (nextRankXP - currentRankXP)) * 100));
                         showProgress = true;
-                        nextRankName = nextRank.name;
+                        nextRankName = nextRank?.name || "";
                     }
                 }
             }
@@ -513,6 +677,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             const cc = Array.isArray(m.cc) ? m.cc : [m.cc];
             return to.includes(actorId) || cc.includes(actorId);
           }),
+          quests: historyQuests.filter(q => q.status === 'Active' || q.status === 'Available'),
           completedQuests: historyQuests.filter(q => q.status === 'Completed'),
           failedQuests: historyQuests.filter(q => q.status === 'Failed')
         };
@@ -703,14 +868,17 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       isGM: perms.mail, // Template uses isGM for many admin controls, mapping to mail perm for now or specific perms below
       clockDisplay,
       canEditClock: perms.clock && !useWorldClock,
-      theme: game.settings.get('intoterica', 'theme'), // Template likely uses theme-{{theme}}
+      theme: game.settings.get('intoterica', 'theme'),
+      themeClass: IntotericaApp.getThemeClass(),
       currentView: this.currentView,
       selectedFaction: this.selectedFaction,
       meritBadges: (settings.meritBadges || []).map(b => ({
         ...b,
         isImage: b.icon && (b.icon.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(b.icon))
       })),
-      quests: activeQuests, // Only active quests for the main list
+      quests: filteredQuests,
+      questFilter: this.questFilter || 'all',
+      questStats,
       factions: processedFactions,
       players: players,
       profile: profile,
@@ -853,6 +1021,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         html.find('.end-conversation-btn').click(this._onEndConversation.bind(this));
         html.find('.reopen-conversation-btn').click(this._onReopenConversation.bind(this));
         html.find('.delete-message-btn').click(this._deleteMessage.bind(this));
+        html.find('.delete-thread-btn').click(this._onDeleteThreadAction.bind(this));
         
         // Address Book
         html.find('.open-address-book').click(ev => {
@@ -923,69 +1092,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       html.find('.back-btn').off('click').on('click', this._onCloseProfile.bind(this));
     }
 
-    // FQL Integration
-    if (game.modules.get("forien-quest-log")?.active) {
-      html.find('.add-quest').hide();
-      html.find('.quest-actions').hide();
-      
-      // Inject Headers for File Folder Look
-      const questItems = html.find('.quest-item');
-      
-      questItems.each((i, el) => {
-        const $el = $(el);
-        // Use .attr() to ensure we get the raw string ID, avoiding jQuery type inference issues
-        const id = $el.attr('data-quest-id') || $el.find('[data-quest-id]').attr('data-quest-id');
-        const quest = _context.quests.find(q => q.id === id);
-        
-        // Inject Splash Art if available
-        if (quest && quest.image) {
-          $el.prepend(`<img src="${quest.image}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #4a3b28; flex-shrink: 0;">`);
-        }
-        
-        // Inject Pin Button
-        if ($el.find('.quest-pin-btn').length === 0) {
-             const isPrimary = quest && quest.isPrimary;
-             const pinColor = isPrimary ? '#2b8a3e' : 'var(--theme-dim)';
-             
-             const pinBtn = $(`<i class="fas fa-thumbtack quest-pin-btn" title="Toggle Primary Objective" style="margin-left: auto; margin-right: 8px; cursor: pointer; color: ${pinColor}; z-index: 20; opacity: ${isPrimary ? 1 : 0.5};"></i>`);
-             
-             pinBtn.click(ev => {
-                 ev.preventDefault();
-                 ev.stopPropagation();
-                 this._onToggleQuestPin(id);
-             });
-             
-             $el.find('.quest-header').append(pinBtn);
-        }
-        
-        // Highlight Primary (Pinned) Quests
-        if (quest && quest.isPrimary) {
-            $el.addClass('primary-quest');
-            // Force styles inline to ensure visibility
-            $el.css({
-                'border': '2px solid #2b8a3e',
-                'box-shadow': '0 0 10px rgba(43, 138, 62, 0.4)'
-            });
-            
-            if ($el.find('.primary-label').length === 0) {
-                $el.find('.quest-content').prepend('<div class="primary-label" style="font-size: 10px; color: #2b8a3e; font-weight: bold; text-transform: uppercase; margin-bottom: 2px;">Primary Objective</div>');
-            }
-        }
-        
-        $el.css('cursor', 'pointer').attr('title', 'Open Quest Log').click(ev => {
-          ev.preventDefault();
-          ev.stopPropagation();
-        const journal = game.journal.get(id);
-        if (journal) journal.sheet.render(true);
-      });
-      });
-    } else {
-      // Hide Quest Tab if FQL is not active
-      html.find('.nav-item[data-view="quests"]').hide();
-      if (this.currentView === 'quests') {
-        this.currentView = 'dashboard';
-        this.render();
-      }
+    // Quest Journal Event Bindings
+    if (this.currentView === 'quests') {
+      html.find('.quest-filter-btn').click(this._onFilterQuests.bind(this));
+      html.find('.quest-header-clickable').click(this._onToggleExpandQuest.bind(this));
+      html.find('.quest-pin-btn').click(this._onToggleQuestPin.bind(this));
+      html.find('.quest-task-checkbox').change(this._onToggleQuestTask.bind(this));
+      html.find('.share-quest-chat').click(this._onShareQuestChat.bind(this));
     }
 
     // Inject Faction Progress Bars in Profile
@@ -1060,17 +1173,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       
       content.append(reportHtml);
 
-      // Re-bind clicks for the injected quests
-      if (game.modules.get("forien-quest-log")?.active) {
-        content.find('.report-column .quest-item').click(ev => {
-          ev.preventDefault();
-          ev.stopPropagation();
-          const id = $(ev.currentTarget).data('questId');
-          const journal = game.journal.get(id);
-          if (journal) journal.sheet.render(true);
-        });
-      }
-      
       if (IntotericaApp.hasPermission('permQuests')) {
           content.find('.remove-profile-quest').click(this._onRemoveProfileQuest.bind(this));
           content.find('.add-legacy-quest').click(this._onAddLegacyQuest.bind(this));
@@ -1086,6 +1188,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (IntotericaApp.hasPermission('permQuests')) {
       html.find('.add-quest').click(this._onAddQuest.bind(this));
       html.find('.complete-quest').click(this._onCompleteQuest.bind(this));
+      html.find('.fail-quest').click(this._onFailQuest.bind(this));
+      html.find('.reopen-quest').click(this._onReopenQuest.bind(this));
       html.find('.edit-quest').click(this._onEditQuest.bind(this));
     }
     if (IntotericaApp.hasPermission('permFactions')) {
@@ -1428,11 +1532,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   _onSelectPlayer(event) {
     event.preventDefault();
     const actorId = event.currentTarget.dataset.actorId;
-    const targetUser = game.users.find(u => u.character?.id === actorId);
-    
-    if (IntotericaApp.hasPermission('permProfiles') || (targetUser && targetUser.isSelf)) {
-      this.profileActorId = actorId;
-      this.render();
+    if (actorId) {
+      IntotericaApp.openProfile(actorId);
     }
   }
 
@@ -1471,19 +1572,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     event.preventDefault();
     this.isEditingMembers = !this.isEditingMembers;
     this.render();
-  }
-
-  async _onToggleQuestPin(questId) {
-      const useFQL = game.modules.get("forien-quest-log")?.active;
-      
-      if (useFQL) {
-          const journal = game.journal.get(questId);
-          if (journal) {
-              const currentState = journal.getFlag('intoterica', 'isPrimary');
-              await journal.setFlag('intoterica', 'isPrimary', !currentState);
-              this.render();
-          }
-      }
   }
 
   async _onReadMessage(event) {
@@ -1544,6 +1632,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (updated) {
       await game.settings.set('intoterica', 'data', settings);
       this._broadcastUpdate();
+    }
+  }
+
+  _onDeleteThreadAction(event) {
+    event.preventDefault();
+    if (this.mailViewSubject !== null) {
+      this._deleteThread(this.mailViewSubject);
     }
   }
 
@@ -1643,23 +1738,28 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   async _onAddBadge(event) {
     event.preventDefault();
     
-    new Dialog({
+    IntotericaApp.createDialog({
       title: "Create Merit Badge",
       content: `
         <form class="intoterica-form">
-          <div class="form-group">
-            <label>Badge Name</label>
-            <input type="text" name="name" placeholder="Enter badge name" autofocus />
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" placeholder="Achievement description" rows="3"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Icon</label>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" name="icon" value="⭐" />
-                <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-medal"></i> Badge Details</div>
+            <div class="form-grid-name-icon">
+              <div class="form-group">
+                <label>Badge Name</label>
+                <input type="text" name="name" placeholder="Enter badge name" autofocus required />
+              </div>
+              <div class="form-group">
+                <label>Icon / Emoji</label>
+                <div class="file-picker-group">
+                  <input type="text" name="icon" value="⭐" />
+                  <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Description & Criteria</label>
+              <textarea name="description" placeholder="Describe the achievement or criteria required to earn this badge..." rows="3"></textarea>
             </div>
           </div>
         </form>
@@ -1689,7 +1789,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         });
       },
       default: "create"
-    }).render(true);
+    }, { width: 480 }).render(true);
   }
 
   async _createBadge(data) {
@@ -1723,9 +1823,26 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return { id: u.character.id, name: u.character.name, hasBadge: badge.earnedBy.includes(u.character.id) };
     });
 
-    new Dialog({
-      title: "Manage Badge Awards",
-      content: `<form class="intoterica-form"><p>Select players to award <strong>${badge.name}</strong>:</p>${players.map(p => `<div class="form-group" style="display: flex; align-items: center; gap: 0.5rem;"><input type="checkbox" name="${p.id}" ${p.hasBadge ? 'checked' : ''} style="width: auto; margin: 0;"><label style="margin: 0;">${p.name}</label></div>`).join('')}</form>`,
+    const playerCheckboxes = players.length > 0 ? players.map(p => `
+      <div class="form-toggle-card">
+        <input type="checkbox" name="${p.id}" id="badge-p-${p.id}" ${p.hasBadge ? 'checked' : ''} />
+        <label for="badge-p-${p.id}">${p.name}</label>
+      </div>
+    `).join('') : '<div style="color: var(--theme-dim); font-style: italic; font-size: 12px; padding: 6px;">No player characters found.</div>';
+
+    IntotericaApp.createDialog({
+      title: `Award Badge: ${badge.name}`,
+      content: `
+        <form class="intoterica-form">
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-award"></i> Select Recipients</div>
+            <p style="font-size: 12px; color: var(--theme-dim); margin: 0 0 8px 0;">Select characters to award <strong>${badge.name}</strong>:</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 250px; overflow-y: auto;">
+              ${playerCheckboxes}
+            </div>
+          </div>
+        </form>
+      `,
       buttons: {
         save: {
           icon: '<i class="fas fa-save"></i>',
@@ -1745,10 +1862,14 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 this._sendBadgeNotifications(badge, newlyAwarded);
             }
           }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
         }
       },
       default: "save"
-    }).render(true);
+    }, { width: 480 }).render(true);
   }
 
   _sendBadgeNotifications(badge, actorIds) {
@@ -1783,23 +1904,28 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const badge = settings.meritBadges.find(b => b.id === badgeId);
     if (!badge) return;
 
-    new Dialog({
-      title: "Edit Merit Badge",
+    IntotericaApp.createDialog({
+      title: `Edit Badge: ${badge.name}`,
       content: `
         <form class="intoterica-form">
-          <div class="form-group">
-            <label>Badge Name</label>
-            <input type="text" name="name" value="${badge.name}" placeholder="Enter badge name" autofocus />
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" placeholder="Achievement description" rows="3">${badge.description}</textarea>
-          </div>
-          <div class="form-group">
-            <label>Icon</label>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" name="icon" value="${badge.icon}" />
-                <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-medal"></i> Badge Details</div>
+            <div class="form-grid-name-icon">
+              <div class="form-group">
+                <label>Badge Name</label>
+                <input type="text" name="name" value="${badge.name}" placeholder="Badge name" autofocus required />
+              </div>
+              <div class="form-group">
+                <label>Icon / Emoji</label>
+                <div class="file-picker-group">
+                  <input type="text" name="icon" value="${badge.icon}" />
+                  <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Description & Criteria</label>
+              <textarea name="description" placeholder="Achievement description..." rows="3">${badge.description || ''}</textarea>
             </div>
           </div>
         </form>
@@ -1836,51 +1962,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           label: "Cancel"
         }
       },
-      render: (html) => { html.find('.file-picker').click(ev => new FilePicker({ type: "image", callback: (path) => html.find('input[name="icon"]').val(path) }).render(true)); },
-      default: "save"
-    }).render(true);
-  }
-
-  async _onAddQuest(event) {
-    event.preventDefault();
-    
-    new Dialog({
-      title: "Add Quest",
-      content: `
-        <form class="intoterica-form">
-          <div class="form-group">
-            <label>Quest Title</label>
-            <input type="text" name="title" placeholder="Enter quest title" autofocus />
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" placeholder="Quest details" rows="4"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Difficulty</label>
-            <select name="difficulty">
-              <option value="Easy">Easy</option>
-              <option value="Medium" selected>Medium</option>
-              <option value="Hard">Hard</option>
-            </select>
-          </div>
-        </form>
-      `,
-      buttons: {
-        create: {
-          icon: '<i class="fas fa-check"></i>',
-          label: "Create",
-          callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
-            await this._createQuest(formData);
-          }
-        },
-        cancel: {
-          icon: '<i class="fas fa-times"></i>',
-          label: "Cancel"
-        }
-      },
       render: (html) => {
         html.find('.file-picker').click(ev => {
             const input = $(ev.currentTarget).prev('input');
@@ -1890,123 +1971,780 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             }).render(true);
         });
       },
-      default: "create"
-    }).render(true);
+      default: "save"
+    }, { width: 480 }).render(true);
   }
 
-  async _createQuest(data) {
+  _onFilterQuests(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.questFilter = event.currentTarget.dataset.filter || 'all';
+    this.render();
+  }
+
+  _onToggleExpandQuest(event) {
+    event.preventDefault();
+    const questId = event.currentTarget.dataset.questId;
+    if (!questId) return;
+    if (this.expandedQuestIds.has(questId)) {
+      this.expandedQuestIds.delete(questId);
+    } else {
+      this.expandedQuestIds.add(questId);
+    }
+    this.render();
+  }
+
+  async _onToggleQuestPin(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const questId = event.currentTarget.dataset.questId;
     const settings = game.settings.get('intoterica', 'data');
-    const newQuest = {
-      id: foundry.utils.randomID(),
-      title: data.title,
-      description: data.description,
-      difficulty: data.difficulty || "Medium",
-      status: "Active",
-      assignedTo: []
-    };
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest) return;
     
-    settings.quests.push(newQuest);
+    quest.isPrimary = !quest.isPrimary;
     await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
-    ui.notifications.info(`Quest "${data.title}" created`);
+    ui.notifications.info(`Quest "${quest.title}" ${quest.isPrimary ? 'pinned as primary objective' : 'unpinned'}.`);
+  }
+
+  async _onToggleQuestTask(event) {
+    event.stopPropagation();
+    const questId = event.currentTarget.dataset.questId;
+    const taskId = event.currentTarget.dataset.taskId;
+    const isChecked = event.currentTarget.checked;
+
+    const settings = game.settings.get('intoterica', 'data');
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest || !Array.isArray(quest.tasks)) return;
+
+    const task = quest.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    task.completed = isChecked;
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
   }
 
   async _onCompleteQuest(event) {
     event.preventDefault();
+    event.stopPropagation();
     const questId = event.currentTarget.dataset.questId;
     const settings = game.settings.get('intoterica', 'data');
-    const quest = settings.quests.find(q => q.id === questId);
-    if (quest) {
-      quest.status = 'Completed';
-      await this._saveData(settings);
-      this._broadcastUpdate();
-      this.render();
-      ui.notifications.info(`Quest "${quest.title}" completed`);
-    }
-  }
-
-  async _onEditQuest(event) {
-    event.preventDefault();
-    const questId = event.currentTarget.dataset.questId;
-    const settings = game.settings.get('intoterica', 'data');
-    const quest = settings.quests.find(q => q.id === questId);
+    const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest) return;
 
-    new Dialog({
-      title: "Edit Quest",
+    quest.status = 'Completed';
+    if (Array.isArray(quest.tasks)) {
+      quest.tasks.forEach(t => { t.completed = true; });
+    }
+
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
+    this._sendQuestChatNotification(quest, 'completed');
+    ui.notifications.info(`Quest "${quest.title}" marked as Completed!`);
+  }
+
+  async _onFailQuest(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const questId = event.currentTarget.dataset.questId;
+    const settings = game.settings.get('intoterica', 'data');
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest) return;
+
+    quest.status = 'Failed';
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
+    this._sendQuestChatNotification(quest, 'failed');
+    ui.notifications.warn(`Quest "${quest.title}" marked as Failed.`);
+  }
+
+  async _onReopenQuest(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const questId = event.currentTarget.dataset.questId;
+    const settings = game.settings.get('intoterica', 'data');
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest) return;
+
+    quest.status = 'Active';
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
+    ui.notifications.info(`Quest "${quest.title}" reopened.`);
+  }
+
+  async _onShareQuestChat(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const questId = event.currentTarget.dataset.questId;
+    const settings = game.settings.get('intoterica', 'data');
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest) return;
+
+    this._sendQuestChatNotification(quest, 'share');
+  }
+
+  _sendQuestChatNotification(quest, type = 'share') {
+    if (!game.settings.get('intoterica', 'notifyQuests') && type !== 'share') return;
+
+    let headerTitle = "Quest Journal";
+    let icon = "📜";
+    if (type === 'completed') {
+      headerTitle = "Quest Completed!";
+      icon = "🏆";
+    } else if (type === 'failed') {
+      headerTitle = "Quest Failed";
+      icon = "❌";
+    } else if (type === 'new') {
+      headerTitle = "New Quest Available!";
+      icon = "⚔️";
+    }
+
+    const tasksHtml = (quest.tasks && quest.tasks.length > 0) ? `
+      <div style="margin: 8px 0; text-align: left; font-size: 12px;">
+        <strong>Objectives:</strong>
+        <ul style="margin: 4px 0 0 0; padding-left: 18px; list-style-type: none;">
+          ${quest.tasks.map(t => `<li style="margin-bottom: 2px;">${t.completed ? '✅' : '◻️'} <span style="${t.completed ? 'text-decoration: line-through; opacity: 0.7;' : ''}">${t.text}</span></li>`).join('')}
+        </ul>
+      </div>
+    ` : '';
+
+    const rewardsHtml = (quest.rewards && (quest.rewards.xp || quest.rewards.currency || quest.rewards.text)) ? `
+      <div style="margin-top: 6px; font-size: 11px; padding: 4px; background: rgba(0,0,0,0.1); border-radius: 3px;">
+        <strong>Rewards:</strong>
+        ${quest.rewards.xp ? `<span style="color: #f59f00; font-weight: bold; margin-right: 6px;">⭐ ${quest.rewards.xp} XP</span>` : ''}
+        ${quest.rewards.currency ? `<span style="color: #d4af37; font-weight: bold; margin-right: 6px;">🪙 ${quest.rewards.currency}</span>` : ''}
+        ${quest.rewards.text ? `<span>📦 ${quest.rewards.text}</span>` : ''}
+      </div>
+    ` : '';
+
+    ChatMessage.create({
       content: `
-        <form class="intoterica-form">
-          <div class="form-group">
-            <label>Quest Title</label>
-            <input type="text" name="title" value="${quest.title}" placeholder="Enter quest title" autofocus />
+        <div class="intoterica-chat-card">
+          <h3>${headerTitle}</h3>
+          <div class="card-content">
+            <div style="font-size: 36px; margin: 4px 0;">${icon}</div>
+            <div style="font-size: 16px; font-weight: bold; color: var(--theme-accent); margin-bottom: 4px;">${quest.title}</div>
+            ${quest.image ? `<img src="${quest.image}" style="max-height: 120px; width: 100%; object-fit: cover; border-radius: 4px; margin-bottom: 6px; border: 1px solid var(--theme-border);">` : ''}
+            <div style="font-size: 11px; text-transform: uppercase; font-weight: bold; opacity: 0.8; margin-bottom: 6px;">Difficulty: ${quest.difficulty || 'Medium'} • Status: ${quest.status}</div>
+            ${quest.description ? `<div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px; text-align: left; line-height: 1.4;">${quest.description}</div>` : ''}
+            ${tasksHtml}
+            ${rewardsHtml}
           </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" placeholder="Quest details" rows="4">${quest.description}</textarea>
+        </div>
+      `
+    });
+  }
+
+  async _onAddQuest(event) {
+    event.preventDefault();
+    const playerActors = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
+    
+    IntotericaApp.createDialog({
+      title: "Create Quest",
+      content: `
+        <form class="intoterica-form" style="max-height: 600px; overflow-y: auto; padding-right: 2px;">
+          <!-- Tab Navigation -->
+          <div class="dialog-tabs">
+            <button type="button" class="dialog-tab-btn active" data-tab="details">
+              <i class="fas fa-scroll"></i> Quest Details
+            </button>
+            <button type="button" class="dialog-tab-btn" data-tab="gm">
+              <i class="fas fa-user-shield"></i> GM Controls & Assignment
+            </button>
           </div>
-          <div class="form-group">
-            <label>Image URL</label>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" name="image" value="${quest.image || ''}" placeholder="path/to/image.webp" />
-                <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+
+          <!-- TAB 1: Quest Details -->
+          <div class="dialog-tab-content active" data-tab="details" style="display: flex; flex-direction: column; gap: 12px;">
+            
+            <!-- Top Integrated Header: Art Banner + Title & Metadata -->
+            <div style="display: flex; gap: 14px; align-items: stretch; background: var(--dialog-card-bg, rgba(255, 255, 255, 0.5)); border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)); border-radius: 6px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
+              
+              <!-- Left: Clickable Portrait Banner -->
+              <div class="quest-art-banner" title="Click to choose splash image">
+                <img class="quest-preview-img" src="icons/svg/item-bag.svg" style="opacity: 0.35;" />
+                <div class="quest-art-overlay"><i class="fas fa-camera"></i> Change Art</div>
+                <input type="hidden" name="image" value="" class="quest-img-input" />
+              </div>
+
+              <!-- Right: Title + Metadata Strip -->
+              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+                <div>
+                  <input type="text" name="title" placeholder="Quest Title (e.g. Investigate the Sunken Crypt)..." class="quest-title-large" autofocus required />
+                </div>
+                
+                <div class="quest-meta-strip">
+                  <div class="quest-meta-pill">
+                    <label><i class="fas fa-signal"></i> Difficulty</label>
+                    <select name="difficulty">
+                      <option value="Easy">🟢 Easy</option>
+                      <option value="Medium" selected>🟡 Medium</option>
+                      <option value="Hard">🔴 Hard</option>
+                      <option value="Epic">🟣 Epic</option>
+                    </select>
+                  </div>
+                  <div class="quest-meta-pill">
+                    <label><i class="fas fa-hourglass-half"></i> Status</label>
+                    <select name="status">
+                      <option value="Active" selected>Active</option>
+                      <option value="Available">Available</option>
+                      <option value="Completed">Completed</option>
+                      <option value="Failed">Failed</option>
+                      <option value="Hidden">Hidden</option>
+                    </select>
+                  </div>
+                  <div class="quest-meta-pill">
+                    <label><i class="fas fa-user-tag"></i> Quest Giver</label>
+                    <input type="text" name="giver" placeholder="e.g. Guildmaster Vane" />
+                  </div>
+                </div>
+              </div>
+
             </div>
+
+            <!-- Bottom 2-Column Ledger: Briefing (Left) + Objectives & Rewards (Right) -->
+            <div class="quest-editor-body">
+              
+              <!-- Left Column: Story Briefing -->
+              <div class="quest-panel">
+                <div class="quest-panel-title"><i class="fas fa-feather-alt"></i> Briefing & Lore</div>
+                <textarea name="description" placeholder="Provide background lore, objective summary, or narrative clues..." style="flex: 1; min-height: 180px; resize: none; border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)); border-radius: 4px; padding: 8px 10px; background: var(--dialog-input-bg, #ffffff); color: var(--dialog-input-text, #191813); font-size: 0.88rem; line-height: 1.4; box-sizing: border-box;"></textarea>
+              </div>
+
+              <!-- Right Column: Objectives & Rewards -->
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                
+                <!-- Objectives -->
+                <div class="quest-panel" style="flex: 1;">
+                  <div class="quest-panel-title"><i class="fas fa-tasks"></i> Objectives & Tasks</div>
+                  <div class="quest-tasks-builder" style="flex: 1; max-height: 130px; overflow-y: auto; padding-right: 2px;">
+                    <div class="quest-task-entry">
+                      <input type="text" class="task-input-text" placeholder="Objective description..." />
+                      <div class="quest-task-opt-badge">
+                        <input type="checkbox" class="task-input-optional" style="display: none;" />
+                        <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
+                      </div>
+                      <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
+                    </div>
+                  </div>
+                  <button type="button" class="add-task-row" style="margin-top: 6px;"><i class="fas fa-plus"></i> Add Objective</button>
+                </div>
+
+                <!-- Rewards Bar -->
+                <div class="quest-panel">
+                  <div class="quest-panel-title"><i class="fas fa-trophy"></i> Rewards</div>
+                  <div class="quest-rewards-grid">
+                    <div class="quest-reward-input-box" title="Experience Points">
+                      <i class="fas fa-star" style="color: #f59f00;"></i>
+                      <input type="number" name="rewardXP" placeholder="XP" min="0" />
+                    </div>
+                    <div class="quest-reward-input-box" title="Gold / Currency">
+                      <i class="fas fa-coins" style="color: #d4af37;"></i>
+                      <input type="text" name="rewardCurrency" placeholder="Currency" />
+                    </div>
+                    <div class="quest-reward-input-box" title="Items & Equipment">
+                      <i class="fas fa-box-open" style="color: #4facfe;"></i>
+                      <input type="text" name="rewardText" placeholder="Items" />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
           </div>
-          <div class="form-group">
-            <label>Difficulty</label>
-            <select name="difficulty">
-              <option value="Easy" ${quest.difficulty === 'Easy' ? 'selected' : ''}>Easy</option>
-              <option value="Medium" ${quest.difficulty === 'Medium' ? 'selected' : ''}>Medium</option>
-              <option value="Hard" ${quest.difficulty === 'Hard' ? 'selected' : ''}>Hard</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select name="status">
-              <option value="Active" ${quest.status === 'Active' ? 'selected' : ''}>Active</option>
-              <option value="Completed" ${quest.status === 'Completed' ? 'selected' : ''}>Completed</option>
-              <option value="Failed" ${quest.status === 'Failed' ? 'selected' : ''}>Failed</option>
-            </select>
+
+          <!-- TAB 2: GM Controls & Assignment -->
+          <div class="dialog-tab-content" data-tab="gm" style="display: none; flex-direction: column; gap: 12px;">
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-users"></i> Character Assignment</div>
+              <p style="font-size: 12px; color: var(--dialog-label-color, var(--theme-dim)); margin: 0 0 8px 0;">Select assigned characters (leave all unchecked for Entire Party):</p>
+              ${playerActors.length ? `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 160px; overflow-y: auto;">
+                  ${playerActors.map(p => `
+                    <div class="form-toggle-card">
+                      <input type="checkbox" name="assign_${p.id}" id="q-assign-${p.id}" />
+                      <label for="q-assign-${p.id}">${p.name}</label>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : '<p style="font-size: 12px; font-style: italic; opacity: 0.7;">No player characters found.</p>'}
+            </div>
+
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-user-shield"></i> GM Secret Notes</div>
+              <div class="form-group">
+                <label>GM Notes (Hidden from Players)</label>
+                <textarea name="gmNotes" placeholder="Secret clues, encounter triggers, NPC motivations, hidden DCs..." rows="4"></textarea>
+              </div>
+
+              <div class="form-toggle-card" style="margin-top: 8px; border-color: rgba(245, 159, 0, 0.4); background: rgba(245, 159, 0, 0.08);">
+                <input type="checkbox" name="isPrimary" id="q-is-primary" />
+                <label for="q-is-primary" style="font-weight: 700; color: #f59f00;"><i class="fas fa-star"></i> Set as Primary Objective (Pinned at Top of Tracker)</label>
+              </div>
+            </div>
           </div>
         </form>
       `,
       buttons: {
-        save: {
-          icon: '<i class="fas fa-save"></i>',
-          label: "Save",
+        create: {
+          icon: '<i class="fas fa-check"></i>',
+          label: "Create Quest",
           callback: async (html) => {
             const form = html[0].querySelector('form');
             const formData = new FormDataExtended(form).object;
             
-            quest.title = formData.title;
-            quest.description = formData.description;
-            quest.difficulty = formData.difficulty;
-            quest.status = formData.status;
-            quest.image = formData.image;
+            // Extract tasks
+            const taskRows = html.find('.quest-task-entry');
+            const tasks = [];
+            taskRows.each((i, row) => {
+              const $row = $(row);
+              const text = $row.find('.task-input-text').val().trim();
+              const optional = $row.find('.task-input-optional').is(':checked');
+              if (text) {
+                tasks.push({
+                  id: foundry.utils.randomID(),
+                  text,
+                  completed: false,
+                  optional
+                });
+              }
+            });
 
-            await this._saveData(settings);
-            this._broadcastUpdate();
-            this.render();
+            // Extract assigned players
+            const assignedTo = Object.keys(formData)
+              .filter(k => k.startsWith('assign_') && formData[k])
+              .map(k => k.replace('assign_', ''));
+
+            const questData = {
+              title: formData.title,
+              difficulty: formData.difficulty,
+              status: formData.status,
+              giver: formData.giver || "",
+              image: formData.image || "",
+              description: formData.description || "",
+              tasks,
+              rewards: {
+                xp: parseInt(formData.rewardXP) || 0,
+                currency: formData.rewardCurrency || "",
+                text: formData.rewardText || ""
+              },
+              assignedTo,
+              gmNotes: formData.gmNotes || "",
+              isPrimary: formData.isPrimary === true
+            };
+
+            await this._createQuest(questData);
           }
-        },
-        delete: {
-            icon: '<i class="fas fa-trash"></i>',
-            label: "Delete",
-            callback: async () => {
-                settings.quests = settings.quests.filter(q => q.id !== questId);
-                await this._saveData(settings);
-                this._broadcastUpdate();
-                this.render();
-            }
         },
         cancel: {
           icon: '<i class="fas fa-times"></i>',
           label: "Cancel"
         }
       },
-      render: (html) => { html.find('.file-picker').click(ev => new FilePicker({ type: "image", callback: (path) => html.find('input[name="image"]').val(path) }).render(true)); },
+      render: (html) => {
+        // Tab switching
+        html.find('.dialog-tab-btn').click(function(ev) {
+          ev.preventDefault();
+          const tabName = $(this).data('tab');
+          html.find('.dialog-tab-btn').removeClass('active');
+          $(this).addClass('active');
+          html.find('.dialog-tab-content').removeClass('active').hide();
+          html.find(`.dialog-tab-content[data-tab="${tabName}"]`).addClass('active').css('display', 'flex').show();
+        });
+
+        // Click-to-pick Art Banner
+        html.find('.quest-art-banner').click(function(ev) {
+          ev.preventDefault();
+          const $banner = $(this);
+          const currentImg = $banner.find('.quest-img-input').val();
+          new FilePicker({
+            type: "image",
+            current: currentImg || undefined,
+            callback: (path) => {
+              $banner.find('.quest-img-input').val(path);
+              $banner.find('.quest-preview-img').attr('src', path).css('opacity', '1');
+            }
+          }).render(true);
+        });
+
+        // Optional badge toggle
+        html.on('click', '.quest-task-opt-badge', function(ev) {
+          ev.preventDefault();
+          const $badge = $(this);
+          const $cb = $badge.find('.task-input-optional');
+          const checked = !$cb.is(':checked');
+          $cb.prop('checked', checked);
+          $badge.toggleClass('active', checked);
+        });
+
+        // Add task row
+        html.find('.add-task-row').click(ev => {
+          const row = $(`
+            <div class="quest-task-entry">
+              <input type="text" class="task-input-text" placeholder="Objective description..." />
+              <div class="quest-task-opt-badge">
+                <input type="checkbox" class="task-input-optional" style="display: none;" />
+                <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
+              </div>
+              <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
+            </div>
+          `);
+          html.find('.quest-tasks-builder').append(row);
+          row.find('.delete-task-row').click(e => $(e.currentTarget).closest('.quest-task-entry').remove());
+        });
+
+        html.find('.delete-task-row').click(ev => {
+          $(ev.currentTarget).closest('.quest-task-entry').remove();
+        });
+      },
+      default: "create"
+    }, { width: 760 }).render(true);
+  }
+
+  async _createQuest(data) {
+    const settings = game.settings.get('intoterica', 'data');
+    if (!settings.quests) settings.quests = [];
+
+    const newQuest = {
+      id: foundry.utils.randomID(),
+      title: data.title,
+      description: data.description || "",
+      difficulty: data.difficulty || "Medium",
+      status: data.status || "Active",
+      giver: data.giver || "",
+      image: data.image || "",
+      tasks: data.tasks || [],
+      rewards: data.rewards || { xp: 0, currency: "", text: "" },
+      assignedTo: data.assignedTo || [],
+      gmNotes: data.gmNotes || "",
+      isPrimary: data.isPrimary === true,
+      date: this._getGameDate()
+    };
+    
+    settings.quests.push(newQuest);
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
+    this._sendQuestChatNotification(newQuest, 'new');
+    ui.notifications.info(`Quest "${data.title}" created`);
+  }
+
+  async _onEditQuest(event) {
+    event.preventDefault();
+    const questId = event.currentTarget.dataset.questId;
+    const settings = game.settings.get('intoterica', 'data');
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest) return;
+
+    const playerActors = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
+    const tasks = Array.isArray(quest.tasks) ? quest.tasks : [];
+    const rewards = quest.rewards || {};
+    const assignedTo = Array.isArray(quest.assignedTo) ? quest.assignedTo : [];
+
+    const tasksHtml = tasks.map((t) => {
+      return `
+        <div class="quest-task-entry">
+          <input type="hidden" class="task-input-id" value="${t.id || foundry.utils.randomID()}" />
+          <input type="checkbox" class="task-input-completed" ${t.completed ? 'checked' : ''} title="Mark Completed" style="margin: 0; width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;" />
+          <input type="text" class="task-input-text" value="${t.text || ''}" placeholder="Objective description..." style="flex: 1;" />
+          <div class="quest-task-opt-badge ${t.optional ? 'active' : ''}">
+            <input type="checkbox" class="task-input-optional" ${t.optional ? 'checked' : ''} style="display: none;" />
+            <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
+          </div>
+          <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
+        </div>
+      `;
+    }).join('');
+
+    IntotericaApp.createDialog({
+      title: `Edit Quest: ${quest.title}`,
+      content: `
+        <form class="intoterica-form" style="max-height: 600px; overflow-y: auto; padding-right: 2px;">
+          <!-- Tab Navigation -->
+          <div class="dialog-tabs">
+            <button type="button" class="dialog-tab-btn active" data-tab="details">
+              <i class="fas fa-scroll"></i> Quest Details
+            </button>
+            <button type="button" class="dialog-tab-btn" data-tab="gm">
+              <i class="fas fa-user-shield"></i> GM Controls & Assignment
+            </button>
+          </div>
+
+          <!-- TAB 1: Quest Details -->
+          <div class="dialog-tab-content active" data-tab="details" style="display: flex; flex-direction: column; gap: 12px;">
+            
+            <!-- Top Integrated Header: Art Banner + Title & Metadata -->
+            <div style="display: flex; gap: 14px; align-items: stretch; background: var(--dialog-card-bg, rgba(255, 255, 255, 0.5)); border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)); border-radius: 6px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
+              
+              <!-- Left: Clickable Portrait Banner -->
+              <div class="quest-art-banner" title="Click to choose splash image">
+                <img class="quest-preview-img" src="${quest.image || 'icons/svg/item-bag.svg'}" style="${quest.image ? '' : 'opacity: 0.35;'}" />
+                <div class="quest-art-overlay"><i class="fas fa-camera"></i> Change Art</div>
+                <input type="hidden" name="image" value="${quest.image || ''}" class="quest-img-input" />
+              </div>
+
+              <!-- Right: Title + Metadata Strip -->
+              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+                <div>
+                  <input type="text" name="title" value="${quest.title || ''}" placeholder="Quest Title (e.g. The Sunken Crypt)..." class="quest-title-large" autofocus required />
+                </div>
+                
+                <div class="quest-meta-strip">
+                  <div class="quest-meta-pill">
+                    <label><i class="fas fa-signal"></i> Difficulty</label>
+                    <select name="difficulty">
+                      <option value="Easy" ${quest.difficulty === 'Easy' ? 'selected' : ''}>🟢 Easy</option>
+                      <option value="Medium" ${quest.difficulty === 'Medium' || !quest.difficulty ? 'selected' : ''}>🟡 Medium</option>
+                      <option value="Hard" ${quest.difficulty === 'Hard' ? 'selected' : ''}>🔴 Hard</option>
+                      <option value="Epic" ${quest.difficulty === 'Epic' ? 'selected' : ''}>🟣 Epic</option>
+                    </select>
+                  </div>
+                  <div class="quest-meta-pill">
+                    <label><i class="fas fa-hourglass-half"></i> Status</label>
+                    <select name="status">
+                      <option value="Active" ${quest.status === 'Active' ? 'selected' : ''}>Active</option>
+                      <option value="Available" ${quest.status === 'Available' ? 'selected' : ''}>Available</option>
+                      <option value="Completed" ${quest.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                      <option value="Failed" ${quest.status === 'Failed' ? 'selected' : ''}>Failed</option>
+                      <option value="Hidden" ${quest.status === 'Hidden' ? 'selected' : ''}>Hidden</option>
+                    </select>
+                  </div>
+                  <div class="quest-meta-pill">
+                    <label><i class="fas fa-user-tag"></i> Quest Giver</label>
+                    <input type="text" name="giver" value="${quest.giver || ''}" placeholder="e.g. Guildmaster Vane" />
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Bottom 2-Column Ledger: Briefing (Left) + Objectives & Rewards (Right) -->
+            <div class="quest-editor-body">
+              
+              <!-- Left Column: Story Briefing -->
+              <div class="quest-panel">
+                <div class="quest-panel-title"><i class="fas fa-feather-alt"></i> Briefing & Lore</div>
+                <textarea name="description" placeholder="Provide background lore, objective summary, or narrative clues..." style="flex: 1; min-height: 180px; resize: none; border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)); border-radius: 4px; padding: 8px 10px; background: var(--dialog-input-bg, #ffffff); color: var(--dialog-input-text, #191813); font-size: 0.88rem; line-height: 1.4; box-sizing: border-box;">${quest.description || ''}</textarea>
+              </div>
+
+              <!-- Right Column: Objectives & Rewards -->
+              <div style="display: flex; flex-direction: column; gap: 10px;">
+                
+                <!-- Objectives -->
+                <div class="quest-panel" style="flex: 1;">
+                  <div class="quest-panel-title"><i class="fas fa-tasks"></i> Objectives & Tasks</div>
+                  <div class="quest-tasks-builder" style="flex: 1; max-height: 130px; overflow-y: auto; padding-right: 2px;">
+                    ${tasksHtml}
+                  </div>
+                  <button type="button" class="add-task-row" style="margin-top: 6px;"><i class="fas fa-plus"></i> Add Objective</button>
+                </div>
+
+                <!-- Rewards Bar -->
+                <div class="quest-panel">
+                  <div class="quest-panel-title"><i class="fas fa-trophy"></i> Rewards</div>
+                  <div class="quest-rewards-grid">
+                    <div class="quest-reward-input-box" title="Experience Points">
+                      <i class="fas fa-star" style="color: #f59f00;"></i>
+                      <input type="number" name="rewardXP" value="${rewards.xp || ''}" placeholder="XP" min="0" />
+                    </div>
+                    <div class="quest-reward-input-box" title="Gold / Currency">
+                      <i class="fas fa-coins" style="color: #d4af37;"></i>
+                      <input type="text" name="rewardCurrency" value="${rewards.currency || ''}" placeholder="Currency" />
+                    </div>
+                    <div class="quest-reward-input-box" title="Items & Equipment">
+                      <i class="fas fa-box-open" style="color: #4facfe;"></i>
+                      <input type="text" name="rewardText" value="${rewards.text || ''}" placeholder="Items" />
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- TAB 2: GM Controls & Assignment -->
+          <div class="dialog-tab-content" data-tab="gm" style="display: none; flex-direction: column; gap: 12px;">
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-users"></i> Character Assignment</div>
+              <p style="font-size: 12px; color: var(--dialog-label-color, var(--theme-dim)); margin: 0 0 8px 0;">Select assigned characters (leave all unchecked for Entire Party):</p>
+              ${playerActors.length ? `
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; max-height: 160px; overflow-y: auto;">
+                  ${playerActors.map(p => `
+                    <div class="form-toggle-card">
+                      <input type="checkbox" name="assign_${p.id}" id="q-assign-edit-${p.id}" ${assignedTo.includes(p.id) ? 'checked' : ''} />
+                      <label for="q-assign-edit-${p.id}">${p.name}</label>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : '<p style="font-size: 12px; font-style: italic; opacity: 0.7;">No player characters found.</p>'}
+            </div>
+
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-user-shield"></i> GM Secret Notes</div>
+              <div class="form-group">
+                <label>GM Notes (Hidden from Players)</label>
+                <textarea name="gmNotes" placeholder="Secret clues, encounter triggers, NPC motivations, hidden DCs..." rows="4">${quest.gmNotes || ''}</textarea>
+              </div>
+
+              <div class="form-toggle-card" style="margin-top: 8px; border-color: rgba(245, 159, 0, 0.4); background: rgba(245, 159, 0, 0.08);">
+                <input type="checkbox" name="isPrimary" id="q-is-primary-edit" ${quest.isPrimary ? 'checked' : ''} />
+                <label for="q-is-primary-edit" style="font-weight: 700; color: #f59f00;"><i class="fas fa-star"></i> Set as Primary Objective (Pinned at Top of Tracker)</label>
+              </div>
+            </div>
+          </div>
+        </form>
+      `,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: "Save Changes",
+          callback: async (html) => {
+            const form = html[0].querySelector('form');
+            const formData = new FormDataExtended(form).object;
+            
+            // Extract tasks
+            const taskRows = html.find('.quest-task-entry');
+            const updatedTasks = [];
+            taskRows.each((i, row) => {
+              const $row = $(row);
+              const text = $row.find('.task-input-text').val().trim();
+              const completed = $row.find('.task-input-completed').is(':checked');
+              const optional = $row.find('.task-input-optional').is(':checked');
+              const id = $row.find('.task-input-id').val() || foundry.utils.randomID();
+              if (text) {
+                updatedTasks.push({ id, text, completed, optional });
+              }
+            });
+
+            // Extract assigned players
+            const updatedAssignedTo = Object.keys(formData)
+              .filter(k => k.startsWith('assign_') && formData[k])
+              .map(k => k.replace('assign_', ''));
+
+            const updatedData = {
+              title: formData.title,
+              difficulty: formData.difficulty,
+              status: formData.status,
+              giver: formData.giver || "",
+              image: formData.image || "",
+              description: formData.description || "",
+              tasks: updatedTasks,
+              rewards: {
+                xp: parseInt(formData.rewardXP) || 0,
+                currency: formData.rewardCurrency || "",
+                text: formData.rewardText || ""
+              },
+              assignedTo: updatedAssignedTo,
+              gmNotes: formData.gmNotes || "",
+              isPrimary: formData.isPrimary === true
+            };
+
+            await this._updateQuest(questId, updatedData);
+          }
+        },
+        delete: {
+          icon: '<i class="fas fa-trash"></i>',
+          label: "Delete",
+          callback: async () => {
+            await this._deleteQuest(questId);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+      render: (html) => {
+        // Tab switching
+        html.find('.dialog-tab-btn').click(function(ev) {
+          ev.preventDefault();
+          const tabName = $(this).data('tab');
+          html.find('.dialog-tab-btn').removeClass('active');
+          $(this).addClass('active');
+          html.find('.dialog-tab-content').removeClass('active').hide();
+          html.find(`.dialog-tab-content[data-tab="${tabName}"]`).addClass('active').css('display', 'flex').show();
+        });
+
+        // Click-to-pick Art Banner
+        html.find('.quest-art-banner').click(function(ev) {
+          ev.preventDefault();
+          const $banner = $(this);
+          const currentImg = $banner.find('.quest-img-input').val();
+          new FilePicker({
+            type: "image",
+            current: currentImg || undefined,
+            callback: (path) => {
+              $banner.find('.quest-img-input').val(path);
+              $banner.find('.quest-preview-img').attr('src', path).css('opacity', '1');
+            }
+          }).render(true);
+        });
+
+        // Optional badge toggle
+        html.on('click', '.quest-task-opt-badge', function(ev) {
+          ev.preventDefault();
+          const $badge = $(this);
+          const $cb = $badge.find('.task-input-optional');
+          const checked = !$cb.is(':checked');
+          $cb.prop('checked', checked);
+          $badge.toggleClass('active', checked);
+        });
+
+        // Add task row
+        html.find('.add-task-row').click(ev => {
+          const row = $(`
+            <div class="quest-task-entry">
+              <input type="hidden" class="task-input-id" value="${foundry.utils.randomID()}" />
+              <input type="checkbox" class="task-input-completed" title="Completed" style="margin: 0; width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;" />
+              <input type="text" class="task-input-text" placeholder="Objective description..." style="flex: 1;" />
+              <div class="quest-task-opt-badge">
+                <input type="checkbox" class="task-input-optional" style="display: none;" />
+                <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
+              </div>
+              <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
+            </div>
+          `);
+          html.find('.quest-tasks-builder').append(row);
+          row.find('.delete-task-row').click(e => $(e.currentTarget).closest('.quest-task-entry').remove());
+        });
+
+        html.find('.delete-task-row').click(ev => {
+          $(ev.currentTarget).closest('.quest-task-entry').remove();
+        });
+      },
       default: "save"
-    }).render(true);
+    }, { width: 760 }).render(true);
+  }
+
+  async _updateQuest(questId, data) {
+    const settings = game.settings.get('intoterica', 'data');
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest) return;
+
+    Object.assign(quest, data);
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
+    ui.notifications.info(`Quest "${data.title}" updated.`);
+  }
+
+  async _deleteQuest(questId) {
+    const settings = game.settings.get('intoterica', 'data');
+    settings.quests = (settings.quests || []).filter(q => q.id !== questId);
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
+    ui.notifications.info("Quest deleted.");
   }
 
   async _onAdjustReputation(event) {
@@ -2055,55 +2793,61 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   async _onAddFaction(event) {
     event.preventDefault();
     
-    new Dialog({
+    IntotericaApp.createDialog({
       title: "Create Faction",
       content: `
-        <form class="intoterica-form" style="min-width: 350px;">
-          <div class="form-group">
-            <label>Faction Name</label>
-            <input type="text" name="name" placeholder="Enter faction name" autofocus />
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" placeholder="Faction background and goals" rows="3"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Icon</label>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" name="image" value="⚔️" />
-                <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+        <form class="intoterica-form" style="max-height: 550px; overflow-y: auto; padding-right: 4px;">
+          <!-- Section 1: Faction Profile -->
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-shield-alt"></i> Faction Profile</div>
+            <div class="form-grid-name-icon">
+              <div class="form-group">
+                <label>Faction Name *</label>
+                <input type="text" name="name" placeholder="e.g. Iron Vanguard" autofocus required />
+              </div>
+              <div class="form-group">
+                <label>Icon / Emblem</label>
+                <div class="file-picker-group">
+                  <input type="text" name="image" value="⚔️" />
+                  <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Description & Background</label>
+              <textarea name="description" placeholder="Faction history, goals, allies, and enemies..." rows="3"></textarea>
+            </div>
+            <div class="form-toggle-card">
+              <input type="checkbox" name="allowEnlistment" id="fac-enlist-new" />
+              <label for="fac-enlist-new">Allow Player Enlistment (Players can request membership)</label>
             </div>
           </div>
-          <div class="form-group">
-            <label>Allow Player Enlistment</label>
-            <input type="checkbox" name="allowEnlistment" />
-          </div>
-          <div class="form-group" style="flex-direction: column; align-items: stretch;">
-            <label style="margin-bottom: 5px;">Ranks Configuration</label>
-            <div style="display: flex; flex-direction: column;">
-                <div class="ranks-header" style="display: grid; grid-template-columns: 1fr 70px 50px 24px; gap: 5px; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: var(--theme-dim); align-items: center;">
-                    <div>Rank Name</div>
-                    <div style="text-align: center;">XP Req.</div>
-                    <div style="text-align: center;">Rep Mod.</div>
-                    <div></div>
-                </div>
-                <div class="ranks-container">
-                    <div class="rank-row" style="display: grid; grid-template-columns: 1fr 70px 50px 24px; gap: 5px; margin-bottom: 5px; align-items: center;">
-                        <input type="text" class="rank-name" value="Initiate" placeholder="Name" style="width: 100%;" />
-                        <input type="number" class="rank-xp" value="0" placeholder="XP" style="width: 100%; text-align: center;" />
-                        <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="Mod" style="width: 100%; text-align: center;" />
-                        <button type="button" class="delete-rank" title="Remove Rank" style="color: #c92a2a; border: 1px solid #c92a2a; height: 26px; display: flex; align-items: center; justify-content: center; padding: 0;"><i class="fas fa-trash"></i></button>
-                    </div>
-                </div>
-                <button type="button" class="add-rank" style="margin-top: 5px; width: 100%; font-size: 11px;"><i class="fas fa-plus"></i> Add Rank</button>
+
+          <!-- Section 2: Ranks Configuration -->
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-layer-group"></i> Ranks Configuration</div>
+            <div class="ranks-header" style="display: grid; grid-template-columns: 1fr 80px 70px 32px; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--theme-dim);">
+              <div>Rank Title</div>
+              <div style="text-align: center;">XP Req.</div>
+              <div style="text-align: center;">Rep Mod.</div>
+              <div></div>
             </div>
+            <div class="ranks-container">
+              <div class="rank-row">
+                <input type="text" class="rank-name" value="Initiate" placeholder="Rank name" />
+                <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center;" />
+                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center;" />
+                <button type="button" class="delete-rank" title="Remove Rank"><i class="fas fa-times"></i></button>
+              </div>
+            </div>
+            <button type="button" class="add-rank"><i class="fas fa-plus"></i> Add Rank</button>
           </div>
         </form>
       `,
       buttons: {
         create: {
           icon: '<i class="fas fa-check"></i>',
-          label: "Create",
+          label: "Create Faction",
           callback: async (html) => {
             const form = html[0].querySelector('form');
             const formData = new FormDataExtended(form).object;
@@ -2138,11 +2882,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         
         html.find('.add-rank').click(ev => {
             const row = $(`
-              <div class="rank-row" style="display: grid; grid-template-columns: 1fr 70px 50px 24px; gap: 5px; margin-bottom: 5px; align-items: center;">
-                <input type="text" class="rank-name" placeholder="Name" style="width: 100%;" />
-                <input type="number" class="rank-xp" value="0" placeholder="XP" style="width: 100%; text-align: center;" />
-                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="Mod" style="width: 100%; text-align: center;" />
-                <button type="button" class="delete-rank" title="Remove Rank" style="color: #c92a2a; border: 1px solid #c92a2a; height: 26px; display: flex; align-items: center; justify-content: center; padding: 0;"><i class="fas fa-trash"></i></button>
+              <div class="rank-row">
+                <input type="text" class="rank-name" placeholder="Rank name" />
+                <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center;" />
+                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center;" />
+                <button type="button" class="delete-rank" title="Remove Rank"><i class="fas fa-times"></i></button>
               </div>
             `);
             html.find('.ranks-container').append(row);
@@ -2154,7 +2898,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         });
       },
       default: "create"
-    }).render(true);
+    }, { width: 540 }).render(true);
   }
 
   async _createFaction(data) {
@@ -2163,7 +2907,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     let ranks = [];
     if (Array.isArray(data.ranks)) {
         ranks = data.ranks;
-    } else if (typeof data.ranks === 'string') {
     } else if (typeof data.ranks === 'string') { // Legacy support
         ranks = data.ranks.split('\n').filter(line => line.trim()).map(line => {
             const [name, xp, modifier] = line.split(',').map(s => s.trim());
@@ -2198,68 +2941,69 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const faction = settings.factions.find(f => f.id === factionId);
     if (!faction) return;
 
-    // This dialog is now mostly for basic settings since Ranks are edited in the tab
-    // We keep it for Name, Desc, Image, Enlistment toggle
-    const ranksHtml = faction.ranks.map(r => `
-      <div class="rank-row" style="display: grid; grid-template-columns: 1fr 70px 50px 24px; gap: 5px; margin-bottom: 5px; align-items: center;">
-        <input type="text" class="rank-name" value="${r.name}" placeholder="Name" style="width: 100%;" />
-        <input type="number" class="rank-xp" value="${r.xp}" placeholder="XP" style="width: 100%; text-align: center;" />
-        <input type="number" class="rank-mod" value="${r.modifier}" step="0.1" placeholder="Mod" style="width: 100%; text-align: center;" />
-        <button type="button" class="delete-rank" title="Remove Rank" style="color: #c92a2a; border: 1px solid #c92a2a; height: 26px; display: flex; align-items: center; justify-content: center; padding: 0;"><i class="fas fa-trash"></i></button>
+    const ranksHtml = (faction.ranks || []).map(r => `
+      <div class="rank-row">
+        <input type="text" class="rank-name" value="${r.name}" placeholder="Rank name" />
+        <input type="number" class="rank-xp" value="${r.xp}" placeholder="0" style="text-align: center;" />
+        <input type="number" class="rank-mod" value="${r.modifier}" step="0.1" placeholder="1.0" style="text-align: center;" />
+        <button type="button" class="delete-rank" title="Remove Rank"><i class="fas fa-times"></i></button>
       </div>
     `).join('');
 
-    new Dialog({
-      title: "Edit Faction",
+    IntotericaApp.createDialog({
+      title: `Edit Faction: ${faction.name}`,
       content: `
-        <form class="intoterica-form" style="min-width: 350px;">
-          <div class="form-group">
-            <label>Faction Name</label>
-            <input type="text" name="name" value="${faction.name}" />
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea name="description" rows="3">${faction.description}</textarea>
-          </div>
-          <div class="form-group">
-            <label>Icon</label>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" name="image" value="${faction.image}" />
-                <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+        <form class="intoterica-form" style="max-height: 550px; overflow-y: auto; padding-right: 4px;">
+          <!-- Section 1: Faction Profile -->
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-shield-alt"></i> Faction Profile</div>
+            <div class="form-grid-name-icon">
+              <div class="form-group">
+                <label>Faction Name *</label>
+                <input type="text" name="name" value="${faction.name}" autofocus required />
+              </div>
+              <div class="form-group">
+                <label>Icon / Emblem</label>
+                <div class="file-picker-group">
+                  <input type="text" name="image" value="${faction.image}" />
+                  <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Description & Background</label>
+              <textarea name="description" rows="3">${faction.description || ''}</textarea>
+            </div>
+            <div class="form-toggle-card">
+              <input type="checkbox" name="allowEnlistment" id="fac-enlist-edit" ${faction.allowEnlistment ? 'checked' : ''} />
+              <label for="fac-enlist-edit">Allow Player Enlistment (Players can request membership)</label>
             </div>
           </div>
-          <div class="form-group">
-            <label>Allow Player Enlistment</label>
-            <input type="checkbox" name="allowEnlistment" ${faction.allowEnlistment ? 'checked' : ''} />
-          </div>
-          <div class="form-group" style="flex-direction: column; align-items: stretch;">
-            <label style="margin-bottom: 5px;">Ranks Configuration</label>
-            <div style="display: flex; flex-direction: column;">
-                <div class="ranks-header" style="display: grid; grid-template-columns: 1fr 70px 50px 24px; gap: 5px; font-size: 12px; font-weight: bold; margin-bottom: 5px; color: var(--theme-dim); align-items: center;">
-                    <div>Rank Name</div>
-                    <div style="text-align: center;">XP Req.</div>
-                    <div style="text-align: center;">Rep Mod.</div>
-                    <div></div>
-                </div>
-                <div class="ranks-container">
-                    ${ranksHtml}
-                </div>
-                <button type="button" class="add-rank" style="margin-top: 5px; width: 100%; font-size: 11px;"><i class="fas fa-plus"></i> Add Rank</button>
+
+          <!-- Section 2: Ranks Configuration -->
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-layer-group"></i> Ranks Configuration</div>
+            <div class="ranks-header" style="display: grid; grid-template-columns: 1fr 80px 70px 32px; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--theme-dim);">
+              <div>Rank Title</div>
+              <div style="text-align: center;">XP Req.</div>
+              <div style="text-align: center;">Rep Mod.</div>
+              <div></div>
             </div>
+            <div class="ranks-container">
+              ${ranksHtml}
+            </div>
+            <button type="button" class="add-rank"><i class="fas fa-plus"></i> Add Rank</button>
           </div>
         </form>
       `,
       buttons: {
         save: {
           icon: '<i class="fas fa-save"></i>',
-          label: "Save",
+          label: "Save Changes",
           callback: async (html) => {
             const form = html[0].querySelector('form');
             const formData = new FormDataExtended(form).object;
-            // Ranks are handled in the tab now, so we don't overwrite them here unless we want to support both.
-            // To be safe, we preserve existing ranks if not in form
-            formData.ranks = faction.ranks; 
-
+            
             const rows = html.find('.rank-row');
             const ranks = [];
             rows.each((i, row) => {
@@ -2297,11 +3041,11 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
         html.find('.add-rank').click(ev => {
             const row = $(`
-              <div class="rank-row" style="display: grid; grid-template-columns: 1fr 70px 50px 24px; gap: 5px; margin-bottom: 5px; align-items: center;">
-                <input type="text" class="rank-name" placeholder="Name" style="width: 100%;" />
-                <input type="number" class="rank-xp" value="0" placeholder="XP" style="width: 100%; text-align: center;" />
-                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="Mod" style="width: 100%; text-align: center;" />
-                <button type="button" class="delete-rank" title="Remove Rank" style="color: #c92a2a; border: 1px solid #c92a2a; height: 26px; display: flex; align-items: center; justify-content: center; padding: 0;"><i class="fas fa-trash"></i></button>
+              <div class="rank-row">
+                <input type="text" class="rank-name" placeholder="Rank name" />
+                <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center;" />
+                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center;" />
+                <button type="button" class="delete-rank" title="Remove Rank"><i class="fas fa-times"></i></button>
               </div>
             `);
             html.find('.ranks-container').append(row);
@@ -2312,9 +3056,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             $(ev.currentTarget).closest('.rank-row').remove();
         });
       },
-      render: (html) => { html.find('.file-picker').click(ev => new FilePicker({ type: "image", callback: (path) => html.find('input[name="image"]').val(path) }).render(true)); },
       default: "save"
-    }).render(true);
+    }, { width: 540 }).render(true);
   }
 
   async _updateFaction(factionId, data) {
@@ -2325,7 +3068,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     let ranks = [];
     if (Array.isArray(data.ranks)) {
         ranks = data.ranks;
-    } else if (typeof data.ranks === 'string') {
+    } else if (typeof data.ranks === 'string') { // Legacy support
         ranks = data.ranks.split('\n').filter(line => line.trim()).map(line => {
             const [name, xp, modifier] = line.split(',').map(s => s.trim());
             return { name, xp: parseInt(xp) || 0, modifier: parseFloat(modifier) || 1.0 };
@@ -2337,7 +3080,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     faction.image = data.image;
     faction.allowEnlistment = data.allowEnlistment;
     faction.ranks = ranks;
-    // faction.ranks = ranks; // Preserved
 
     await this._saveData(settings);
     this._broadcastUpdate();
@@ -2358,26 +3100,31 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const factionId = event.currentTarget.dataset.factionId;
     const actors = game.actors.map(a => ({id: a.id, name: a.name})).sort((a, b) => a.name.localeCompare(b.name));
     
-    new Dialog({
+    IntotericaApp.createDialog({
       title: "Add Faction Member",
       content: `
         <form class="intoterica-form">
-          <div class="form-group">
-            <label>Select Character</label>
-            <select name="actorId">
-              ${actors.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Rank (0 = lowest)</label>
-            <input type="number" name="rank" value="0" min="0" />
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-user-plus"></i> Member Details</div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Select Character</label>
+                <select name="actorId">
+                  ${actors.map(a => `<option value="${a.id}">${a.name}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Initial Rank (0 = lowest)</label>
+                <input type="number" name="rank" value="0" min="0" />
+              </div>
+            </div>
           </div>
         </form>
       `,
       buttons: {
         add: {
           icon: '<i class="fas fa-user-plus"></i>',
-          label: "Add",
+          label: "Add Member",
           callback: async (html) => {
             const form = html[0].querySelector('form');
             const formData = new FormDataExtended(form).object;
@@ -2390,7 +3137,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
       },
       default: "add"
-    }).render(true);
+    }, { width: 440 }).render(true);
   }
 
   async _addFactionMember(factionId, data) {
@@ -2696,38 +3443,42 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   _openAddressBook(selectedIds, players, npcs, callback) {
       const content = `
-        <form class="intoterica-address-book" style="min-width: 400px; max-height: 500px; overflow: hidden; display: flex; flex-direction: column;">
-            <div style="flex: 1; overflow-y: auto; padding: 5px;">
-                <div class="section-header" style="border-bottom: 1px solid #ccc; margin-bottom: 5px; font-weight: bold;">Players</div>
-                <div class="player-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-bottom: 15px;">
-                    ${players.map(p => `
-                        <div style="display: flex; align-items: center; gap: 5px; padding: 3px; background: rgba(0,0,0,0.1); border-radius: 3px;">
-                            <input type="checkbox" name="${p.id}" id="ab-${p.id}" ${selectedIds.includes(p.id) ? 'checked' : ''} style="margin: 0;">
-                            <label for="ab-${p.id}" style="cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</label>
-                        </div>
-                    `).join('')}
+        <form class="intoterica-form" style="max-height: 500px; overflow-y: auto; padding-right: 4px;">
+          <!-- Players Section -->
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-users"></i> Player Characters</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              ${players.map(p => `
+                <div class="form-toggle-card">
+                  <input type="checkbox" name="${p.id}" id="ab-${p.id}" ${selectedIds.includes(p.id) ? 'checked' : ''} />
+                  <label for="ab-${p.id}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${p.name}</label>
                 </div>
-
-                <div class="section-header" style="border-bottom: 1px solid #ccc; margin-bottom: 5px; font-weight: bold;">NPCs</div>
-                <div class="npc-list" style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px;">
-                    ${npcs.map(n => `
-                        <div style="display: flex; align-items: center; gap: 5px; padding: 3px; background: rgba(0,0,0,0.1); border-radius: 3px;">
-                            <input type="checkbox" name="${n.id}" id="ab-${n.id}" ${selectedIds.includes(n.id) ? 'checked' : ''} style="margin: 0;">
-                            <label for="ab-${n.id}" style="cursor: pointer; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${n.name}</label>
-                        </div>
-                    `).join('')}
-                </div>
+              `).join('')}
             </div>
+          </div>
+
+          <!-- NPCs Section -->
+          <div class="form-section" style="margin-top: 10px;">
+            <div class="form-section-title"><i class="fas fa-address-book"></i> Known NPCs</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              ${npcs.length ? npcs.map(n => `
+                <div class="form-toggle-card">
+                  <input type="checkbox" name="${n.id}" id="ab-${n.id}" ${selectedIds.includes(n.id) ? 'checked' : ''} />
+                  <label for="ab-${n.id}" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${n.name}</label>
+                </div>
+              `).join('') : '<div style="color: var(--theme-dim); font-style: italic; font-size: 12px; padding: 4px;">No NPCs in address book.</div>'}
+            </div>
+          </div>
         </form>
       `;
 
-      new Dialog({
+      IntotericaApp.createDialog({
           title: "Address Book",
           content: content,
           buttons: {
               confirm: {
                   icon: '<i class="fas fa-check"></i>',
-                  label: "Confirm",
+                  label: "Apply Selection",
                   callback: (html) => {
                       const newSelected = [];
                       html.find('input[type="checkbox"]:checked').each((i, el) => {
@@ -2735,10 +3486,14 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                       });
                       callback(newSelected);
                   }
+              },
+              cancel: {
+                  icon: '<i class="fas fa-times"></i>',
+                  label: "Cancel"
               }
           },
           default: "confirm"
-      }).render(true);
+      }, { width: 520 }).render(true);
   }
 
   async _sendMail(data) {
@@ -2862,24 +3617,29 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const settings = game.settings.get('intoterica', 'data');
     const clock = settings.worldClock || { era: 1, day: 1 };
 
-    new Dialog({
+    IntotericaApp.createDialog({
       title: "Edit World Clock",
       content: `
         <form class="intoterica-form">
-          <div class="form-group">
-            <label>Era</label>
-            <input type="number" name="era" value="${clock.era}" min="1" />
-          </div>
-          <div class="form-group">
-            <label>Day</label>
-            <input type="number" name="day" value="${clock.day}" min="1" />
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-hourglass-half"></i> World Date</div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Current Era</label>
+                <input type="number" name="era" value="${clock.era}" min="1" />
+              </div>
+              <div class="form-group">
+                <label>Current Day</label>
+                <input type="number" name="day" value="${clock.day}" min="1" />
+              </div>
+            </div>
           </div>
         </form>
       `,
       buttons: {
         save: {
           icon: '<i class="fas fa-save"></i>',
-          label: "Save",
+          label: "Save Date",
           callback: async (html) => {
             const form = html[0].querySelector('form');
             const formData = new FormDataExtended(form).object;
@@ -2898,7 +3658,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
       },
       default: "save"
-    }).render(true);
+    }, { width: 380 }).render(true);
   }
 
   async _onRemoveProfileQuest(event) {
@@ -2928,26 +3688,31 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   async _onAddLegacyQuest(event) {
     event.preventDefault();
-    new Dialog({
+    IntotericaApp.createDialog({
       title: "Add Legacy Quest Entry",
       content: `
         <form class="intoterica-form">
-          <div class="form-group">
-            <label>Title</label>
-            <input type="text" name="title" placeholder="Quest Title" autofocus />
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select name="status">
-              <option value="Completed">Completed</option>
-              <option value="Failed">Failed</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Image URL</label>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" name="image" placeholder="path/to/image.webp" />
-                <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-history"></i> Legacy Quest Details</div>
+            <div class="form-group">
+              <label>Quest Title *</label>
+              <input type="text" name="title" placeholder="e.g. Slaying of the Red Dragon" autofocus required />
+            </div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Completion Status</label>
+                <select name="status">
+                  <option value="Completed">Completed</option>
+                  <option value="Failed">Failed</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Image / Emblem</label>
+                <div class="file-picker-group">
+                  <input type="text" name="image" placeholder="icons/..." />
+                  <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+                </div>
+              </div>
             </div>
           </div>
         </form>
@@ -2955,7 +3720,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       buttons: {
         add: {
           icon: '<i class="fas fa-check"></i>',
-          label: "Add",
+          label: "Add to History",
           callback: async (html) => {
             const form = html[0].querySelector('form');
             const formData = new FormDataExtended(form).object;
@@ -2970,11 +3735,15 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             this._broadcastUpdate();
             this.render();
           }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
         }
       },
       render: (html) => { html.find('.file-picker').click(ev => new FilePicker({ type: "image", callback: (path) => html.find('input[name="image"]').val(path) }).render(true)); },
       default: "add"
-    }).render(true);
+    }, { width: 480 }).render(true);
   }
 
   async _onToggleAutoRep(event) {
@@ -3145,23 +3914,39 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const factions = settings.factions || [];
     const players = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
 
-    new Dialog({
+    IntotericaApp.createDialog({
       title: "Award Faction XP",
       content: `
-        <form class="intoterica-form">
-          <div class="form-group">
-            <label>Select Faction</label>
-            <select name="factionId">
-              ${factions.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
-            </select>
+        <form class="intoterica-form" style="max-height: 500px; overflow-y: auto; padding-right: 4px;">
+          <!-- Award Configuration -->
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-star"></i> Award Configuration</div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Target Faction</label>
+                <select name="factionId">
+                  ${factions.map(f => `<option value="${f.id}">${f.name}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Base XP Amount</label>
+                <input type="number" name="amount" value="100" min="1" />
+              </div>
+            </div>
           </div>
-          <div class="form-group">
-            <label>Base XP Amount</label>
-            <input type="number" name="amount" value="100" />
-          </div>
-          <div class="form-group">
-            <label>Select Players</label>
-            ${players.map(p => `<div style="display:flex; align-items:center; gap:5px;"><input type="checkbox" name="player_${p.id}" checked style="width:auto; margin:0;"> ${p.name}</div>`).join('')}
+
+          <!-- Target Players -->
+          <div class="form-section" style="margin-top: 10px;">
+            <div class="form-section-title"><i class="fas fa-users"></i> Target Players</div>
+            <p style="font-size: 12px; color: var(--theme-dim); margin: 0 0 8px 0;">Select which characters receive this faction XP award:</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              ${players.map(p => `
+                <div class="form-toggle-card">
+                  <input type="checkbox" name="player_${p.id}" id="xp-p-${p.id}" checked />
+                  <label for="xp-p-${p.id}">${p.name}</label>
+                </div>
+              `).join('')}
+            </div>
           </div>
         </form>
       `,
@@ -3178,10 +3963,14 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             
             await this._processXPAward(factionId, amount, playerIds);
           }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
         }
       },
       default: "award"
-    }).render(true);
+    }, { width: 480 }).render(true);
   }
 
   async _processXPAward(factionId, baseAmount, playerIds) {
@@ -3258,37 +4047,46 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         return;
     }
 
-    new Dialog({
-      title: "Adjust Player Rank",
+    IntotericaApp.createDialog({
+      title: `Adjust Rank: ${faction.name}`,
       content: `
         <form class="intoterica-form">
-          <div class="form-group">
-            <label>Select Player</label>
-            <select name="memberId">
-              ${playerMembers.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
-            </select>
-          </div>
-          <div class="form-group">
-            <label>New Rank</label>
-            <select name="rankIdx">
-              ${faction.ranks.map((r, i) => `<option value="${i}">${r.name}</option>`).join('')}
-            </select>
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-medal"></i> Member Rank</div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label>Select Player</label>
+                <select name="memberId">
+                  ${playerMembers.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
+                </select>
+              </div>
+              <div class="form-group">
+                <label>New Rank</label>
+                <select name="rankIdx">
+                  ${(faction.ranks || []).map((r, i) => `<option value="${i}">${r.name}</option>`).join('')}
+                </select>
+              </div>
+            </div>
           </div>
         </form>
       `,
       buttons: {
         save: {
           icon: '<i class="fas fa-save"></i>',
-          label: "Update",
+          label: "Update Rank",
           callback: async (html) => {
             const form = html[0].querySelector('form');
             const formData = new FormDataExtended(form).object;
             await this._processRankAdjustment(faction.id, formData.memberId, parseInt(formData.rankIdx));
           }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
         }
       },
       default: "save"
-    }).render(true);
+    }, { width: 440 }).render(true);
   }
 
   async _processRankAdjustment(factionId, memberId, newRankIdx) {
@@ -3412,13 +4210,7 @@ Hooks.on('ready', async () => {
       await game.settings.set('intoterica', key, newVal);
     }
   }
-
-  // React to FQL Pin changes to update highlighting immediately
-  Hooks.on('updateUser', (user, data) => {
-      if (user.isSelf && data.flags?.['forien-quest-log']) {
-          if (window.IntotericaApp?._instance?.rendered) {
-              window.IntotericaApp._instance.render();
-          }
-      }
-  });
 });
+
+// Expose globally so other scripts and macros can call IntotericaApp.toggle()
+window.IntotericaApp = IntotericaApp;
