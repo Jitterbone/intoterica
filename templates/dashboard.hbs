@@ -23,7 +23,9 @@
     <div class="player-grid">
       {{#each players}}
         <div class="player-card" data-actor-id="{{id}}">
-          <img src="{{img}}" alt="{{name}}" class="player-img">
+          <div class="player-avatar">
+            <img src="{{img}}" alt="{{name}}" class="player-img">
+          </div>
           <div class="player-info">
             <div class="player-name">{{name}}</div>
             <div class="player-user">{{userName}}</div>
@@ -51,7 +53,9 @@
     {{/if}}
 
     <div class="profile-header-card">
-      <img src="{{profile.img}}" alt="{{profile.name}}" class="profile-avatar">
+      <div class="profile-avatar-frame">
+        <img src="{{profile.img}}" alt="{{profile.name}}" class="profile-avatar">
+      </div>
       <div>
         <div class="profile-name">{{profile.name}}</div>
         <div class="profile-subtitle">Character Profile</div>
@@ -63,13 +67,24 @@
         <h3 class="section-title">Factions</h3>
         {{#if profile.factions.length}}
           {{#each profile.factions}}
-            <div class="mini-card">
-              <div class="mini-icon" style="display: flex; align-items: center; justify-content: center;">
-                {{#if isImage}}<img src="{{image}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{image}}{{/if}}
+            <div class="mini-card faction-profile-card">
+              <div class="faction-profile-icon">
+                {{#if isImage}}<img src="{{image}}" alt="{{name}}">{{else}}{{image}}{{/if}}
               </div>
-              <div>
+              <div style="flex: 1; min-width: 0;">
                 <div class="mini-title">{{name}}</div>
                 <div class="mini-sub">{{rank}}</div>
+                {{#if showProgress}}
+                  <div class="faction-progress-wrapper" style="margin-top: 4px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--theme-dim); margin-bottom: 2px;">
+                      <span>{{xp}} XP</span>
+                      <span>Next: {{nextRankName}} ({{nextRankXP}} XP)</span>
+                    </div>
+                    <div style="height: 4px; background: rgba(0,0,0,0.2); border-radius: 2px; overflow: hidden;">
+                      <div style="height: 100%; width: {{progress}}%; background: var(--theme-accent); border-radius: 2px;"></div>
+                    </div>
+                  </div>
+                {{/if}}
               </div>
             </div>
           {{/each}}
@@ -82,11 +97,11 @@
         <h3 class="section-title">Badges</h3>
         {{#if profile.badges.length}}
           {{#each profile.badges}}
-            <div class="mini-card">
-              <div class="mini-icon" style="display: flex; align-items: center; justify-content: center;">
-                {{#if isImage}}<img src="{{icon}}" style="max-width: 100%; max-height: 100%; border: none;">{{else}}{{icon}}{{/if}}
+            <div class="mini-card badge-profile-card">
+              <div class="badge-profile-icon">
+                {{#if isImage}}<img src="{{icon}}" alt="{{name}}">{{else}}{{icon}}{{/if}}
               </div>
-              <div>
+              <div class="badge-profile-text">
                 <div class="mini-title">{{name}}</div>
                 <div class="mini-sub">{{description}}</div>
               </div>
@@ -101,13 +116,13 @@
         <h3 class="section-title">Active Quests</h3>
         {{#if profile.quests.length}}
           {{#each profile.quests}}
-            <div class="mini-card">
+            <div class="mini-card profile-quest-link" data-quest-id="{{id}}" style="cursor: pointer;" title="Click to view quest in Quest Journal">
               {{#if image}}
-                <div class="mini-icon" style="display: flex; align-items: center; justify-content: center;">
-                  <img src="{{image}}" style="max-width: 100%; max-height: 100%; object-fit: cover; border-radius: 2px; border: none;">
+                <div class="mini-icon" style="flex-shrink: 0; width: 36px; height: 36px; min-width: 36px; border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                  <img src="{{image}}" style="width: 100%; height: 100%; object-fit: cover; border: none;">
                 </div>
               {{/if}}
-              <div style="flex: 1; overflow: hidden;">
+              <div style="flex: 1; min-width: 0;">
                 <div class="mini-title">{{#if isPrimary}}⭐ {{/if}}{{title}}</div>
                 <div class="mini-sub">
                   <span style="color: {{difficultyColor}};">{{difficulty}}</span> • {{status}}
@@ -126,8 +141,8 @@
         <h3 class="section-title">Messages</h3>
         {{#if profile.messages.length}}
           {{#each profile.messages}}
-            <div class="mini-card">
-              <div>
+            <div class="mini-card message-profile-card">
+              <div style="flex: 1; min-width: 0;">
                 <div class="mini-title">{{subject}}</div>
                 <div class="mini-sub">From {{from}}</div>
               </div>

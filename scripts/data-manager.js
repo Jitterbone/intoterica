@@ -1,5 +1,3 @@
-import { ForienQuestSync } from './forien-sync.js';
-
 export class IntotericaDataManager extends (foundry.applications?.api?.HandlebarsApplicationMixin
   ? foundry.applications.api.HandlebarsApplicationMixin(foundry.applications.api.ApplicationV2)
   : Application) {
@@ -84,25 +82,11 @@ export class IntotericaDataManager extends (foundry.applications?.api?.Handlebar
         return a.folderName.localeCompare(b.folderName);
       });
 
-    const forienInstalled = ForienQuestSync.isInstalled();
-    const forienActive = ForienQuestSync.isActive();
-    const forienCount = ForienQuestSync.getForienJournals().length;
-    let syncForienQuests = false;
-    try {
-      syncForienQuests = game.settings.get('intoterica', 'syncForienQuests');
-    } catch (_e) {}
-
     return {
       actors,
       actorGroups,
       rawJson,
-      data,
-      forien: {
-        installed: forienInstalled,
-        active: forienActive,
-        count: forienCount,
-        autoSync: syncForienQuests
-      }
+      data
     };
   }
 
@@ -146,39 +130,6 @@ export class IntotericaDataManager extends (foundry.applications?.api?.Handlebar
         const activeContent = root.querySelector(`.tab-content[data-tab="${targetTab}"]`);
         if (activeContent) activeContent.classList.add('active');
       });
-    });
-
-    // Forien Sync Button
-    const btnSyncForien = root.querySelector('.btn-sync-forien');
-    btnSyncForien?.addEventListener('click', async () => {
-      btnSyncForien.disabled = true;
-      btnSyncForien.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
-      try {
-        await ForienQuestSync.sync({ notify: true });
-        this.render();
-        if (window.IntotericaApp?._instance?.rendered) {
-          window.IntotericaApp._instance.render();
-        }
-      } catch (err) {
-        console.error("Intoterica | Forien Sync Error:", err);
-        ui.notifications.error(`Forien Sync Error: ${err.message}`);
-      } finally {
-        btnSyncForien.disabled = false;
-        btnSyncForien.innerHTML = '<i class="fas fa-sync-alt"></i> Import & Merge Quests';
-      }
-    });
-
-    // Forien Auto-Sync Toggle
-    const optAutoSyncForien = root.querySelector('.opt-auto-sync-forien');
-    optAutoSyncForien?.addEventListener('change', async (e) => {
-      await game.settings.set('intoterica', 'syncForienQuests', e.target.checked);
-      if (e.target.checked) {
-        await ForienQuestSync.sync({ notify: true });
-        this.render();
-        if (window.IntotericaApp?._instance?.rendered) {
-          window.IntotericaApp._instance.render();
-        }
-      }
     });
 
     // Source Actor Selection & Stats Preview

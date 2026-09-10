@@ -83,7 +83,8 @@
 
 /* Access Point (Formerly Default) */
 .intoterica-container.theme-access-point,
-.intoterica-chat-card.theme-access-point {
+.intoterica-chat-card.theme-access-point,
+.intoterica-dialog.theme-access-point {
   --theme-bg: #f0e6d2;
   --theme-sidebar: #1a2639;
   --theme-surface: #fdf6e3;
@@ -726,38 +727,308 @@
   border-color: var(--dialog-btn-primary-border, #4a1810) !important;
 }
 
-/* Reward Bar */
-.intoterica-dialog .quest-rewards-grid {
-  display: grid !important;
-  grid-template-columns: 1fr 1fr 1fr !important;
-  gap: 6px !important;
-  margin-top: 8px !important;
+.intoterica-dialog .quest-task-subquest-badge {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  background: rgba(0, 0, 0, 0.06) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  color: var(--dialog-label-color, #666) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.2s ease !important;
 }
 
-.intoterica-dialog .quest-reward-input-box {
+.intoterica-dialog .quest-task-subquest-badge.active {
+  background: #1971c2 !important;
+  color: #ffffff !important;
+  border-color: #1864ab !important;
+}
+
+.intoterica-dialog .quest-task-entry.is-subquest-header {
+  background: rgba(25, 113, 194, 0.08) !important;
+  border-left: 3px solid #1971c2 !important;
+  font-weight: 600 !important;
+}
+
+/* Reward Bar */
+/* Quest Description Toolbar & Live Preview */
+.intoterica-dialog .quest-desc-toolbar {
   display: flex !important;
   align-items: center !important;
+  gap: 3px !important;
+  background: var(--dialog-input-bg, rgba(0, 0, 0, 0.04)) !important;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)) !important;
+  border-bottom: none !important;
+  border-radius: 4px 4px 0 0 !important;
+  padding: 4px 6px !important;
+  flex-wrap: wrap !important;
+}
+
+.intoterica-dialog .qdesc-action-btn {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 3px !important;
+  color: var(--dialog-input-text, #191813) !important;
+  cursor: pointer !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  padding: 2px 6px !important;
+  line-height: 1.2 !important;
+  transition: all 0.15s ease !important;
+  height: 24px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.intoterica-dialog .qdesc-action-btn:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+  border-color: var(--dialog-section-border, rgba(120, 46, 34, 0.3)) !important;
+}
+
+.intoterica-dialog .toolbar-separator {
+  width: 1px !important;
+  height: 16px !important;
+  background: var(--dialog-section-border, rgba(120, 46, 34, 0.25)) !important;
+  margin: 0 3px !important;
+}
+
+.intoterica-dialog .qdesc-tab-btn {
+  background: transparent !important;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.3)) !important;
+  border-radius: 3px !important;
+  color: var(--dialog-input-text, #191813) !important;
+  cursor: pointer !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  transition: all 0.2s ease !important;
+}
+
+.intoterica-dialog .qdesc-tab-btn.active {
+  background: var(--dialog-btn-primary-bg, #782e22) !important;
+  color: #ffffff !important;
+  border-color: var(--dialog-btn-primary-border, #4a1810) !important;
+}
+
+.intoterica-dialog .quest-desc-textarea {
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}
+
+.intoterica-dialog .quest-desc-preview-container {
+  word-break: break-word !important;
+}
+
+/* Automated Rewards Builder Panel */
+.intoterica-dialog .quest-rewards-builder-panel {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.intoterica-dialog .reward-section-box {
+  background: var(--dialog-card-bg, rgba(255, 255, 255, 0.5)) !important;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.2)) !important;
+  border-radius: 4px !important;
+  padding: 6px 8px !important;
+}
+
+.intoterica-dialog .reward-section-subtitle {
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  color: var(--dialog-section-title, #782e22) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+/* Multi-Faction Reputation Container & Rows */
+.intoterica-dialog .rep-container,
+.rep-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.intoterica-dialog .rep-row,
+.rep-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
   background: var(--dialog-input-bg, #ffffff) !important;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.2)) !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  overflow: hidden !important;
+}
+
+.intoterica-dialog .rep-row .rep-faction-select,
+.rep-row .rep-faction-select {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 28px !important;
+  font-size: 0.85rem !important;
+  box-sizing: border-box !important;
+  text-overflow: ellipsis !important;
+  margin: 0 !important;
+}
+
+.intoterica-dialog .rep-row .rep-standing-group,
+.rep-row .rep-standing-group {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
+
+.intoterica-dialog .rep-row input.rep-delta-input,
+.window-app .window-content form .rep-row input.rep-delta-input,
+.rep-row input.rep-delta-input {
+  width: 60px !important;
+  min-width: 50px !important;
+  max-width: 70px !important;
+  height: 28px !important;
+  font-size: 0.85rem !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  font-weight: 700 !important;
+  margin: 0 !important;
+  padding: 2px 4px !important;
+}
+
+.intoterica-dialog .rep-row .remove-rep-row,
+.rep-row .remove-rep-row {
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
+  padding: 2px 4px !important;
+}
+
+/* System Currency Grid & Cards in Dialogs */
+.intoterica-dialog .quest-currency-grid,
+.quest-currency-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr)) !important;
+  gap: 8px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.intoterica-dialog .quest-currency-card,
+.quest-currency-card {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  background: var(--dialog-card-bg, rgba(255, 255, 255, 0.45)) !important;
   border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)) !important;
   border-radius: 4px !important;
-  padding: 0 6px !important;
-  height: 30px !important;
+  padding: 5px 7px !important;
+  box-sizing: border-box !important;
+  min-width: 0 !important;
 }
 
-.intoterica-dialog .quest-reward-input-box i {
-  font-size: 12px !important;
-  margin-right: 4px !important;
-  opacity: 0.85 !important;
+.intoterica-dialog .currency-card-header,
+.quest-currency-card .currency-card-header {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #d4af37 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
-.intoterica-dialog .quest-reward-input-box input {
-  border: none !important;
-  box-shadow: none !important;
-  background: transparent !important;
-  padding: 2px !important;
-  font-size: 0.8rem !important;
-  height: 100% !important;
+.intoterica-dialog .quest-currency-card input.currency-val-input,
+.window-app .window-content form .quest-currency-card input.currency-val-input,
+.quest-currency-card input.currency-val-input,
+.quest-currency-card input[type="number"] {
+  display: block !important;
   width: 100% !important;
+  height: 28px !important;
+  background: var(--dialog-input-bg, #ffffff) !important;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.3)) !important;
+  border-radius: 3px !important;
+  color: var(--dialog-input-text, #191813) !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+  text-align: right !important;
+  padding: 2px 6px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.intoterica-dialog .quest-currency-card input.currency-val-input:focus,
+.quest-currency-card input.currency-val-input:focus {
+  border-color: var(--theme-accent, #ff6400) !important;
+  box-shadow: 0 0 4px rgba(255, 100, 0, 0.3) !important;
+  outline: none !important;
+}
+
+
+/* Item Dropzone & Chips */
+.intoterica-dialog .reward-item-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  background: var(--dialog-input-bg, #ffffff) !important;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)) !important;
+  border-radius: 3px !important;
+  padding: 2px 4px !important;
+  max-width: 100% !important;
+}
+
+.intoterica-dialog .reward-item-thumb {
+  width: 18px !important;
+  height: 18px !important;
+  border-radius: 2px !important;
+  object-fit: cover !important;
+}
+
+.intoterica-dialog .reward-item-name {
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  color: var(--dialog-input-text, #191813) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  max-width: 110px !important;
+}
+
+.intoterica-dialog .reward-item-qty {
+  width: 32px !important;
+  height: 20px !important;
+  font-size: 0.75rem !important;
+  text-align: center !important;
+  padding: 0 !important;
+  border: 1px solid rgba(0, 0, 0, 0.2) !important;
+  border-radius: 2px !important;
+  background: transparent !important;
+}
+
+.intoterica-dialog .remove-reward-item {
+  background: transparent !important;
+  border: none !important;
+  color: #c92a2a !important;
+  cursor: pointer !important;
+  padding: 1px 3px !important;
+  font-size: 10px !important;
 }
 
 /* Sections */
@@ -1251,7 +1522,8 @@
 /* Content Scrollable */
 .intoterica-content {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 1.25rem 1.5rem;
   display: flex;
   flex-direction: column;
@@ -1976,12 +2248,45 @@
   transition: all 0.2s;
 }
 
+.intoterica .player-avatar {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  max-width: 48px;
+  max-height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--theme-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  background: var(--theme-surface);
+}
+
+.intoterica .player-avatar .player-img {
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  transform: scale(1.45);
+  transform-origin: center center;
+  border: none;
+  border-radius: 0;
+  display: block;
+}
+
 .player-img {
   width: 48px;
   height: 48px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid var(--theme-border);
+  flex-shrink: 0;
 }
 
 .player-info {
@@ -2022,6 +2327,40 @@
   border-radius: 2px;
 }
 
+.profile-avatar-frame {
+  width: 80px;
+  height: 80px;
+  min-width: 80px;
+  min-height: 80px;
+  max-width: 80px;
+  max-height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--theme-accent);
+  box-shadow: 0 0 10px var(--theme-glow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  background: var(--theme-surface);
+}
+
+.profile-avatar-frame .profile-avatar {
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  transform: scale(1.45);
+  transform-origin: center center;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  display: block;
+}
+
 .profile-avatar {
   width: 80px;
   height: 80px;
@@ -2045,6 +2384,7 @@
   font-size: 12px;
 }
 
+.dashboard-scrollable,
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -2060,6 +2400,99 @@
   border: 1px solid rgba(0,0,0,0.1);
   margin-bottom: 0.5rem;
   border-radius: 2px;
+}
+
+.badge-profile-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 0.6rem 0.75rem;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.1);
+  margin-bottom: 0.5rem;
+  border-radius: 2px;
+}
+
+.faction-profile-icon,
+.badge-profile-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  max-width: 44px;
+  max-height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 24px;
+}
+
+.faction-profile-icon img,
+.badge-profile-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border: none;
+  display: block;
+}
+
+.quest-task-subquest-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.22);
+  border-left: 3px solid var(--theme-accent, #ff6400);
+  border-radius: 3px;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--theme-light, #f0f0e0);
+}
+
+.quest-task-item.subquest-child {
+  margin-left: 18px;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+  padding-left: 8px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.quest-visibility-btn {
+  cursor: pointer;
+  padding: 4px;
+  font-size: 13px;
+  color: var(--theme-dim);
+  transition: all 0.2s ease;
+}
+
+.quest-visibility-btn:hover {
+  color: var(--theme-accent);
+}
+
+.quest-visibility-btn.hidden-quest {
+  color: #e03131;
+}
+
+.badge-profile-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-quest-link {
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.profile-quest-link:hover {
+  border-color: var(--theme-accent) !important;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.25);
+  transform: translateY(-1px);
 }
 
 .mini-icon {
@@ -2807,6 +3240,82 @@
   text-decoration: line-through;
 }
 
+.quest-task-item.failed {
+  opacity: 0.85;
+  border-left-color: #c92a2a;
+  background: rgba(201, 42, 42, 0.08);
+}
+
+.quest-task-item.failed .quest-task-text,
+.quest-task-text.task-failed {
+  text-decoration: line-through;
+  color: #c92a2a;
+  opacity: 0.9;
+}
+
+.quest-task-failed-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: #c92a2a;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.quest-task-fail-toggle {
+  background: transparent;
+  border: 1px solid rgba(201, 42, 42, 0.3);
+  color: #c92a2a;
+  border-radius: 3px;
+  padding: 2px 5px;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.quest-task-fail-toggle:hover {
+  background: rgba(201, 42, 42, 0.15);
+  border-color: #c92a2a;
+}
+
+.quest-task-fail-toggle.active {
+  background: #c92a2a;
+  color: #ffffff;
+  border-color: #a82222;
+}
+
+.quest-task-fail-badge {
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  border-radius: 3px !important;
+  background: rgba(201, 42, 42, 0.08) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  color: #c92a2a !important;
+  border: 1px solid rgba(201, 42, 42, 0.3) !important;
+  transition: all 0.2s ease !important;
+}
+
+.quest-task-fail-badge.active {
+  background: #c92a2a !important;
+  color: #ffffff !important;
+  border-color: #a82222 !important;
+}
+
 .quest-task-checkbox {
   width: 15px !important;
   height: 15px !important;
@@ -2823,6 +3332,7 @@
   color: var(--theme-dim);
   font-style: italic;
 }
+
 
 .quest-rewards-section {
   margin-bottom: 1rem;
@@ -2850,13 +3360,32 @@
   border: 1px solid rgba(245, 159, 0, 0.4);
 }
 
+.reward-pill.faction-xp {
+  background: rgba(245, 159, 0, 0.18);
+  color: #f59f00;
+  border: 1px solid rgba(245, 159, 0, 0.45);
+}
+
+.reward-pill.rep.positive {
+  background: rgba(43, 138, 62, 0.18);
+  color: #2b8a3e;
+  border: 1px solid rgba(43, 138, 62, 0.45);
+}
+
+.reward-pill.rep.negative {
+  background: rgba(201, 42, 42, 0.18);
+  color: #c92a2a;
+  border: 1px solid rgba(201, 42, 42, 0.45);
+}
+
 .reward-pill.currency {
   background: rgba(212, 175, 55, 0.15);
   color: #d4af37;
   border: 1px solid rgba(212, 175, 55, 0.4);
 }
 
-.reward-pill.item {
+.reward-pill.item,
+.reward-pill.item-badge {
   background: rgba(79, 172, 254, 0.15);
   color: #4facfe;
   border: 1px solid rgba(79, 172, 254, 0.4);
@@ -3515,68 +4044,551 @@
   color: #ffffff;
 }
 
-/* ─── Forien Integration Card & Badges ──────────────────────────────────── */
-.forien-status-card {
-  background: var(--dialog-section-bg, rgba(0, 0, 0, 0.03));
-  border: 1px solid var(--dialog-section-border, rgba(0, 0, 0, 0.15));
-  border-radius: 6px;
-  padding: 10px 12px;
+/* ─── Dialog Tabs Navigation ────────────────────────────────────────────── */
+.intoterica-form .dialog-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid var(--dialog-section-border, rgba(120, 46, 34, 0.3));
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+
+.intoterica-form .dialog-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.2));
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dialog-input-text, #191813);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.intoterica-form .dialog-tab-btn:hover {
+  background: rgba(255, 100, 0, 0.1);
+  color: var(--theme-accent, #ff6400);
+}
+
+.intoterica-form .dialog-tab-btn.active {
+  background: var(--dialog-card-bg, #ffffff);
+  border-color: var(--dialog-section-border, rgba(120, 46, 34, 0.4));
+  border-bottom: 2px solid var(--dialog-card-bg, #ffffff);
+  color: var(--theme-accent, #782e22);
+  margin-bottom: -6px;
+  padding-bottom: 8px;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.04);
+}
+
+/* ─── Foundry Journal-Style Rich Text Editor ───────────────────────────── */
+.intoterica-rich-editor {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25));
+  border-radius: 4px;
+  background: var(--dialog-input-bg, #ffffff);
+  overflow: hidden;
+  min-height: 180px;
+}
+
+.rich-editor-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.04);
+  border-bottom: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.18));
+  user-select: none;
+}
+
+.rich-editor-toolbar .rich-format-select {
+  height: 24px;
+  font-size: 11px;
+  padding: 1px 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  background: var(--dialog-input-bg, #ffffff);
+  color: var(--dialog-input-text, #191813);
+  cursor: pointer;
+}
+
+.rich-editor-toolbar .toolbar-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(0, 0, 0, 0.15);
+  margin: 0 3px;
+}
+
+.rich-editor-toolbar .rich-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--dialog-input-text, #191813);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rich-editor-toolbar .rich-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: var(--theme-accent, #ff6400);
+}
+
+.rich-editor-toolbar .rich-btn.active {
+  background: rgba(255, 100, 0, 0.15);
+  border-color: var(--theme-accent, #ff6400);
+  color: var(--theme-accent, #ff6400);
+}
+
+.rich-editor-toolbar .color-picker-label {
+  cursor: pointer;
+}
+
+.rich-editor-content {
+  flex: 1;
+  min-height: 160px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 8px 10px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: var(--dialog-input-text, #191813);
+  outline: none;
+  word-wrap: break-word;
+}
+
+.rich-editor-content:empty:before {
+  content: attr(data-placeholder);
+  color: var(--theme-dim, #999);
+  font-style: italic;
+  pointer-events: none;
+}
+
+.rich-editor-content blockquote {
+  border-left: 3px solid var(--theme-accent, #ff6400);
+  margin: 4px 0 4px 8px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.03);
+  font-style: italic;
+}
+
+.rich-editor-content pre {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.85em;
+  overflow-x: auto;
+}
+
+.rich-editor-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  margin: 4px 0;
+}
+
+.rich-editor-source {
+  width: 100%;
+  min-height: 160px;
+  max-height: 280px;
+  padding: 8px;
+  font-family: 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  border: none;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+/* ─── Currency Grid & Cards ────────────────────────────────────────────── */
+.quest-currency-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.quest-currency-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--dialog-card-bg, rgba(255, 255, 255, 0.45));
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25));
+  border-radius: 4px;
+  padding: 5px 7px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.quest-currency-card .currency-card-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #d4af37;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.quest-currency-card .currency-val-input {
+  width: 100%;
+  height: 28px;
+  font-size: 0.85rem;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.3));
+  border-radius: 3px;
+  background: var(--dialog-input-bg, #ffffff);
+  color: var(--dialog-input-text, #191813);
+  font-weight: 700;
+  text-align: right;
+  padding: 2px 6px;
   box-sizing: border-box;
 }
 
-.forien-status-header {
+/* ─── Multi-Faction Reputation Rows ───────────────────────────────────── */
+.rep-container {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
 }
 
-.forien-title {
-  font-weight: 700;
-  font-size: 12px;
-  color: var(--dialog-label-color, inherit);
+.rep-row {
   display: flex;
   align-items: center;
   gap: 6px;
+  background: var(--dialog-input-bg, #fff);
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.2));
+  border-radius: 4px;
+  padding: 4px 6px;
 }
 
-.forien-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 12px;
+/* ─── Item Chips & Dropzone ────────────────────────────────────────────── */
+.reward-item-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
+  background: var(--dialog-input-bg, #ffffff);
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25));
+  border-radius: 4px;
+  padding: 3px 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
-.forien-badge.active {
-  background: rgba(39, 174, 96, 0.15);
-  color: #27ae60;
-  border: 1px solid rgba(39, 174, 96, 0.4);
+.reward-item-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
 }
 
-.forien-badge.warning {
-  background: rgba(243, 156, 18, 0.15);
-  color: #f39c12;
-  border: 1px solid rgba(243, 156, 18, 0.4);
-}
-
-.forien-badge.inactive {
-  background: rgba(127, 140, 141, 0.15);
-  color: #7f8c8d;
-  border: 1px solid rgba(127, 140, 141, 0.4);
-}
-
-.forien-status-desc {
+.reward-item-name {
   font-size: 11px;
-  color: var(--theme-dim, #666);
-  margin: 0;
-  line-height: 1.3;
+  font-weight: 600;
+  color: var(--dialog-input-text, #191813);
+  max-width: 140px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+.reward-item-qty {
+  width: 38px;
+  height: 22px;
+  font-size: 11px;
+  text-align: center;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  background: var(--dialog-input-bg, #ffffff);
+  color: var(--dialog-input-text, #191813);
+  padding: 0;
+}
 
+.remove-reward-item {
+  background: transparent;
+  border: none;
+  color: #c92a2a;
+  cursor: pointer;
+  padding: 2px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+}
 
+/* ─── Faction Dialog Enhancements ──────────────────────────────────────── */
+.faction-ranks-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEAMLESS THEME MATCHING — All intoterica-dialog form controls inherit the
+   active module theme variables so every popup feels native. 
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* --- Inputs, Textareas, Selects ----------------------------------------- */
+.intoterica-dialog input[type="text"],
+.intoterica-dialog input[type="number"],
+.intoterica-dialog input[type="email"],
+.intoterica-dialog input[type="search"],
+.intoterica-dialog input[type="url"],
+.intoterica-dialog input[type="password"],
+.intoterica-dialog textarea,
+.intoterica-dialog select {
+  background: var(--dialog-input-bg, #ffffff) !important;
+  color: var(--dialog-input-text, #191813) !important;
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.3)) !important;
+  border-radius: 4px !important;
+  padding: 4px 8px !important;
+  font-family: var(--theme-font-main, 'Signika', sans-serif) !important;
+  font-size: 0.875rem !important;
+  box-sizing: border-box !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.intoterica-dialog input[type="text"]:focus,
+.intoterica-dialog input[type="number"]:focus,
+.intoterica-dialog textarea:focus,
+.intoterica-dialog select:focus {
+  border-color: var(--dialog-header-border, var(--theme-accent, #782e22)) !important;
+  box-shadow: 0 0 0 2px var(--theme-glow-soft, rgba(120, 46, 34, 0.15)) !important;
+  outline: none !important;
+}
+
+.intoterica-dialog input::placeholder,
+.intoterica-dialog textarea::placeholder {
+  color: var(--dialog-label-color, #888) !important;
+  opacity: 0.6 !important;
+}
+
+.intoterica-dialog select option {
+  background: var(--dialog-input-bg, #ffffff) !important;
+  color: var(--dialog-input-text, #191813) !important;
+}
+
+/* --- Labels ------------------------------------------------------------- */
+.intoterica-dialog label,
+.intoterica-dialog .form-group label,
+.intoterica-dialog .form-section-title {
+  color: var(--dialog-label-color, #2c1608) !important;
+  font-family: var(--theme-font-main, 'Signika', sans-serif) !important;
+}
+
+/* --- Checkboxes --------------------------------------------------------- */
+.intoterica-dialog input[type="checkbox"] {
+  accent-color: var(--dialog-header-border, var(--theme-accent, #782e22)) !important;
+}
+
+/* --- Dialog action buttons (Save, Create, Delete, Cancel) --------------- */
+.intoterica-dialog .dialog-button,
+.intoterica-dialog .dialog-buttons button,
+.intoterica-dialog footer button,
+.intoterica-dialog .form-footer button {
+  font-family: var(--theme-font-main, 'Signika', sans-serif) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.5px !important;
+  border-radius: 4px !important;
+  transition: all 0.2s ease !important;
+  cursor: pointer !important;
+  padding: 6px 16px !important;
+  font-size: 0.875rem !important;
+}
+
+/* Primary action button (first/default) */
+.intoterica-dialog .dialog-button.default,
+.intoterica-dialog .dialog-buttons button.default,
+.intoterica-dialog footer button:first-child,
+.intoterica-dialog .dialog-buttons button[data-action="create"],
+.intoterica-dialog .dialog-buttons button[data-action="save"] {
+  background: var(--dialog-btn-primary-bg, linear-gradient(180deg,#8a3426 0%,#682317 100%)) !important;
+  color: var(--dialog-btn-primary-text, #ffffff) !important;
+  border: 1px solid var(--dialog-btn-primary-border, #4a1810) !important;
+}
+
+.intoterica-dialog .dialog-button.default:hover,
+.intoterica-dialog .dialog-buttons button.default:hover,
+.intoterica-dialog .dialog-buttons button[data-action="create"]:hover,
+.intoterica-dialog .dialog-buttons button[data-action="save"]:hover {
+  filter: brightness(1.12) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.3) !important;
+}
+
+/* Secondary / cancel button */
+.intoterica-dialog .dialog-buttons button[data-action="cancel"],
+.intoterica-dialog .dialog-buttons button:last-child:not(:first-child) {
+  background: var(--dialog-btn-secondary-bg, rgba(0, 0, 0, 0.05)) !important;
+  color: var(--dialog-btn-secondary-text, #2c1608) !important;
+  border: 1px solid var(--dialog-btn-secondary-border, rgba(120, 46, 34, 0.3)) !important;
+}
+
+/* Delete button */
+.intoterica-dialog .dialog-buttons button[data-action="delete"] {
+  background: rgba(201, 42, 42, 0.12) !important;
+  color: #c92a2a !important;
+  border: 1px solid rgba(201, 42, 42, 0.4) !important;
+}
+
+.intoterica-dialog .dialog-buttons button[data-action="delete"]:hover {
+  background: rgba(201, 42, 42, 0.25) !important;
+  border-color: #c92a2a !important;
+}
+
+/* --- Scrollbars --------------------------------------------------------- */
+.intoterica-dialog ::-webkit-scrollbar {
+  width: 6px !important;
+  height: 6px !important;
+}
+
+.intoterica-dialog ::-webkit-scrollbar-track {
+  background: transparent !important;
+  border-radius: 3px !important;
+}
+
+.intoterica-dialog ::-webkit-scrollbar-thumb {
+  background: var(--dialog-section-border, rgba(120, 46, 34, 0.4)) !important;
+  border-radius: 3px !important;
+}
+
+.intoterica-dialog ::-webkit-scrollbar-thumb:hover {
+  background: var(--dialog-header-border, rgba(120, 46, 34, 0.7)) !important;
+}
+
+/* --- Rich text editor theming ------------------------------------------- */
+.intoterica-dialog .intoterica-rich-editor {
+  border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.3)) !important;
+  border-radius: 4px !important;
+  overflow: hidden !important;
+}
+
+.intoterica-dialog .rich-editor-toolbar {
+  background: var(--dialog-card-bg, rgba(255,255,255,0.6)) !important;
+  border-bottom: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)) !important;
+  padding: 3px 6px !important;
+  gap: 2px !important;
+}
+
+.intoterica-dialog .rich-btn {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: 3px !important;
+  color: var(--dialog-input-text, #191813) !important;
+  cursor: pointer !important;
+  padding: 2px 5px !important;
+  font-size: 0.8rem !important;
+  transition: all 0.15s ease !important;
+}
+
+.intoterica-dialog .rich-btn:hover,
+.intoterica-dialog .rich-btn.active {
+  background: var(--dialog-section-border, rgba(120,46,34,0.12)) !important;
+  border-color: var(--dialog-section-border, rgba(120,46,34,0.3)) !important;
+  color: var(--dialog-header-border, #782e22) !important;
+}
+
+.intoterica-dialog .rich-editor-content {
+  background: var(--dialog-input-bg, #ffffff) !important;
+  color: var(--dialog-input-text, #191813) !important;
+  min-height: 120px !important;
+  padding: 8px 10px !important;
+  font-family: var(--theme-font-main, 'Signika', sans-serif) !important;
+  font-size: 0.9rem !important;
+  line-height: 1.55 !important;
+}
+
+.intoterica-dialog .rich-editor-source {
+  background: #1a1a2e !important;
+  color: #a8d8ea !important;
+  font-family: 'Courier New', monospace !important;
+  font-size: 0.82rem !important;
+  min-height: 120px !important;
+  padding: 8px !important;
+  box-sizing: border-box !important;
+  resize: vertical !important;
+  width: 100% !important;
+}
+
+.intoterica-dialog .rich-format-select {
+  background: var(--dialog-input-bg, #ffffff) !important;
+  color: var(--dialog-input-text, #191813) !important;
+  border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.25)) !important;
+  border-radius: 3px !important;
+  font-size: 0.8rem !important;
+  height: 24px !important;
+  padding: 0 4px !important;
+}
+
+/* --- form-group spacing inside dialogs ---------------------------------- */
+.intoterica-dialog .form-group {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  margin-bottom: 8px !important;
+}
+
+.intoterica-dialog .form-group label {
+  font-size: 0.78rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.5px !important;
+}
+
+.intoterica-dialog .form-section {
+  background: var(--dialog-card-bg, rgba(255,255,255,0.5)) !important;
+  border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)) !important;
+  border-radius: 5px !important;
+  padding: 10px 12px !important;
+}
+
+.intoterica-dialog .form-section-title {
+  font-family: var(--theme-font-header, var(--theme-font-main)) !important;
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.6px !important;
+  color: var(--dialog-section-title, #782e22) !important;
+  margin: 0 0 8px 0 !important;
+  padding-bottom: 4px !important;
+  border-bottom: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+/* --- Bottom footer padding so buttons don't crowd content --------------- */
+.intoterica-dialog .dialog-buttons,
+.intoterica-dialog footer {
+  border-top: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)) !important;
+  padding: 10px 14px !important;
+  background: var(--dialog-card-bg, rgba(255,255,255,0.4)) !important;
+  gap: 8px !important;
+  display: flex !important;
+  justify-content: flex-end !important;
+  flex-wrap: wrap !important;
+}
 

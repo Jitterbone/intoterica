@@ -189,6 +189,31 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     return new Dialog(dialogData, mergedOptions);
   }
 
+  static getFormData(html) {
+    const root = html?.[0] || html;
+    const formEl = (root?.tagName === 'FORM') ? root : (root?.querySelector?.('form') || $(root).find('form')[0] || root);
+    if (!formEl) return { form: null, data: {} };
+    try {
+      const FormDataClass = foundry.data?.FormDataExtended || FormDataExtended;
+      const data = new FormDataClass(formEl).object || {};
+      return { form: formEl, data };
+    } catch (_e) {
+      const data = {};
+      $(formEl).find('input, select, textarea').each((i, el) => {
+        const name = el.name;
+        if (!name) return;
+        if (el.type === 'checkbox') {
+          data[name] = el.checked;
+        } else if (el.type === 'radio') {
+          if (el.checked) data[name] = el.value;
+        } else {
+          data[name] = el.value;
+        }
+      });
+      return { form: formEl, data };
+    }
+  }
+
   constructor(options = {}) {
     const savedState = game.settings.get('intoterica', 'windowState');
     if (savedState && !foundry.utils.isEmpty(savedState)) {
@@ -384,6 +409,546 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     return html;
   }
 
+  static getSystemCurrencies() {
+    // 1. Direct Module Hook overrides (allows any module to register or override currencies)
+    const hookCurrencies = {};
+    try {
+      Hooks.callAll('intoterica.getCurrencies', hookCurrencies);
+      if (Object.keys(hookCurrencies).length > 0) return hookCurrencies;
+    } catch (_e) {}
+
+    // 2. Check MythCraft Essence Sheet (customCurrencyConfig or WalletDialog)
+    try {
+      if (game.modules?.get('mythcraft-essence-sheet')?.active) {
+        let esCurrs = null;
+        if (game.settings?.settings?.has('mythcraft-essence-sheet.customCurrencyConfig')) {
+          esCurrs = game.settings.get('mythcraft-essence-sheet', 'customCurrencyConfig');
+        }
+        if (!esCurrs && typeof window.WalletDialog?.getActiveCurrencies === 'function') {
+          esCurrs = window.WalletDialog.getActiveCurrencies();
+        }
+        if (Array.isArray(esCurrs) && esCurrs.length > 0) {
+          const list = {};
+          for (const c of esCurrs) {
+            const key = c.key || c.abbr || c.id;
+            const label = c.label || c.name || (key ? key.toUpperCase() : "");
+            if (key) list[key] = label;
+          }
+          if (Object.keys(list).length > 0) return list;
+        }
+      }
+    } catch (_e) {}
+
+    // 3. Check Monk's Enhanced Journal (currency setting or MonksEnhancedJournal.currencies)
+    try {
+      if (game.modules?.get('monks-enhanced-journal')?.active) {
+        let mejCurrs = null;
+        if (game.settings?.settings?.has('monks-enhanced-journal.currency')) {
+          mejCurrs = game.settings.get('monks-enhanced-journal', 'currency');
+        }
+        if (!mejCurrs && window.MonksEnhancedJournal?.currencies) {
+          mejCurrs = window.MonksEnhancedJournal.currencies;
+        }
+        if (Array.isArray(mejCurrs) && mejCurrs.length > 0) {
+          const list = {};
+          for (const c of mejCurrs) {
+            const key = c.id || c.key || c.abbr || c.name;
+            const label = c.name || c.label || (key ? key.toUpperCase() : "");
+            if (key) list[key] = label;
+          }
+          if (Object.keys(list).length > 0) return list;
+        }
+      }
+    } catch (_e) {}
+
+    // 4. Check Item Piles (API, settings, or CONFIG)
+    try {
+      if (game.modules?.get('item-piles')?.active) {
+        const ipCurrencies = game.itempiles?.API?.CURRENCIES || 
+                             (game.settings?.settings?.has('item-piles.currencies') ? game.settings.get('item-piles', 'currencies') : null) ||
+                             CONFIG?.ITEM_PILES?.CURRENCIES;
+        if (ipCurrencies) {
+          const list = {};
+          if (Array.isArray(ipCurrencies)) {
+            for (const c of ipCurrencies) {
+              const key = c.abbreviation || c.id || c.name || c.key;
+              if (key) list[key] = c.name || c.label || key.toUpperCase();
+            }
+          } else if (typeof ipCurrencies === 'object') {
+            for (const [k, v] of Object.entries(ipCurrencies)) {
+              const label = typeof v === 'string' ? v : (v?.name || v?.label || k.toUpperCase());
+              list[k] = label;
+            }
+          }
+          if (Object.keys(list).length > 0) return list;
+        }
+      }
+    } catch (_e) {}
+
+    // 5. Check Beavers Currency / Beavers Crafting / System Interface
+    try {
+      if (game.modules?.get('beavers-currency')?.active || game.modules?.get('beavers-crafting')?.active || window.beaversSystemInterface) {
+        const beaversCurrs = window.beaversSystemInterface?.configCurrencies || 
+                             (game.settings?.settings?.has('beavers-currency.currencies') ? game.settings.get('beavers-currency', 'currencies') : null) ||
+                             (game.settings?.settings?.has('beavers-crafting.currencies') ? game.settings.get('beavers-crafting', 'currencies') : null);
+        if (beaversCurrs && typeof beaversCurrs === 'object') {
+          const list = {};
+          const entries = Array.isArray(beaversCurrs) ? beaversCurrs : Object.entries(beaversCurrs);
+          for (const item of entries) {
+            const c = Array.isArray(beaversCurrs) ? item : item[1];
+            const k = c?.id || c?.key || c?.abbreviation || c?.name || (Array.isArray(beaversCurrs) ? null : item[0]);
+            if (k) list[k] = c?.label || c?.name || k.toUpperCase();
+          }
+          if (Object.keys(list).length > 0) return list;
+        }
+      }
+    } catch (_e) {}
+
+    // 6. Check known Custom Currency modules settings
+    const customCurrencyModuleIds = [
+      'dnd5e-custom-currency',
+      'custom-currency',
+      'currency-manager',
+      'world-currency-5e',
+      'currency-converter',
+      'custom-currencies'
+    ];
+    for (const modId of customCurrencyModuleIds) {
+      if (game.modules?.get(modId)?.active) {
+        try {
+          const keys = [`${modId}.currencies`, `${modId}.currency`, `${modId}.customCurrencies`, `${modId}.customCurrencyConfig`];
+          for (const k of keys) {
+            if (game.settings?.settings?.has(k)) {
+              const val = game.settings.get(modId, k.split('.')[1]);
+              if (val && typeof val === 'object') {
+                const list = {};
+                const entries = Array.isArray(val) ? val : Object.entries(val);
+                for (const item of entries) {
+                  const c = Array.isArray(val) ? item : item[1];
+                  const key = c?.abbreviation || c?.id || c?.key || c?.abbr || c?.name || (Array.isArray(val) ? null : item[0]);
+                  if (key) list[key] = c?.name || c?.label || key.toUpperCase();
+                }
+                if (Object.keys(list).length > 0) return list;
+              }
+            }
+          }
+        } catch (_e) {}
+      }
+    }
+
+    // 7. Scan any active module settings for custom currency configuration
+    try {
+      if (game.settings?.settings) {
+        for (const [fullKey, setting] of game.settings.settings.entries()) {
+          const modId = fullKey.split('.')[0];
+          if (modId === 'intoterica') continue;
+          const mod = game.modules?.get(modId);
+          if (!mod || !mod.active) continue;
+          const settingName = fullKey.split('.').slice(1).join('.');
+          if (/currenc|denomination/i.test(settingName)) {
+            try {
+              const val = game.settings.get(modId, settingName);
+              if (Array.isArray(val) && val.length > 0) {
+                const list = {};
+                for (const c of val) {
+                  if (!c || typeof c !== 'object') continue;
+                  const key = c.key || c.abbr || c.id || c.abbreviation || c.name;
+                  const label = c.label || c.name || (key ? key.toUpperCase() : "");
+                  if (key) list[key] = label;
+                }
+                if (Object.keys(list).length > 0) return list;
+              } else if (val && typeof val === 'object') {
+                const list = {};
+                for (const [k, v] of Object.entries(val)) {
+                  if (v && typeof v === 'object') {
+                    const key = v.key || v.abbr || v.id || v.abbreviation || k;
+                    list[key] = v.label || v.name || key.toUpperCase();
+                  } else if (typeof v === 'string') {
+                    list[k] = v;
+                  }
+                }
+                if (Object.keys(list).length > 0) return list;
+              }
+            } catch (_e) {}
+          }
+        }
+      }
+    } catch (_e) {}
+
+    // 8. Check CONFIG currencies (system-level or module-registered)
+    if (CONFIG?.currencies && typeof CONFIG.currencies === 'object' && Object.keys(CONFIG.currencies).length > 0) {
+      const list = {};
+      for (const [key, val] of Object.entries(CONFIG.currencies)) {
+        list[key] = typeof val === 'string' ? val : (val.label || val.name || key.toUpperCase());
+      }
+      return list;
+    }
+
+    const sysId = game.system?.id;
+    if (sysId) {
+      const upperSys = sysId.toUpperCase();
+      if (CONFIG?.[upperSys]?.currencies) {
+        const list = {};
+        for (const [key, val] of Object.entries(CONFIG[upperSys].currencies)) {
+          list[key] = typeof val === 'string' ? val : (val.label || val.name || key.toUpperCase());
+        }
+        return list;
+      }
+      if (CONFIG?.[sysId]?.currencies) {
+        const list = {};
+        for (const [key, val] of Object.entries(CONFIG[sysId].currencies)) {
+          list[key] = typeof val === 'string' ? val : (val.label || val.name || key.toUpperCase());
+        }
+        return list;
+      }
+    }
+
+    // 9. Check DND5E & PF2E system fallbacks
+    if (CONFIG?.DND5E?.currencies) {
+      const list = {};
+      for (const [key, val] of Object.entries(CONFIG.DND5E.currencies)) {
+        list[key] = val.label || val.name || key.toUpperCase();
+      }
+      return list;
+    }
+    if (CONFIG?.PF2E?.currencies) {
+      const list = {};
+      for (const [key, val] of Object.entries(CONFIG.PF2E.currencies)) {
+        list[key] = typeof val === 'string' ? val : (val.label || key.toUpperCase());
+      }
+      return list;
+    }
+
+    // 10. Inspect world actors (players first, then any actor in world)
+    const playerActors = IntotericaApp.getPlayerActors();
+    const candidateActors = playerActors.length > 0 ? playerActors : Array.from(game.actors || []);
+    for (const actor of candidateActors) {
+      const curr = actor.system?.currency || actor.system?.currencies || actor.system?.wealth || actor.system?.coins || actor.system?.money || actor.system?.attributes?.currency;
+      if (curr && typeof curr === 'object' && !Array.isArray(curr)) {
+        const list = {};
+        for (const [k, v] of Object.entries(curr)) {
+          if (['notes', 'description', 'details', 'special', 'override'].includes(k.toLowerCase())) continue;
+          if (typeof v === 'number' || typeof v === 'string' || (v && typeof v === 'object')) {
+            list[k] = k.toUpperCase();
+          }
+        }
+        if (Object.keys(list).length > 0) return list;
+      }
+    }
+
+    // 9. Inspect Actor Items for currency-type items (e.g. Mythcraft or item-based currency systems)
+    for (const actor of candidateActors) {
+      const currencyItems = actor.items?.filter?.(i => i.type === 'currency' || i.type === 'coin' || i.type === 'money' || i.type === 'wealth') || [];
+      if (currencyItems.length > 0) {
+        const list = {};
+        for (const item of currencyItems) {
+          const k = item.name.toLowerCase().replace(/\s+/g, '_');
+          list[k] = item.name.toUpperCase();
+        }
+        if (Object.keys(list).length > 0) return list;
+      }
+    }
+
+    // 10. Check system template/model definition
+    try {
+      const sysActorTemplate = game.system?.template?.Actor?.templates?.common || game.system?.template?.Actor?.character || game.system?.model?.Actor?.character;
+      const modelCurr = sysActorTemplate?.currency || sysActorTemplate?.currencies || sysActorTemplate?.wealth || sysActorTemplate?.coins;
+      if (modelCurr && typeof modelCurr === 'object') {
+        const list = {};
+        for (const k of Object.keys(modelCurr)) {
+          list[k] = k.toUpperCase();
+        }
+        if (Object.keys(list).length > 0) return list;
+      }
+    } catch (_e) {}
+
+    // Default fallback fantasy currencies
+    return {
+      gp: "GP (Gold)",
+      sp: "SP (Silver)",
+      cp: "CP (Copper)"
+    };
+  }
+
+  static async addCurrencyToActor(actor, currencies, splitDivisor = 1) {
+    if (!actor || !currencies || typeof currencies !== 'object') return;
+    
+    // Support Item Piles API if active
+    if (game.modules?.get('item-piles')?.active && game.itempiles?.API?.addCurrency) {
+      try {
+        const ipUpdates = {};
+        for (const [denom, amount] of Object.entries(currencies)) {
+          const rawVal = Number(amount) || 0;
+          const addVal = splitDivisor > 1 ? Math.floor(rawVal / splitDivisor) : rawVal;
+          if (addVal > 0) ipUpdates[denom] = addVal;
+        }
+        if (Object.keys(ipUpdates).length > 0) {
+          await game.itempiles.API.addCurrency(actor, ipUpdates);
+          return;
+        }
+      } catch (_e) {
+        // Fall back to direct actor update
+      }
+    }
+
+    const updates = {};
+    const sysCurr = actor.system?.currency || actor.system?.currencies || actor.system?.wealth || actor.system?.coins || actor.system?.money || actor.system?.attributes?.currency;
+    const currPath = actor.system?.currency !== undefined ? 'system.currency' :
+                     (actor.system?.currencies !== undefined ? 'system.currencies' :
+                     (actor.system?.wealth !== undefined ? 'system.wealth' :
+                     (actor.system?.coins !== undefined ? 'system.coins' :
+                     (actor.system?.money !== undefined ? 'system.money' :
+                     (actor.system?.attributes?.currency !== undefined ? 'system.attributes.currency' : 'system.currency')))));
+
+    for (const [denom, amount] of Object.entries(currencies)) {
+      const rawVal = Number(amount) || 0;
+      if (rawVal <= 0) continue;
+      const addVal = splitDivisor > 1 ? Math.floor(rawVal / splitDivisor) : rawVal;
+      if (addVal <= 0) continue;
+
+      let targetDenom = denom;
+      if (game.system?.id === 'mythcraft') {
+        const dLower = denom.toLowerCase();
+        if (dLower === 'amber' || dLower === 'a' || dLower === 'astra') targetDenom = 'astra';
+        else if (dLower === 'scillings' || dLower === 'sc' || dLower === 'silver') targetDenom = 'scillings';
+        else if (dLower === 'qorn' || dLower === 'q' || dLower === 'quints') targetDenom = 'quints';
+        else if (dLower === 'diamond' || dLower === 'dc' || dLower === 'denarii') targetDenom = 'denarii';
+      }
+
+      if (sysCurr && typeof sysCurr[targetDenom] === 'number') {
+        updates[`${currPath}.${targetDenom}`] = (sysCurr[targetDenom] || 0) + addVal;
+      } else if (sysCurr && typeof sysCurr[targetDenom] === 'object' && sysCurr[targetDenom] !== null && 'value' in sysCurr[targetDenom]) {
+        updates[`${currPath}.${targetDenom}.value`] = (Number(sysCurr[targetDenom].value) || 0) + addVal;
+      } else {
+        const current = foundry.utils.getProperty(actor, `${currPath}.${targetDenom}`) || 0;
+        updates[`${currPath}.${targetDenom}`] = Number(current) + addVal;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      try {
+        await actor.update(updates);
+      } catch (e) {
+        console.warn("Intoterica | Failed to update currency for actor:", actor.name, e);
+      }
+    }
+  }
+
+  static async grantItemsToActor(actor, items) {
+    if (!actor || !Array.isArray(items) || items.length === 0) return;
+    const docsToCreate = [];
+    for (const item of items) {
+      let docData = null;
+      if (item.uuid) {
+        try {
+          const source = await fromUuid(item.uuid);
+          if (source) docData = source.toObject();
+        } catch (e) {}
+      }
+      if (!docData && item.itemData) {
+        docData = foundry.utils.duplicate(item.itemData);
+      }
+      if (!docData) {
+        docData = {
+          name: item.name || "Quest Reward Item",
+          type: item.type || "loot",
+          img: item.img || "icons/svg/item-bag.svg",
+          system: {}
+        };
+      }
+      delete docData._id;
+      const qty = Number(item.quantity) || 1;
+      if (docData.system) {
+        if ('quantity' in docData.system) docData.system.quantity = qty;
+        else if ('qty' in docData.system) docData.system.qty = qty;
+      }
+      docsToCreate.push(docData);
+    }
+
+    if (docsToCreate.length > 0) {
+      try {
+        await actor.createEmbeddedDocuments("Item", docsToCreate);
+      } catch (e) {
+        console.warn("Intoterica | Error creating embedded items for actor:", actor.name, e);
+      }
+    }
+  }
+
+  static formatMarkdown(text) {
+    if (!text) return "";
+    let formatted = String(text);
+    // If text already contains rich HTML markup, return it directly to preserve formatting
+    if (/<(p|h[1-6]|ul|ol|li|blockquote|pre|code|div|span|strong|em|b|i|table|a|hr|br)[^>]*>/i.test(formatted)) {
+      return formatted;
+    }
+    // Basic markdown replacements
+    formatted = formatted.replace(/^### (.*$)/gim, '<h4 style="margin: 6px 0 3px 0; font-size: 1.05em; color: var(--theme-accent, #ff6400);">$1</h4>');
+    formatted = formatted.replace(/^## (.*$)/gim, '<h3 style="margin: 8px 0 4px 0; font-size: 1.15em; color: var(--theme-accent, #ff6400);">$1</h3>');
+    formatted = formatted.replace(/^# (.*$)/gim, '<h2 style="margin: 10px 0 6px 0; font-size: 1.25em; color: var(--theme-accent, #ff6400); border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 2px;">$1</h2>');
+    formatted = formatted.replace(/^\> (.*$)/gim, '<blockquote style="border-left: 3px solid var(--theme-accent, #ff6400); margin: 6px 0; padding: 4px 10px; background: rgba(0,0,0,0.08); font-style: italic;">$1</blockquote>');
+    formatted = formatted.replace(/\*\*\*(.*?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    formatted = formatted.replace(/```([\s\S]*?)```/g, '<pre style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px; overflow-x: auto; font-family: monospace; font-size: 0.85em;"><code>$1</code></pre>');
+    formatted = formatted.replace(/`([^`]+)`/g, '<code style="background: rgba(0,0,0,0.2); padding: 1px 4px; border-radius: 3px; font-family: monospace; font-size: 0.9em;">$1</code>');
+    formatted = formatted.replace(/^\s*[\-\*]\s+(.*$)/gim, '<li style="margin-left: 18px; list-style-type: disc;">$1</li>');
+    formatted = formatted.replace(/^\s*\d+\.\s+(.*$)/gim, '<li style="margin-left: 18px; list-style-type: decimal;">$1</li>');
+    formatted = formatted.replace(/\n/g, '<br>');
+    return formatted;
+  }
+
+  static createRichTextEditorHtml(name, content = "", placeholder = "Provide details and lore...") {
+    return `
+      <div class="intoterica-rich-editor" data-target-name="${name}">
+        <div class="rich-editor-toolbar">
+          <select class="rich-format-select" title="Text Style">
+            <option value="p">Paragraph</option>
+            <option value="h1">Heading 1</option>
+            <option value="h2">Heading 2</option>
+            <option value="h3">Heading 3</option>
+            <option value="h4">Heading 4</option>
+            <option value="blockquote">Quote</option>
+            <option value="pre">Code</option>
+          </select>
+          <span class="toolbar-divider"></span>
+          <button type="button" class="rich-btn" data-cmd="bold" title="Bold (Ctrl+B)"><i class="fas fa-bold"></i></button>
+          <button type="button" class="rich-btn" data-cmd="italic" title="Italic (Ctrl+I)"><i class="fas fa-italic"></i></button>
+          <button type="button" class="rich-btn" data-cmd="underline" title="Underline (Ctrl+U)"><i class="fas fa-underline"></i></button>
+          <span class="toolbar-divider"></span>
+          <label class="rich-btn color-picker-label" title="Text Color">
+            <i class="fas fa-palette"></i>
+            <input type="color" class="rich-color-picker" style="display: none;" />
+          </label>
+          <button type="button" class="rich-btn" data-cmd="insertUnorderedList" title="Bullet List"><i class="fas fa-list-ul"></i></button>
+          <button type="button" class="rich-btn" data-cmd="insertOrderedList" title="Numbered List"><i class="fas fa-list-ol"></i></button>
+          <button type="button" class="rich-btn" data-cmd="insertHorizontalRule" title="Horizontal Line"><i class="fas fa-minus"></i></button>
+          <span class="toolbar-divider"></span>
+          <button type="button" class="rich-btn rich-insert-img-btn" title="Insert Image"><i class="fas fa-image"></i></button>
+          <button type="button" class="rich-btn rich-insert-link-btn" title="Insert Link"><i class="fas fa-link"></i></button>
+          <button type="button" class="rich-btn" data-cmd="removeFormat" title="Clear Formatting"><i class="fas fa-eraser"></i></button>
+          <span class="toolbar-divider"></span>
+          <button type="button" class="rich-btn rich-source-toggle-btn" title="Source Code View (&lt;/&gt;)"><i class="fas fa-code"></i></button>
+        </div>
+        <div class="rich-editor-content" contenteditable="true" data-placeholder="${placeholder}">
+          ${content || ''}
+        </div>
+        <textarea name="${name}" class="rich-editor-source" style="display: none;">${content || ''}</textarea>
+      </div>
+    `;
+  }
+
+  static initRichTextEditor($container) {
+    $container.find('.intoterica-rich-editor').each(function() {
+      const $editor = $(this);
+      const $content = $editor.find('.rich-editor-content');
+      const $source = $editor.find('.rich-editor-source');
+      const $formatSelect = $editor.find('.rich-format-select');
+
+      // Sync contenteditable → hidden textarea
+      const syncToSource = () => {
+        if ($content.is(':visible')) {
+          $source.val($content.html());
+        }
+      };
+
+      // Sync hidden textarea → contenteditable (used when exiting source view)
+      const syncFromSource = () => {
+        if ($source.is(':visible')) {
+          $content.html($source.val());
+        }
+      };
+
+      $content.on('input blur keyup paste', syncToSource);
+
+      $editor.find('.rich-btn[data-cmd]').click(function(ev) {
+        ev.preventDefault();
+        const cmd = $(this).data('cmd');
+        $content.focus();
+        document.execCommand(cmd, false, null);
+        syncToSource();
+      });
+
+      $formatSelect.change(function() {
+        const tag = $(this).val();
+        $content.focus();
+        document.execCommand('formatBlock', false, tag);
+        syncToSource();
+      });
+
+      $editor.find('.rich-color-picker').on('input change', function() {
+        const color = $(this).val();
+        $content.focus();
+        document.execCommand('foreColor', false, color);
+        syncToSource();
+      });
+
+      $editor.find('.rich-insert-img-btn').click(function(ev) {
+        ev.preventDefault();
+        new FilePicker({
+          type: "image",
+          callback: (path) => {
+            $content.focus();
+            document.execCommand('insertImage', false, path);
+            syncToSource();
+          }
+        }).render(true);
+      });
+
+      $editor.find('.rich-insert-link-btn').click(function(ev) {
+        ev.preventDefault();
+        const url = prompt("Enter link URL:", "https://");
+        if (url) {
+          $content.focus();
+          document.execCommand('createLink', false, url);
+          syncToSource();
+        }
+      });
+
+      $editor.find('.rich-source-toggle-btn').click(function(ev) {
+        ev.preventDefault();
+        const $btn = $(this);
+        const isSource = $source.is(':visible');
+        if (isSource) {
+          // Exit source mode: sync textarea → contenteditable, show visual editor
+          $content.html($source.val()).show();
+          $source.hide();
+          $btn.removeClass('active');
+          $editor.find('.rich-editor-toolbar .rich-btn, .rich-format-select').not('.rich-source-toggle-btn').prop('disabled', false);
+        } else {
+          // Enter source mode: sync contenteditable → textarea, show raw HTML
+          $source.val($content.html()).show();
+          $content.hide();
+          $btn.addClass('active');
+          $editor.find('.rich-editor-toolbar .rich-btn, .rich-format-select').not('.rich-source-toggle-btn').prop('disabled', true);
+        }
+      });
+    });
+  }
+
+  /**
+   * Sync all rich text editors within a container before reading form values.
+   * Call this at the top of any dialog Save callback.
+   */
+  static syncRichEditors($container) {
+    $container.find('.intoterica-rich-editor').each(function() {
+      const $editor = $(this);
+      const $content = $editor.find('.rich-editor-content');
+      const $source = $editor.find('.rich-editor-source');
+      if ($content.is(':visible')) {
+        // WYSIWYG mode: push content to textarea
+        $source.val($content.html());
+      } else {
+        // Source mode: push textarea back to content so both are in sync
+        $content.html($source.val());
+      }
+      // Always exit source mode so the editor is in a clean state if dialog reopens
+      $source.hide();
+      $content.show();
+      $editor.find('.rich-source-toggle-btn').removeClass('active');
+      $editor.find('.rich-editor-toolbar .rich-btn, .rich-format-select').prop('disabled', false);
+    });
+  }
+
   static THEMES = {
     "default": {
       label: "Default",
@@ -461,6 +1026,18 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   static hasPermission(settingKey) {
     const requiredRole = game.settings.get('intoterica', settingKey);
     return game.user.role >= requiredRole;
+  }
+
+  static getActorImageByNameOrId(actorId, actorName, fallback = "icons/svg/mystery-man.svg") {
+    let actor = actorId ? game.actors.get(actorId) : null;
+    if (!actor && actorName && typeof actorName === 'string') {
+      const cleanName = actorName.trim().toLowerCase();
+      actor = game.actors.find(a => a.name?.trim().toLowerCase() === cleanName);
+    }
+    if (actor) {
+      return actor.prototypeToken?.texture?.src || actor.img || fallback;
+    }
+    return fallback;
   }
 
   async close(options = {}) {
@@ -685,9 +1262,22 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const canEditQuests = isGM || perms.quests;
 
     const processedQuests = rawQuests.map(q => {
-      const tasks = Array.isArray(q.tasks) ? q.tasks : [];
+      let currentSubquest = false;
+      const tasks = (Array.isArray(q.tasks) ? q.tasks : []).map(t => {
+        const isSubquest = Boolean(t.isSubquest);
+        if (isSubquest) currentSubquest = true;
+        return {
+          ...t,
+          isSubquest,
+          isSubquestChild: !isSubquest && currentSubquest,
+          completed: Boolean(t.completed),
+          failed: Boolean(t.failed),
+          optional: Boolean(t.optional)
+        };
+      });
       const totalTasks = tasks.length;
-      const completedTasks = tasks.filter(t => t.completed).length;
+      const completedTasks = tasks.filter(t => t.completed && !t.failed).length;
+      const failedTasks = tasks.filter(t => t.failed).length;
       const taskProgress = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : (q.status === 'Completed' ? 100 : 0);
       
       const isAssignAll = q.assignedAll !== false && (!q.assignedTo || q.assignedTo.length === 0);
@@ -707,9 +1297,35 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const giver = q.giver || "";
       const title = q.title || q.name || "Untitled Quest";
 
+      // Formatted description markdown
+      const descriptionHtml = IntotericaApp.formatMarkdown(q.description || "");
+
+      // Process rewards for Handlebars template display
+      const factionXpList = Array.isArray(rewards.factionXp) ? rewards.factionXp.filter(fx => Number(fx.amount) > 0) : [];
+      const reputationsList = Array.isArray(rewards.reputations)
+        ? rewards.reputations.filter(r => Number(r.amount) !== 0)
+        : (rewards.reputation && Number(rewards.reputation.amount) !== 0 ? [rewards.reputation] : []);
+      const repData = reputationsList[0] || null;
+      const currencyList = rewards.currencies && typeof rewards.currencies === 'object' 
+        ? Object.entries(rewards.currencies).filter(([k, v]) => Number(v) > 0).map(([k, v]) => `${v} ${k.toUpperCase()}`).join(', ')
+        : (rewards.currency || "");
+      const itemsList = Array.isArray(rewards.items) ? rewards.items : [];
+      const hasAnyRewards = Boolean(factionXpList.length > 0 || reputationsList.length > 0 || currencyList || itemsList.length > 0 || rewards.xp || rewards.text);
+
       // Calculate approximate numeric reward score for sorting
       let rewardValue = Number(rewards.xp || 0);
-      if (rewards.currency) {
+      for (const fx of factionXpList) {
+        rewardValue += Number(fx.amount || 0);
+      }
+      if (rewards.currencies && typeof rewards.currencies === 'object') {
+        for (const [k, v] of Object.entries(rewards.currencies)) {
+          const num = Number(v) || 0;
+          if (/sp\b|silver/i.test(k)) rewardValue += num * 0.1;
+          else if (/cp\b|copper/i.test(k)) rewardValue += num * 0.01;
+          else if (/pp\b|plat/i.test(k)) rewardValue += num * 10;
+          else rewardValue += num;
+        }
+      } else if (rewards.currency) {
         const numMatch = String(rewards.currency).match(/(\d+(?:\.\d+)?)/);
         if (numMatch) {
           const val = parseFloat(numMatch[1]);
@@ -718,11 +1334,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           else rewardValue += val;
         }
       }
+      rewardValue += itemsList.length * 10;
 
       return {
         ...q,
         title,
         name: title,
+        descriptionHtml,
         tasks,
         totalTasks,
         completedTasks,
@@ -733,7 +1351,15 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         assignedNames,
         isExpanded,
         isPrimary,
-        rewards,
+        rewards: {
+          ...rewards,
+          factionXpList,
+          reputationsList,
+          repData,
+          currencyList,
+          itemsList,
+          hasAnyRewards
+        },
         difficulty,
         difficultyColor,
         difficultyTier,
@@ -872,7 +1498,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         players.push({
           id: actorId,
           name: actor.name,
-          img: actor.img,
+          img: (actor.img && actor.img !== "icons/svg/mystery-man.svg") ? actor.img : (actor.prototypeToken?.texture?.src || actor.img || "icons/svg/mystery-man.svg"),
           userName: u.name,
           online: isOnline,
           isSelf: isSelf,
@@ -897,10 +1523,30 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         const profileHistory = (settings.profileHistory || {})[actorId] || { hidden: [], added: [] };
         
         // Determine quests for this actor
-        const actorQuests = processedQuests.filter(q => 
-          (q.assignedAll === true || (!q.assignedTo || q.assignedTo.length === 0) || q.assignedTo.includes(actorId)) &&
-          !profileHistory.hidden.includes(q.id)
-        );
+        const actorQuests = processedQuests.filter(q => {
+          if (profileHistory.hidden && profileHistory.hidden.includes(q.id)) return false;
+          const isAssigned = (q.assignedAll === true) || (Array.isArray(q.assignedTo) && q.assignedTo.includes(actorId));
+          const isCompletedBy = Array.isArray(q.completedBy) && q.completedBy.includes(actorId);
+          const isFailedBy = Array.isArray(q.failedBy) && q.failedBy.includes(actorId);
+          
+          const statusLower = String(q.status || '').toLowerCase();
+          if (statusLower === 'active') {
+            return isAssigned;
+          }
+          if (statusLower === 'completed') {
+            if (Array.isArray(q.completedBy) && q.completedBy.length > 0) {
+              return isCompletedBy;
+            }
+            return isAssigned;
+          }
+          if (statusLower === 'failed') {
+            if (Array.isArray(q.failedBy) && q.failedBy.length > 0) {
+              return isFailedBy;
+            }
+            return isAssigned;
+          }
+          return false;
+        });
         let historyQuests = [...actorQuests];
         if (profileHistory.added) {
           historyQuests = historyQuests.concat(profileHistory.added);
@@ -909,7 +1555,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         profile = {
           id: actorId,
           name: actor.name || "Unknown",
-          img: actor.img || actor.prototypeToken?.texture?.src || "icons/svg/mystery-man.svg",
+          img: (actor.img && actor.img !== "icons/svg/mystery-man.svg") ? actor.img : (actor.prototypeToken?.texture?.src || actor.img || "icons/svg/mystery-man.svg"),
           badges: (settings.meritBadges || []).filter(b => (b.earnedBy || []).includes(actorId)).map(b => ({
             ...b,
             isImage: b.icon && (b.icon.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(b.icon))
@@ -957,7 +1603,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             const cc = Array.isArray(m.cc) ? m.cc : [m.cc];
             return to.includes(actorId) || cc.includes(actorId);
           }),
-          quests: historyQuests.filter(q => q.status === 'Active' || q.status === 'Available'),
+          quests: historyQuests.filter(q => String(q.status).toLowerCase() === 'active'),
           completedQuests: historyQuests.filter(q => q.status === 'Completed'),
           failedQuests: historyQuests.filter(q => q.status === 'Failed')
         };
@@ -979,12 +1625,14 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (perms.mail) {
       userInbox = settings.inbox || [];
     } else {
-      const myActorIds = game.actors.filter(a => a.isOwner).map(a => a.id);
+      const myActors = game.actors.filter(a => a.isOwner);
+      const myActorIds = myActors.map(a => a.id);
+      const myActorNames = myActors.map(a => a.name?.trim().toLowerCase()).filter(Boolean);
       userInbox = (settings.inbox || []).filter(m => {
         const to = Array.isArray(m.to) ? m.to : [m.to];
         const cc = Array.isArray(m.cc) ? m.cc : [m.cc];
-        const isSender = myActorIds.includes(m.fromId) || m.fromId === game.user.id;
-        return isSender || to.some(id => myActorIds.includes(id)) || cc.some(id => myActorIds.includes(id));
+        const isSender = myActorIds.includes(m.fromId) || m.fromId === game.user.id || (m.from && myActorNames.includes(m.from.trim().toLowerCase()));
+        return isSender || to.some(id => myActorIds.includes(id) || (typeof id === 'string' && myActorNames.includes(id.trim().toLowerCase()))) || cc.some(id => myActorIds.includes(id) || (typeof id === 'string' && myActorNames.includes(id.trim().toLowerCase())));
       });
 
       // Include pending messages in view
@@ -997,18 +1645,33 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     // Known NPCs (Moved up for message processing)
     const knownNPCIds = settings.knownNPCs || [];
 
-    // Helper to mask unknown senders
+    // Helper to mask unknown senders & dynamically resolve current actor image by id or name
     const getMessageDisplayData = (msg) => {
         let displayFrom = msg.from;
         let displayImage = msg.image;
         
-        if (!perms.mail && msg.fromId && !knownNPCIds.includes(msg.fromId)) {
-            const actor = game.actors.get(msg.fromId);
-            if (actor && !actor.hasPlayerOwner) {
+        // Find actor by fromId or matching actor name
+        let matchedActor = msg.fromId ? game.actors.get(msg.fromId) : null;
+        if (!matchedActor && msg.from && typeof msg.from === 'string') {
+            const cleanFrom = msg.from.trim().toLowerCase();
+            matchedActor = game.actors.find(a => a.name?.trim().toLowerCase() === cleanFrom);
+        }
+
+        if (matchedActor) {
+            if (!perms.mail && !knownNPCIds.includes(matchedActor.id) && !matchedActor.hasPlayerOwner) {
                 displayFrom = "Unknown Sender";
                 displayImage = "icons/svg/mystery-man.svg";
+            } else {
+                displayImage = matchedActor.prototypeToken?.texture?.src || matchedActor.img || displayImage;
+                if (!displayImage || displayImage === "👤") {
+                    displayImage = matchedActor.img || "icons/svg/mystery-man.svg";
+                }
             }
+        } else if (!perms.mail && msg.fromId && !knownNPCIds.includes(msg.fromId)) {
+            displayFrom = "Unknown Sender";
+            displayImage = "icons/svg/mystery-man.svg";
         }
+        
         const isImage = displayImage && (displayImage.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(displayImage));
         return { ...msg, from: displayFrom, image: displayImage, isImage };
     };
@@ -1062,20 +1725,28 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 }
             }
 
-            // Helper to get actor data for chips
+            // Helper to get actor data for chips (supporting name matching if sheet changed)
             const getRecipientData = (ids) => {
                 if (!ids) return [];
                 const idList = Array.isArray(ids) ? ids : [ids];
                 return idList.map(id => {
                     let actor = allRecipients.find(a => a.id === id);
-                    let isUnknown = false;
-                    // Handle replying to unknown sender (not in allRecipients)
                     if (!actor) {
-                        const unknownActor = game.actors.get(id);
-                        if (unknownActor && !unknownActor.hasPlayerOwner && !perms.mail && !knownNPCIds.includes(id)) {
-                            return { id: id, name: "Unknown Sender", image: "icons/svg/mystery-man.svg", isUnknown: true };
+                        actor = game.actors.get(id);
+                    }
+                    if (!actor && typeof id === 'string') {
+                        const cleanId = id.trim().toLowerCase();
+                        actor = game.actors.find(a => a.name?.trim().toLowerCase() === cleanId);
+                    }
+                    if (!actor && typeof id === 'string') {
+                        const user = game.users.get(id) || game.users.find(u => u.name?.trim().toLowerCase() === id.trim().toLowerCase());
+                        if (user?.character) {
+                            actor = user.character;
                         }
-                        actor = unknownActor;
+                    }
+                    // Handle replying to unknown sender (not in allRecipients)
+                    if (actor && !actor.hasPlayerOwner && !perms.mail && !knownNPCIds.includes(actor.id)) {
+                        return { id: actor.id, name: "Unknown Sender", image: "icons/svg/mystery-man.svg", isUnknown: true };
                     }
                     
                     if (!actor) return null;
@@ -1083,7 +1754,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                     return {
                         id: actor.id,
                         name: actor.name,
-                        image: actor.prototypeToken?.texture?.src || actor.img,
+                        image: actor.prototypeToken?.texture?.src || actor.img || "icons/svg/mystery-man.svg",
                         isUnknown: false
                     };
                 }).filter(Boolean);
@@ -1093,7 +1764,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
             // Determine current sender for visual display
             const currentFromId = defaults.fromId || (fromOptions.find(o => o.selected)?.id) || fromOptions[0]?.id;
-            const currentFromActor = game.actors.get(currentFromId);
+            let currentFromActor = currentFromId ? game.actors.get(currentFromId) : null;
+            if (!currentFromActor && defaults.from && typeof defaults.from === 'string') {
+                currentFromActor = game.actors.find(a => a.name?.trim().toLowerCase() === defaults.from.trim().toLowerCase());
+            }
+            if (!currentFromActor && game.user.character) {
+                currentFromActor = game.user.character;
+            }
             const currentFrom = currentFromActor ? {
                 id: currentFromActor.id,
                 name: currentFromActor.name,
@@ -1135,12 +1812,14 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (perms.mail) {
         unreadMailCount = (settings.inbox || []).filter(isMsgUnread).length;
     } else {
-        const myActorIds = game.actors.filter(a => a.isOwner).map(a => a.id);
+        const myActors = game.actors.filter(a => a.isOwner);
+        const myActorIds = myActors.map(a => a.id);
+        const myActorNames = myActors.map(a => a.name?.trim().toLowerCase()).filter(Boolean);
         unreadMailCount = (settings.inbox || []).filter(m => {
             if (!isMsgUnread(m)) return false;
             const to = Array.isArray(m.to) ? m.to : [m.to];
             const cc = Array.isArray(m.cc) ? m.cc : [m.cc];
-            return to.some(id => myActorIds.includes(id)) || cc.some(id => myActorIds.includes(id));
+            return to.some(id => myActorIds.includes(id) || (typeof id === 'string' && myActorNames.includes(id.trim().toLowerCase()))) || cc.some(id => myActorIds.includes(id) || (typeof id === 'string' && myActorNames.includes(id.trim().toLowerCase())));
         }).length;
     }
 
@@ -1382,13 +2061,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (this._onCloseProfile) {
       html.find('.back-btn').off('click').on('click', this._onCloseProfile.bind(this));
     }
+    html.find('.profile-quest-link').click(this._onProfileQuestClick.bind(this));
 
     // Quest Journal Event Bindings
     if (this.currentView === 'quests') {
       html.find('.quest-filter-btn').click(this._onFilterQuests.bind(this));
       html.find('.quest-header-clickable').click(this._onToggleExpandQuest.bind(this));
       html.find('.quest-pin-btn').click(this._onToggleQuestPin.bind(this));
+      html.find('.quest-visibility-btn').click(this._onToggleQuestVisibility.bind(this));
       html.find('.quest-task-checkbox').change(this._onToggleQuestTask.bind(this));
+      html.find('.quest-task-fail-toggle').click(this._onToggleQuestTaskFail.bind(this));
       html.find('.share-quest-chat').click(this._onShareQuestChat.bind(this));
       html.find('.quest-search-input').on('input', this._onSearchQuests.bind(this));
       html.find('.clear-quest-search').click(this._onClearQuestSearch.bind(this));
@@ -1452,53 +2134,31 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const generateQuestHtml = (quests, statusClass) => {
         if (!quests || quests.length === 0) return '<div class="empty-text">None recorded</div>';
         return quests.map(q => {
-          const rewards = q.rewards || {};
           const tasks = Array.isArray(q.tasks) ? q.tasks : [];
-          const completedTasks = tasks.filter(t => t.completed).length;
+          const completedTasks = tasks.filter(t => t.completed && !t.failed).length;
           const totalTasks = tasks.length;
           const diffInfo = IntotericaApp.getDifficultyInfo(q.difficulty);
-
-          const rewardsPills = [];
-          if (rewards.xp) rewardsPills.push(`<span class="reward-pill xp"><i class="fas fa-star"></i> +${rewards.xp} XP</span>`);
-          if (rewards.currency) rewardsPills.push(`<span class="reward-pill currency"><i class="fas fa-coins"></i> ${rewards.currency}</span>`);
-          if (rewards.text) rewardsPills.push(`<span class="reward-pill item"><i class="fas fa-box-open"></i> ${rewards.text}</span>`);
+          const title = q.title || q.name || 'Untitled Quest';
 
           return `
-            <div class="report-quest-card status-${statusClass}" data-quest-id="${q.id}" data-is-manual="${q.isManual || false}">
-              <div class="report-quest-header">
-                ${q.image ? `<img src="${q.image}" class="report-quest-thumb" />` : `<div class="report-quest-thumb-fallback"><i class="fas fa-scroll"></i></div>`}
-                <div class="report-quest-info">
-                  <div class="report-quest-title-row">
-                    <span class="report-quest-title">${q.isPrimary ? '<i class="fas fa-star" style="color: #f59f00;"></i> ' : ''}${q.title || q.name || 'Untitled Quest'}</span>
-                    <span class="quest-difficulty-badge" style="color: ${diffInfo.color}; border-color: ${diffInfo.color}; font-size: 8px; padding: 1px 5px;">${diffInfo.label}</span>
-                  </div>
-                  <div class="report-quest-meta-row">
-                    ${q.commissionedFaction ? `<span title="Commissioned Faction"><i class="fas fa-shield-alt"></i> ${q.commissionedFaction}</span>` : ''}
-                    ${q.giver ? `<span title="Quest Giver"><i class="fas fa-user-circle"></i> ${q.giver}</span>` : ''}
-                    ${q.date ? `<span title="Date Completed"><i class="fas fa-calendar-alt"></i> ${q.date}</span>` : ''}
-                  </div>
+            <div class="mini-card profile-quest-link status-${statusClass}" data-quest-id="${q.id}" data-is-manual="${q.isManual || false}" style="cursor: pointer; display: flex; align-items: center; gap: 8px; margin-bottom: 6px; padding: 6px 8px;" title="Click to view quest in Quest Journal">
+              ${q.image ? `
+                <div class="mini-icon" style="flex-shrink: 0; width: 36px; height: 36px; min-width: 36px; border-radius: 3px; overflow: hidden; display: flex; align-items: center; justify-content: center;">
+                  <img src="${q.image}" style="width: 100%; height: 100%; object-fit: cover; border: none;" />
                 </div>
-                ${IntotericaApp.hasPermission('permQuests') ? `<i class="fas fa-trash remove-profile-quest" title="Remove from Report" data-quest-id="${q.id}" data-is-manual="${q.isManual || false}" style="color: #c92a2a; cursor: pointer; margin-left: auto; padding: 4px;"></i>` : ''}
+              ` : ''}
+              <div style="flex: 1; min-width: 0;">
+                <div class="mini-title" style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  ${q.isPrimary ? '⭐ ' : ''}${Handlebars.escapeExpression(title)}
+                </div>
+                <div class="mini-sub" style="font-size: 11px; color: var(--theme-dim);">
+                  <span style="color: ${diffInfo.color}; font-weight: 600;">${diffInfo.label}</span> • ${q.status || (statusClass === 'completed' ? 'Completed' : 'Failed')}
+                  ${q.commissionedFaction ? ` • ${Handlebars.escapeExpression(q.commissionedFaction)}` : (q.giver ? ` • ${Handlebars.escapeExpression(q.giver)}` : '')}
+                  ${totalTasks ? ` (${completedTasks}/${totalTasks})` : ''}
+                </div>
               </div>
-
-              ${q.description ? `
-                <div class="report-quest-desc">${q.description}</div>
-              ` : ''}
-
-              ${tasks.length ? `
-                <div class="report-quest-tasks">
-                  <div class="report-tasks-title"><i class="fas fa-tasks"></i> Objectives (${completedTasks}/${totalTasks})</div>
-                  <div class="report-tasks-list">
-                    ${tasks.map(t => `<div class="report-task-item ${t.completed ? 'completed' : ''}"><i class="fas ${t.completed ? 'fa-check-circle' : 'fa-circle'}"></i> <span>${t.text}</span></div>`).join('')}
-                  </div>
-                </div>
-              ` : ''}
-
-              ${rewardsPills.length ? `
-                <div class="report-quest-rewards">
-                  <div class="report-rewards-title"><i class="fas fa-trophy"></i> Rewards:</div>
-                  <div class="report-rewards-pills">${rewardsPills.join('')}</div>
-                </div>
+              ${IntotericaApp.hasPermission('permQuests') ? `
+                <i class="fas fa-trash remove-profile-quest" title="Remove from Report" data-quest-id="${q.id}" data-is-manual="${q.isManual || false}" style="color: #c92a2a; cursor: pointer; padding: 4px; margin-left: auto; flex-shrink: 0;"></i>
               ` : ''}
             </div>
           `;
@@ -1523,6 +2183,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       `;
       
       content.append(reportHtml);
+      content.find('.profile-quest-link').click(this._onProfileQuestClick.bind(this));
 
       if (IntotericaApp.hasPermission('permQuests')) {
           content.find('.remove-profile-quest').click(this._onRemoveProfileQuest.bind(this));
@@ -1896,6 +2557,70 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     setTimeout(() => this.render(), 10);
   }
 
+  _onProfileQuestClick(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const questId = event.currentTarget.dataset.questId;
+    const settings = game.settings.get('intoterica', 'data') || {};
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    this.currentView = 'quests';
+    if (quest && quest.status) {
+      const st = quest.status.toLowerCase();
+      if (st === 'available' || st === 'inactive') {
+        this.questFilter = 'available';
+      } else if (st === 'completed') {
+        this.questFilter = 'completed';
+      } else if (st === 'failed') {
+        this.questFilter = 'failed';
+      } else {
+        this.questFilter = 'active';
+      }
+    } else {
+      this.questFilter = 'active';
+    }
+    this.profileActorId = null;
+    this.render();
+    if (questId) {
+      setTimeout(() => {
+        const questEl = $(this.element).find(`.quest-item[data-quest-id="${questId}"]`);
+        if (questEl.length) {
+          questEl[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          questEl.find('.quest-details').slideDown(200);
+          questEl.addClass('expanded');
+          questEl.css('box-shadow', '0 0 15px var(--theme-accent)');
+          setTimeout(() => { questEl.css('box-shadow', ''); }, 1500);
+        }
+      }, 100);
+    }
+  }
+
+  async _onToggleQuestVisibility(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) return;
+    const questId = event.currentTarget.dataset.questId;
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest) return;
+
+    if (quest.status === 'Hidden' || quest.hidden) {
+      quest.status = quest._prevStatus || 'Active';
+      quest.hidden = false;
+      delete quest._prevStatus;
+      ui.notifications.info(`Quest "${quest.title || quest.name}" is now visible to players.`);
+    } else {
+      quest._prevStatus = quest.status;
+      quest.status = 'Hidden';
+      quest.hidden = true;
+      ui.notifications.info(`Quest "${quest.title || quest.name}" is now hidden from players.`);
+    }
+    quest.lastModified = Date.now();
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
+  }
+
   _onSelectFaction(event) {
     event.preventDefault();
     const factionId = event.currentTarget.dataset.factionId;
@@ -2120,8 +2845,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-check"></i>',
           label: "Create",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
             await this._createBadge(formData);
           }
         },
@@ -2199,8 +2923,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-save"></i>',
           label: "Save",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
             const newEarnedBy = Object.keys(formData).filter(k => formData[k]);
             const newlyAwarded = newEarnedBy.filter(id => !previousEarned.includes(id));
             
@@ -2286,8 +3009,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-save"></i>',
           label: "Save",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
             
             badge.name = formData.name;
             badge.description = formData.description;
@@ -2412,11 +3134,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return;
     }
     const questId = event.currentTarget.dataset.questId;
-    const settings = game.settings.get('intoterica', 'data');
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
     const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest) return;
     
     quest.isPrimary = !quest.isPrimary;
+    quest.lastModified = Date.now();
     await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
@@ -2433,7 +3157,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const taskId = event.currentTarget.dataset.taskId;
     const isChecked = event.currentTarget.checked;
 
-    const settings = game.settings.get('intoterica', 'data');
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
     const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest || !Array.isArray(quest.tasks)) return;
 
@@ -2441,10 +3166,43 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     if (!task) return;
 
     task.completed = isChecked;
+    if (isChecked) {
+      task.failed = false;
+    }
+    quest.lastModified = Date.now();
     await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
   }
+
+  async _onToggleQuestTaskFail(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permQuests')) {
+      ui.notifications.warn("Only Game Masters can update quest objectives.");
+      return;
+    }
+    const questId = event.currentTarget.dataset.questId;
+    const taskId = event.currentTarget.dataset.taskId;
+
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
+    const quest = (settings.quests || []).find(q => q.id === questId);
+    if (!quest || !Array.isArray(quest.tasks)) return;
+
+    const task = quest.tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    task.failed = !task.failed;
+    if (task.failed) {
+      task.completed = false;
+    }
+    quest.lastModified = Date.now();
+    await this._saveData(settings);
+    this._broadcastUpdate();
+    this.render();
+  }
+
 
   async _onCompleteQuest(event) {
     event.preventDefault();
@@ -2458,16 +3216,312 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest) return;
 
-    quest.status = 'Completed';
-    if (Array.isArray(quest.tasks)) {
-      quest.tasks.forEach(t => { t.completed = true; });
+    await this._showRewardDistributionDialog(quest);
+  }
+
+  async _showRewardDistributionDialog(quest) {
+    const settings = game.settings.get('intoterica', 'data');
+    const rewards = quest.rewards || {};
+    const playerActors = IntotericaApp.getPlayerActors();
+
+    // Determine target recipients
+    const isAssignAll = quest.assignedAll !== false && (!quest.assignedTo || quest.assignedTo.length === 0);
+    const assignedIds = Array.isArray(quest.assignedTo) ? quest.assignedTo : [];
+    const recipientActors = isAssignAll 
+      ? playerActors 
+      : playerActors.filter(a => assignedIds.includes(a.id));
+
+    // Currencies list
+    const systemCurrencies = IntotericaApp.getSystemCurrencies();
+    const currencies = rewards.currencies || {};
+    const activeCurrencies = Object.entries(currencies).filter(([k, v]) => Number(v) > 0);
+    const hasLegacyCurrency = !activeCurrencies.length && rewards.currency;
+
+    // Items list
+    const items = Array.isArray(rewards.items) ? rewards.items : [];
+
+    // Faction XP list
+    const factionXpList = Array.isArray(rewards.factionXp) ? rewards.factionXp.filter(x => Number(x.amount) > 0) : [];
+    if (!factionXpList.length && Number(rewards.xp) > 0) {
+      const defaultFac = settings.factions?.[0];
+      if (defaultFac) {
+        factionXpList.push({ factionId: defaultFac.id, factionName: defaultFac.name, amount: Number(rewards.xp) });
+      }
     }
 
-    await this._saveData(settings);
-    this._broadcastUpdate();
-    this.render();
-    this._sendQuestChatNotification(quest, 'completed');
-    ui.notifications.info(`Quest "${quest.title}" marked as Completed!`);
+    // Reputation impact
+    const reputationsList = Array.isArray(rewards.reputations) && rewards.reputations.length > 0
+      ? rewards.reputations.filter(r => Number(r.amount) !== 0)
+      : (rewards.reputation && Number(rewards.reputation.amount || rewards.reputation.delta) !== 0 ? [rewards.reputation] : []);
+    const hasRep = reputationsList.length > 0;
+
+    // XP Automation Mode & Failed Objectives Proration
+    const xpAutomationMode = game.settings.get('intoterica', 'questXpAutomation') || 'full';
+    
+    // Evaluate mandatory vs optional tasks
+    const tasks = Array.isArray(quest.tasks) ? quest.tasks : [];
+    const nonOptionalTasks = tasks.filter(t => !t.optional);
+    const evalTasks = nonOptionalTasks.length > 0 ? nonOptionalTasks : tasks;
+    const totalEval = evalTasks.length;
+    const failedEval = evalTasks.filter(t => t.failed).length;
+
+    let xpRatio = 1.0;
+    let xpStatusNote = "";
+    if (xpAutomationMode === 'disabled') {
+      xpRatio = 0;
+      xpStatusNote = "XP Automation Disabled in Settings";
+    } else if (xpAutomationMode === 'proportional') {
+      if (totalEval > 0 && failedEval > 0) {
+        xpRatio = Math.max(0, (totalEval - failedEval) / totalEval);
+        const pct = Math.round(xpRatio * 100);
+        xpStatusNote = `Prorated: ${failedEval} of ${totalEval} objectives failed (${pct}% awarded)`;
+      }
+    }
+
+    const hasAnyReward = activeCurrencies.length > 0 || hasLegacyCurrency || items.length > 0 || (factionXpList.length > 0 && xpAutomationMode !== 'disabled') || hasRep;
+
+    if (!hasAnyReward || recipientActors.length === 0) {
+      // No active rewards or player characters to distribute to; complete directly
+      quest.status = 'Completed';
+      quest.completedBy = isAssignAll ? recipientActors.map(a => a.id) : assignedIds;
+      if (Array.isArray(quest.tasks)) {
+        quest.tasks.forEach(t => {
+          if (!t.failed) {
+            t.completed = true;
+          }
+        });
+      }
+      quest.lastModified = Date.now();
+      await this._saveData(settings);
+      this._broadcastUpdate();
+      this.render();
+      this._sendQuestChatNotification(quest, 'completed');
+      ui.notifications.info(`Quest "${quest.title}" marked as Completed!`);
+      return;
+    }
+
+    // Render Distribution Confirmation Dialog
+    const currenciesSummary = activeCurrencies.map(([k, v]) => `<strong>${v} ${systemCurrencies[k] || k.toUpperCase()}</strong>`).join(', ') || (rewards.currency ? `<strong>${rewards.currency}</strong>` : 'None');
+
+    IntotericaApp.createDialog({
+      title: `Distribute Quest Rewards: ${quest.title}`,
+      content: `
+        <form class="intoterica-form" style="max-height: 560px; overflow-y: auto; padding-right: 2px;">
+          <div style="background: rgba(43, 138, 62, 0.08); border: 1px solid rgba(43, 138, 62, 0.3); border-radius: 6px; padding: 10px; margin-bottom: 12px; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-trophy" style="font-size: 28px; color: #2b8a3e;"></i>
+            <div>
+              <div style="font-size: 14px; font-weight: bold; color: var(--dialog-section-title, #191813);">${Handlebars.escapeExpression(quest.title)}</div>
+              <div style="font-size: 11px; opacity: 0.85;">Review and distribute quest rewards to player actor sheets and faction standing.</div>
+            </div>
+          </div>
+
+          <!-- Recipients Selection -->
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-users"></i> Target Recipients (${recipientActors.length} Characters)</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px;">
+              ${recipientActors.map(a => `
+                <label class="player-assign-card assigned" style="padding: 4px 6px; display: flex; align-items: center; gap: 6px;">
+                  <input type="checkbox" class="dist-recipient-cb" value="${a.id}" checked style="margin: 0; width: 13px; height: 13px; cursor: pointer;" />
+                  <img src="${a.img || 'icons/svg/mystery-man.svg'}" style="width: 20px; height: 20px; border-radius: 50%; object-fit: cover;" />
+                  <span style="font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${a.name}">${a.name}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Currency Distribution -->
+          ${(activeCurrencies.length > 0 || hasLegacyCurrency) ? `
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-coins" style="color: #d4af37;"></i> Currency Rewards</div>
+              <div style="font-size: 12px; margin-bottom: 6px;">Total Reward: ${currenciesSummary}</div>
+              <div style="display: flex; gap: 12px; font-size: 11px;">
+                <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="radio" name="currencyDistMode" value="split" checked style="margin: 0;" />
+                  <span>Split equally among recipients</span>
+                </label>
+                <label style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                  <input type="radio" name="currencyDistMode" value="full" style="margin: 0;" />
+                  <span>Grant full amount to each recipient</span>
+                </label>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Items Distribution -->
+          ${items.length > 0 ? `
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-box-open" style="color: #4facfe;"></i> Items & Equipment</div>
+              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
+                ${items.map(it => `
+                  <div class="reward-item-chip" style="pointer-events: none;">
+                    <img src="${it.img || 'icons/svg/item-bag.svg'}" class="reward-item-thumb" />
+                    <span class="reward-item-name">${Handlebars.escapeExpression(it.name)}</span>
+                    <span style="font-weight: bold; font-size: 10px; color: var(--theme-accent);">x${it.quantity || 1}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <label style="font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+                <input type="checkbox" name="grantItems" checked style="margin: 0;" />
+                <span>Create item documents directly on recipient actor sheets</span>
+              </label>
+            </div>
+          ` : ''}
+
+          <!-- Faction XP & Reputation -->
+          ${(factionXpList.length > 0 || hasRep) ? `
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-shield-alt" style="color: var(--theme-accent);"></i> Faction Standing & XP</div>
+              ${factionXpList.map(fx => {
+                const fac = (settings.factions || []).find(f => f.id === fx.factionId || f.name === fx.factionName);
+                const finalAmount = Math.round(fx.amount * xpRatio);
+                return `
+                  <div style="font-size: 11px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                    <span style="color: #f59f00; font-weight: bold;">⭐ +${finalAmount} XP</span>
+                    <span>to <strong>${fx.factionName || fac?.name || 'Faction'}</strong> ${xpStatusNote ? `<em style="color: var(--theme-dim); font-size: 10px;">(${xpStatusNote})</em>` : '(Auto-promotes ranks upon threshold)'}</span>
+                  </div>
+                `;
+              }).join('')}
+              ${reputationsList.map(rep => {
+                const fac = (settings.factions || []).find(f => f.id === rep.factionId);
+                const delta = Number(rep.amount || rep.delta) || 0;
+                return `
+                  <div style="font-size: 11px; margin-top: 4px; display: flex; align-items: center; gap: 6px;">
+                    <span style="color: ${delta >= 0 ? '#2b8a3e' : '#c92a2a'}; font-weight: bold;">
+                      🛡️ ${delta >= 0 ? '+' : ''}${delta} Reputation
+                    </span>
+                    <span>with <strong>${rep.factionName || fac?.name || 'Faction'}</strong> (${isAssignAll ? 'Whole Party Standing' : 'Individual Member Standing'})</span>
+                  </div>
+                `;
+              }).join('')}
+              <label style="font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer; margin-top: 6px;">
+                <input type="checkbox" name="applyFactionRewards" checked style="margin: 0;" />
+                <span>Apply Faction XP and Reputation modifications</span>
+              </label>
+            </div>
+          ` : ''}
+        </form>
+      `,
+      buttons: {
+        distribute: {
+          icon: '<i class="fas fa-gift"></i>',
+          label: "Distribute & Complete",
+          callback: async (html) => {
+            const targetActorIds = html.find('.dist-recipient-cb:checked').map((i, el) => el.value).get();
+            const targetActors = playerActors.filter(a => targetActorIds.includes(a.id));
+            const splitMode = html.find('input[name="currencyDistMode"]:checked').val() || 'split';
+            const doGrantItems = html.find('input[name="grantItems"]').is(':checked');
+            const doApplyFaction = html.find('input[name="applyFactionRewards"]').is(':checked');
+
+            // 1. Distribute Currencies
+            if (activeCurrencies.length > 0 && targetActors.length > 0) {
+              const divisor = splitMode === 'split' ? targetActors.length : 1;
+              for (const actor of targetActors) {
+                await IntotericaApp.addCurrencyToActor(actor, currencies, divisor);
+              }
+            }
+
+            // 2. Grant Items
+            if (doGrantItems && items.length > 0 && targetActors.length > 0) {
+              for (const actor of targetActors) {
+                await IntotericaApp.grantItemsToActor(actor, items);
+              }
+            }
+
+            // 3. Apply Faction XP & Reputation
+            if (doApplyFaction) {
+              // Faction XP (respecting XP automation setting & proration)
+              if (xpAutomationMode !== 'disabled') {
+                for (const fx of factionXpList) {
+                  const finalAmount = Math.round(Number(fx.amount) * xpRatio);
+                  if (finalAmount > 0 && fx.factionId) {
+                    await this._processXPAward(fx.factionId, finalAmount, targetActorIds);
+                  }
+                }
+              }
+
+              // Faction Reputation
+              if (hasRep) {
+                for (const rep of reputationsList) {
+                  const repFactionId = rep.factionId;
+                  const delta = Number(rep.amount || rep.delta) || 0;
+                  const fac = (settings.factions || []).find(f => f.id === repFactionId);
+                  if (fac && delta !== 0) {
+                    if (fac.autoCalc === false) {
+                      fac.partyReputation = fac.reputation;
+                      fac.autoCalc = true;
+                    }
+                    if (isAssignAll) {
+                      fac.partyReputation = (fac.partyReputation || 0) + delta;
+                    } else {
+                      for (const pid of targetActorIds) {
+                        let m = fac.members?.find(mem => mem.id === pid);
+                        if (!m) {
+                          const actor = game.actors.get(pid);
+                          if (actor) {
+                            if (!fac.members) fac.members = [];
+                            m = { id: actor.id, name: actor.name, type: 'Player', rank: 0, xp: 0, reputation: 0 };
+                            fac.members.push(m);
+                          }
+                        }
+                        if (m) {
+                          m.reputation = (m.reputation || 0) + delta;
+                        }
+                      }
+                    }
+                  }
+                }
+                await this._saveData(settings);
+                this._broadcastUpdate();
+              }
+            }
+
+            // 4. Mark Quest as Completed (preserve failed objectives!)
+            quest.status = 'Completed';
+            quest.completedBy = targetActorIds;
+            if (Array.isArray(quest.tasks)) {
+              quest.tasks.forEach(t => {
+                if (!t.failed) {
+                  t.completed = true;
+                }
+              });
+            }
+            quest.lastModified = Date.now();
+            await this._saveData(settings);
+            this._broadcastUpdate();
+            this.render();
+            this._sendQuestChatNotification(quest, 'completed');
+            ui.notifications.info(`Quest "${quest.title}" completed and rewards distributed!`);
+          }
+        },
+        completeOnly: {
+          icon: '<i class="fas fa-check"></i>',
+          label: "Complete Without Distributing",
+          callback: async () => {
+            quest.status = 'Completed';
+            quest.completedBy = isAssignAll ? recipientActors.map(a => a.id) : assignedIds;
+            if (Array.isArray(quest.tasks)) {
+              quest.tasks.forEach(t => {
+                if (!t.failed) {
+                  t.completed = true;
+                }
+              });
+            }
+            quest.lastModified = Date.now();
+            await this._saveData(settings);
+            this._broadcastUpdate();
+            this.render();
+            this._sendQuestChatNotification(quest, 'completed');
+            ui.notifications.info(`Quest "${quest.title}" marked as Completed.`);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: "Cancel"
+        }
+      },
+
+      default: "distribute"
+    }, { width: 560 }).render(true);
   }
 
   async _onFailQuest(event) {
@@ -2478,11 +3532,15 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return;
     }
     const questId = event.currentTarget.dataset.questId;
-    const settings = game.settings.get('intoterica', 'data');
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
     const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest) return;
 
     quest.status = 'Failed';
+    const isAssignAll = quest.assignedAll !== false && (!quest.assignedTo || quest.assignedTo.length === 0);
+    quest.failedBy = isAssignAll ? IntotericaApp.getPlayerActors().map(a => a.id) : (Array.isArray(quest.assignedTo) ? quest.assignedTo : []);
+    quest.lastModified = Date.now();
     await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
@@ -2498,11 +3556,15 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return;
     }
     const questId = event.currentTarget.dataset.questId;
-    const settings = game.settings.get('intoterica', 'data');
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
     const quest = (settings.quests || []).find(q => q.id === questId);
     if (!quest) return;
 
     quest.status = 'Active';
+    delete quest.completedBy;
+    delete quest.failedBy;
+    quest.lastModified = Date.now();
     await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
@@ -2545,14 +3607,33 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       </div>
     ` : '';
 
-    const rewardsHtml = (quest.rewards && (quest.rewards.xp || quest.rewards.currency || quest.rewards.text)) ? `
-      <div style="margin-top: 6px; font-size: 11px; padding: 4px; background: rgba(0,0,0,0.1); border-radius: 3px;">
-        <strong>Rewards:</strong>
-        ${quest.rewards.xp ? `<span style="color: #f59f00; font-weight: bold; margin-right: 6px;">⭐ ${quest.rewards.xp} XP</span>` : ''}
-        ${quest.rewards.currency ? `<span style="color: #d4af37; font-weight: bold; margin-right: 6px;">🪙 ${quest.rewards.currency}</span>` : ''}
-        ${quest.rewards.text ? `<span>📦 ${quest.rewards.text}</span>` : ''}
-      </div>
-    ` : '';
+    const rewards = quest.rewards || {};
+    const factionXpList = Array.isArray(rewards.factionXp) ? rewards.factionXp.filter(fx => Number(fx.amount) > 0) : [];
+    const reputationsList = Array.isArray(rewards.reputations)
+      ? rewards.reputations.filter(r => Number(r.amount) !== 0)
+      : (rewards.reputation && Number(rewards.reputation.amount) !== 0 ? [rewards.reputation] : []);
+    const currencyStr = rewards.currency || (rewards.currencies && Object.entries(rewards.currencies).filter(([k,v]) => Number(v)>0).map(([k,v]) => `${v} ${k.toUpperCase()}`).join(', '));
+    const itemsList = Array.isArray(rewards.items) ? rewards.items : [];
+    const hasAnyReward = factionXpList.length > 0 || reputationsList.length > 0 || currencyStr || itemsList.length > 0 || rewards.xp || rewards.text;
+
+    let rewardsHtml = '';
+    if (hasAnyReward) {
+      rewardsHtml = `
+        <div style="margin-top: 6px; font-size: 11px; padding: 6px; background: rgba(0,0,0,0.1); border-radius: 4px; display: flex; flex-direction: column; gap: 4px; text-align: left;">
+          <strong>Rewards:</strong>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; align-items: center;">
+            ${factionXpList.map(fx => `<span style="background: rgba(245, 159, 0, 0.2); color: #f59f00; font-weight: bold; padding: 2px 6px; border-radius: 3px; font-size: 10px;">⭐ +${fx.amount} XP (${fx.factionName})</span>`).join('')}
+            ${(!factionXpList.length && rewards.xp) ? `<span style="background: rgba(245, 159, 0, 0.2); color: #f59f00; font-weight: bold; padding: 2px 6px; border-radius: 3px; font-size: 10px;">⭐ ${rewards.xp} XP</span>` : ''}
+            ${reputationsList.map(rep => `<span style="background: ${rep.amount >= 0 ? 'rgba(43, 138, 62, 0.2)' : 'rgba(201, 42, 42, 0.2)'}; color: ${rep.amount >= 0 ? '#2b8a3e' : '#c92a2a'}; font-weight: bold; padding: 2px 6px; border-radius: 3px; font-size: 10px;">🛡️ ${rep.amount >= 0 ? '+' : ''}${rep.amount} Rep (${rep.factionName})</span>`).join('')}
+            ${currencyStr ? `<span style="background: rgba(212, 175, 55, 0.2); color: #d4af37; font-weight: bold; padding: 2px 6px; border-radius: 3px; font-size: 10px;">🪙 ${currencyStr}</span>` : ''}
+            ${itemsList.map(it => `<span style="background: rgba(79, 172, 254, 0.2); color: #4facfe; font-weight: bold; padding: 2px 6px; border-radius: 3px; font-size: 10px; display: inline-flex; align-items: center; gap: 3px;"><img src="${it.img || 'icons/svg/item-bag.svg'}" style="width: 14px; height: 14px; border-radius: 2px;" /> ${it.name} ${it.quantity > 1 ? `(x${it.quantity})` : ''}</span>`).join('')}
+            ${rewards.text ? `<span>📦 ${rewards.text}</span>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    const descHtml = IntotericaApp.formatMarkdown(quest.description || "");
 
     ChatMessage.create({
       content: `
@@ -2563,7 +3644,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             <div style="font-size: 16px; font-weight: bold; color: var(--theme-accent); margin-bottom: 4px;">${quest.title}</div>
             ${quest.image ? `<img src="${quest.image}" style="max-height: 120px; width: 100%; object-fit: cover; border-radius: 4px; margin-bottom: 6px; border: 1px solid var(--theme-border);">` : ''}
             <div style="font-size: 11px; text-transform: uppercase; font-weight: bold; opacity: 0.8; margin-bottom: 6px;">Difficulty: ${quest.difficulty || 'Medium'} • Status: ${quest.status}</div>
-            ${quest.description ? `<div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px; text-align: left; line-height: 1.4;">${quest.description}</div>` : ''}
+            ${descHtml ? `<div style="font-size: 12px; opacity: 0.9; margin-bottom: 6px; text-align: left; line-height: 1.4;">${descHtml}</div>` : ''}
             ${tasksHtml}
             ${rewardsHtml}
           </div>
@@ -2581,15 +3662,32 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     const settings = game.settings.get('intoterica', 'data');
     const playerActors = IntotericaApp.getPlayerActors();
+    const factions = settings.factions || [];
+    const systemCurrencies = IntotericaApp.getSystemCurrencies();
+
+    const currencyInputsHtml = Object.entries(systemCurrencies).map(([key, label]) => `
+      <div class="quest-currency-card" title="${Handlebars.escapeExpression(label)}">
+        <div class="currency-card-header">
+          <i class="fas fa-coins" style="color: #d4af37; font-size: 10px;"></i>
+          <span class="currency-tag">${Handlebars.escapeExpression((label || key).toUpperCase())}</span>
+        </div>
+        <input type="number" class="currency-val-input" data-denom="${Handlebars.escapeExpression(key)}" placeholder="0" min="0" />
+      </div>
+    `).join('');
+
+    const descEditorHtml = IntotericaApp.createRichTextEditorHtml('description', '', 'Provide quest narrative, background lore, clues, and objectives...');
     
     IntotericaApp.createDialog({
       title: "Create Quest",
       content: `
-        <form class="intoterica-form" style="max-height: 600px; overflow-y: auto; padding-right: 2px;">
+        <form class="intoterica-form" style="max-height: 640px; overflow-y: auto; padding-right: 2px;">
           <!-- Tab Navigation -->
           <div class="dialog-tabs">
             <button type="button" class="dialog-tab-btn active" data-tab="details">
               <i class="fas fa-scroll"></i> Quest Details
+            </button>
+            <button type="button" class="dialog-tab-btn" data-tab="rewards">
+              <i class="fas fa-trophy"></i> Rewards
             </button>
             <button type="button" class="dialog-tab-btn" data-tab="gm">
               <i class="fas fa-user-shield"></i> GM Secret Notes & Pin
@@ -2640,7 +3738,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                     <label><i class="fas fa-shield-alt"></i> Commissioned by (Faction)</label>
                     <select name="commissionedFaction" class="quest-dialog-select">
                       <option value="">— Independent / None —</option>
-                      ${(settings.factions || []).map(f => `<option value="${f.name}">${f.name}</option>`).join('')}
+                      ${factions.map(f => `<option value="${f.name}">${f.name}</option>`).join('')}
                     </select>
                   </div>
                   <div class="quest-meta-pill">
@@ -2683,66 +3781,116 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               ` : `<p style="font-size: 11px; font-style: italic; color: var(--theme-dim); margin: 0;">No player characters detected on the app.</p>`}
             </div>
 
-            <!-- Bottom 2-Column Ledger: Briefing (Left) + Objectives & Rewards (Right) -->
-            <div class="quest-editor-body">
+            <!-- Bottom 2-Column Ledger: Description (Left) + Objectives & Tasks (Right) -->
+            <div class="quest-editor-body" style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 12px; align-items: stretch;">
               
-              <!-- Left Column: Story Briefing -->
-              <div class="quest-panel">
-                <div class="quest-panel-title"><i class="fas fa-feather-alt"></i> Briefing & Lore</div>
-                <textarea name="description" placeholder="Provide background lore, objective summary, or narrative clues..." style="flex: 1; min-height: 180px; resize: none; border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)); border-radius: 4px; padding: 8px 10px; background: var(--dialog-input-bg, #ffffff); color: var(--dialog-input-text, #191813); font-size: 0.88rem; line-height: 1.4; box-sizing: border-box;"></textarea>
+              <!-- Left Column: Quest Description with Journal-Style Rich Text Editor -->
+              <div class="quest-panel" style="display: flex; flex-direction: column; min-width: 0;">
+                <div class="quest-panel-title">
+                  <span><i class="fas fa-feather-alt"></i> Quest Description</span>
+                </div>
+                ${descEditorHtml}
               </div>
 
-              <!-- Right Column: Objectives & Rewards -->
-              <div style="display: flex; flex-direction: column; gap: 10px;">
-                
-                <!-- Objectives -->
-                <div class="quest-panel" style="flex: 1;">
-                  <div class="quest-panel-title"><i class="fas fa-tasks"></i> Objectives & Tasks</div>
-                  <div class="quest-tasks-builder" style="flex: 1; max-height: 130px; overflow-y: auto; padding-right: 2px;">
-                    <div class="quest-task-entry">
-                      <input type="text" class="task-input-text" placeholder="Objective description..." />
-                      <div class="quest-task-opt-badge">
-                        <input type="checkbox" class="task-input-optional" style="display: none;" />
-                        <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
-                      </div>
-                      <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
+              <!-- Right Column: Objectives & Tasks Builder -->
+              <div class="quest-panel" style="display: flex; flex-direction: column; min-width: 0;">
+                <div class="quest-panel-title"><i class="fas fa-tasks"></i> Objectives & Tasks</div>
+                <div class="quest-tasks-builder" style="flex: 1; max-height: 280px; overflow-y: auto; padding-right: 2px;">
+                  <div class="quest-task-entry">
+                    <input type="text" class="task-input-text" placeholder="Objective description..." />
+                    <div class="quest-task-subquest-badge" title="Toggle Subquest (Header / Folder)">
+                      <input type="checkbox" class="task-input-subquest" style="display: none;" />
+                      <i class="fas fa-folder"></i> Subquest
                     </div>
-                  </div>
-                  <button type="button" class="add-task-row" style="margin-top: 6px;"><i class="fas fa-plus"></i> Add Objective</button>
-                </div>
-
-                <!-- Rewards Bar -->
-                <div class="quest-panel">
-                  <div class="quest-panel-title"><i class="fas fa-trophy"></i> Rewards</div>
-                  <div class="quest-rewards-grid">
-                    <div class="quest-reward-input-box" title="Experience Points">
-                      <i class="fas fa-star" style="color: #f59f00;"></i>
-                      <input type="number" name="rewardXP" placeholder="XP" min="0" />
+                    <div class="quest-task-opt-badge" title="Toggle Optional">
+                      <input type="checkbox" class="task-input-optional" style="display: none;" />
+                      <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
                     </div>
-                    <div class="quest-reward-input-box" title="Gold / Currency">
-                      <i class="fas fa-coins" style="color: #d4af37;"></i>
-                      <input type="text" name="rewardCurrency" placeholder="Currency" />
+                    <div class="quest-task-fail-badge" title="Toggle Failed State">
+                      <input type="checkbox" class="task-input-failed" style="display: none;" />
+                      <i class="fas fa-times-circle" style="font-size: 9px;"></i> Failed
                     </div>
-                    <div class="quest-reward-input-box" title="Items & Equipment">
-                      <i class="fas fa-box-open" style="color: #4facfe;"></i>
-                      <input type="text" name="rewardText" placeholder="Items" />
-                    </div>
+                    <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
                   </div>
                 </div>
-
+                <button type="button" class="add-task-row" style="margin-top: 8px;"><i class="fas fa-plus"></i> Add Objective</button>
               </div>
 
             </div>
 
           </div>
 
-          <!-- TAB 2: GM Controls -->
+          <!-- TAB 2: Automated Rewards -->
+          <div class="dialog-tab-content" data-tab="rewards" style="display: none; flex-direction: column; gap: 12px;">
+            <div class="quest-panel" style="padding: 12px;">
+              <div class="quest-panel-title" style="margin-bottom: 12px; font-size: 13px;">
+                <i class="fas fa-trophy" style="color: #f59f00;"></i> Automated Quest Rewards
+              </div>
+              
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+
+                <!-- 1. Multi-Faction XP -->
+                <div class="reward-section-box">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span class="reward-section-subtitle"><i class="fas fa-star" style="color: #f59f00;"></i> Faction XP</span>
+                    <button type="button" class="add-faction-xp-row" style="font-size: 11px; padding: 3px 8px; background: rgba(245, 159, 0, 0.15); border: 1px solid rgba(245, 159, 0, 0.4); color: var(--dialog-input-text, #333); border-radius: 4px; cursor: pointer;"><i class="fas fa-plus"></i> Add Faction XP</button>
+                  </div>
+                  <div class="faction-xp-container" style="display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Faction XP rows injected here -->
+                  </div>
+                </div>
+
+                <!-- 2. Multi-Faction Reputation -->
+                <div class="reward-section-box">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label class="affect-rep-label" style="font-size: 11px; font-weight: 700; color: var(--theme-accent, #782e22); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin: 0; user-select: none;">
+                      <input type="checkbox" name="affectRep" class="affect-rep-checkbox" style="margin: 0; width: 14px; height: 14px; cursor: pointer;" />
+                      <span><i class="fas fa-shield-alt"></i> Affect Reputation?</span>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span class="rep-target-badge" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,0.08); color: var(--theme-dim);">Whole Party</span>
+                      <button type="button" class="add-rep-row" style="display: none; font-size: 11px; padding: 3px 8px; background: rgba(43, 138, 62, 0.15); border: 1px solid rgba(43, 138, 62, 0.4); color: var(--dialog-input-text, #333); border-radius: 4px; cursor: pointer; align-items: center; gap: 4px;">
+                        <i class="fas fa-plus"></i> Add Faction
+                      </button>
+                    </div>
+                  </div>
+                  <div class="rep-container" style="display: none; flex-direction: column; gap: 6px; margin-top: 6px;">
+                    <!-- Reputation rows injected here -->
+                  </div>
+                </div>
+
+                <!-- 3. System Currencies -->
+                <div class="reward-section-box">
+                  <div class="reward-section-subtitle" style="margin-bottom: 6px;"><i class="fas fa-coins" style="color: #d4af37;"></i> Currency</div>
+                  <div class="quest-currency-grid">
+                    ${currencyInputsHtml}
+                  </div>
+                </div>
+
+                <!-- 4. Compendium / Directory Item Drag & Drop -->
+                <div class="reward-section-box">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span class="reward-section-subtitle"><i class="fas fa-box-open" style="color: #4facfe;"></i> Items & Equipment</span>
+                    <span style="font-size: 10px; color: var(--theme-dim); font-style: italic;">Drop items from Directory/Compendiums</span>
+                  </div>
+                  <div class="quest-item-dropzone" style="min-height: 56px; border: 1px dashed var(--dialog-section-border, rgba(120, 46, 34, 0.4)); border-radius: 4px; background: rgba(0,0,0,0.03); padding: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-start;">
+                    <div class="dropzone-placeholder" style="width: 100%; text-align: center; font-size: 11px; color: var(--theme-dim); padding: 10px 0;">
+                      <i class="fas fa-hand-holding"></i> Drag & Drop Items Here
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: GM Controls -->
           <div class="dialog-tab-content" data-tab="gm" style="display: none; flex-direction: column; gap: 12px;">
             <div class="form-section">
               <div class="form-section-title"><i class="fas fa-user-shield"></i> GM Secret Notes</div>
               <div class="form-group">
                 <label>GM Notes (Hidden from Players)</label>
-                <textarea name="gmNotes" placeholder="Secret clues, encounter triggers, NPC motivations, hidden DCs..." rows="4"></textarea>
+                <textarea name="gmNotes" placeholder="Secret clues, encounter triggers, NPC motivations, hidden DCs..." rows="5"></textarea>
               </div>
 
               <div class="form-toggle-card" style="margin-top: 8px; border-color: rgba(245, 159, 0, 0.4); background: rgba(245, 159, 0, 0.08);">
@@ -2758,22 +3906,31 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-check"></i>',
           label: "Create Quest",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { form, data: formData } = IntotericaApp.getFormData(html);
             
+            // Sync rich text editors (exits source mode, ensures textarea is current)
+            IntotericaApp.syncRichEditors(html);
+
+            // Extract description from rich text editor
+            const descriptionHtml = html.find('.rich-editor-source[name="description"]').val() || html.find('textarea[name="description"]').val() || formData.description || "";
+
             // Extract tasks
             const taskRows = html.find('.quest-task-entry');
             const tasks = [];
             taskRows.each((i, row) => {
               const $row = $(row);
               const text = $row.find('.task-input-text').val().trim();
+              const isSubquest = $row.find('.task-input-subquest').is(':checked');
               const optional = $row.find('.task-input-optional').is(':checked');
+              const failed = $row.find('.task-input-failed').is(':checked');
               if (text) {
                 tasks.push({
                   id: foundry.utils.randomID(),
                   text,
                   completed: false,
-                  optional
+                  failed,
+                  optional,
+                  isSubquest
                 });
               }
             });
@@ -2791,20 +3948,88 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               giverValue = html.find('.quest-giver-custom-input').val().trim();
             }
 
+            // Extract Faction XP
+            const factionXp = [];
+            let totalFactionXp = 0;
+            html.find('.faction-xp-row').each((i, el) => {
+              const $r = $(el);
+              const fId = $r.find('.faction-xp-select').val();
+              const amount = parseInt($r.find('.faction-xp-amount').val()) || 0;
+              const fObj = factions.find(f => f.id === fId);
+              if (fId && amount > 0) {
+                factionXp.push({ factionId: fId, factionName: fObj?.name || "", amount });
+                totalFactionXp += amount;
+              }
+            });
+
+            // Extract Reputation Impact (Multi-Faction)
+            const affectRep = html.find('.affect-rep-checkbox').is(':checked');
+            const reputations = [];
+            if (affectRep) {
+              html.find('.rep-row').each((i, el) => {
+                const $r = $(el);
+                const repFacId = $r.find('.rep-faction-select').val();
+                const repDelta = parseInt($r.find('.rep-delta-input').val()) || 0;
+                const fObj = factions.find(f => f.id === repFacId);
+                if (repFacId && repDelta !== 0) {
+                  reputations.push({
+                    factionId: repFacId,
+                    factionName: fObj?.name || "",
+                    amount: repDelta
+                  });
+                }
+              });
+            }
+
+            // Extract Currencies
+            const currencies = {};
+            const currencyParts = [];
+            html.find('.currency-val-input').each((i, el) => {
+              const denom = $(el).data('denom');
+              const val = parseInt($(el).val()) || 0;
+              if (denom && val > 0) {
+                currencies[denom] = val;
+                currencyParts.push(`${val} ${denom.toUpperCase()}`);
+              }
+            });
+
+            // Extract Items
+            const items = [];
+            html.find('.reward-item-chip').each((i, el) => {
+              const $c = $(el);
+              items.push({
+                id: $c.data('itemId') || foundry.utils.randomID(),
+                uuid: $c.data('uuid') || "",
+                name: $c.data('name') || "Item",
+                img: $c.data('img') || "icons/svg/item-bag.svg",
+                type: $c.data('type') || "loot",
+                quantity: parseInt($c.find('.reward-item-qty').val()) || 1,
+                itemData: $c.data('itemData') || null
+              });
+            });
+
+            const titleFromDom = html.find('input[name="title"]').val() ?? form?.querySelector('input[name="title"]')?.value ?? formData.title;
+            const cleanTitle = (typeof titleFromDom === 'string' && titleFromDom.trim().length > 0) ? titleFromDom.trim() : "Untitled Quest";
+
             const questData = {
-              title: formData.title,
-              name: formData.title,
+              title: cleanTitle,
+              name: cleanTitle,
               difficulty: formData.difficulty || "Medium",
               status: formData.status || "Active",
               giver: giverValue,
               commissionedFaction: formData.commissionedFaction || "",
               image: formData.image || "",
-              description: formData.description || "",
+              description: descriptionHtml,
               tasks,
               rewards: {
-                xp: parseInt(formData.rewardXP) || 0,
-                currency: formData.rewardCurrency || "",
-                text: formData.rewardText || ""
+                xp: totalFactionXp,
+                factionXp,
+                reputations,
+                reputation: reputations[0] || null,
+                currencies,
+                currency: currencyParts.join(', '),
+                items,
+                text: ""
               },
               assignedAll: assignAll,
               assignedTo: assignedTo,
@@ -2821,6 +4046,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
       },
       render: (html) => {
+        // Initialize Rich Text Editor
+        IntotericaApp.initRichTextEditor(html);
+
         // Tab switching
         html.find('.dialog-tab-btn').click(function(ev) {
           ev.preventDefault();
@@ -2849,6 +4077,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         // Assign All vs Individual Player Checkboxes
         const $assignAll = html.find('.assign-all-checkbox');
         const $playerCbs = html.find('.player-assign-cb');
+        const $repTargetBadge = html.find('.rep-target-badge');
 
         $assignAll.change(function() {
           const isChecked = $(this).is(':checked');
@@ -2857,6 +4086,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             const $card = $(this).closest('.player-assign-card');
             $card.toggleClass('assigned', isChecked);
           });
+          $repTargetBadge.text(isChecked ? 'Whole Party' : 'Assigned Characters');
         });
 
         $playerCbs.change(function() {
@@ -2866,7 +4096,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
           const total = $playerCbs.length;
           const checkedCount = $playerCbs.filter(':checked').length;
-          $assignAll.prop('checked', total > 0 && checkedCount === total);
+          const allChecked = total > 0 && checkedCount === total;
+          $assignAll.prop('checked', allChecked);
+          $repTargetBadge.text(allChecked ? 'Whole Party' : 'Assigned Characters');
         });
 
         // Quest Giver dropdown + custom input toggle
@@ -2882,6 +4114,18 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           }
         });
 
+        // Subquest badge toggle
+        html.on('click', '.quest-task-subquest-badge', function(ev) {
+          ev.preventDefault();
+          const $badge = $(this);
+          const $cb = $badge.find('.task-input-subquest');
+          const checked = !$cb.is(':checked');
+          $cb.prop('checked', checked);
+          $badge.toggleClass('active', checked);
+          const $entry = $badge.closest('.quest-task-entry');
+          $entry.toggleClass('is-subquest-header', checked);
+        });
+
         // Optional badge toggle
         html.on('click', '.quest-task-opt-badge', function(ev) {
           ev.preventDefault();
@@ -2892,14 +4136,32 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           $badge.toggleClass('active', checked);
         });
 
+        // Failed badge toggle
+        html.on('click', '.quest-task-fail-badge', function(ev) {
+          ev.preventDefault();
+          const $badge = $(this);
+          const $cb = $badge.find('.task-input-failed');
+          const checked = !$cb.is(':checked');
+          $cb.prop('checked', checked);
+          $badge.toggleClass('active', checked);
+        });
+
         // Add task row
         html.find('.add-task-row').click(ev => {
           const row = $(`
             <div class="quest-task-entry">
               <input type="text" class="task-input-text" placeholder="Objective description..." />
-              <div class="quest-task-opt-badge">
+              <div class="quest-task-subquest-badge" title="Toggle Subquest (Header / Folder)">
+                <input type="checkbox" class="task-input-subquest" style="display: none;" />
+                <i class="fas fa-folder"></i> Subquest
+              </div>
+              <div class="quest-task-opt-badge" title="Toggle Optional">
                 <input type="checkbox" class="task-input-optional" style="display: none;" />
                 <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
+              </div>
+              <div class="quest-task-fail-badge" title="Toggle Failed State">
+                <input type="checkbox" class="task-input-failed" style="display: none;" />
+                <i class="fas fa-times-circle" style="font-size: 9px;"></i> Failed
               </div>
               <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
             </div>
@@ -2911,9 +4173,155 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         html.find('.delete-task-row').click(ev => {
           $(ev.currentTarget).closest('.quest-task-entry').remove();
         });
+
+
+        // Faction XP Rows Builder
+        const $factionXpContainer = html.find('.faction-xp-container');
+        const addFactionXpRow = (facId = "", amount = 100) => {
+          if (!factions.length) {
+            ui.notifications.warn("No factions created yet in the module.");
+            return;
+          }
+          const defaultFac = facId || factions[0]?.id;
+          const row = $(`
+            <div class="faction-xp-row" style="display: flex; align-items: center; gap: 6px; background: var(--dialog-input-bg, #fff); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 4px 6px;">
+              <select class="faction-xp-select quest-dialog-select" style="flex: 1; height: 28px; font-size: 0.85rem;">
+                ${factions.map(f => {
+                  const hasRanks = Array.isArray(f.ranks) && f.ranks.length > 0;
+                  const rankNote = hasRanks ? `(${f.ranks.length} Ranks)` : `(No Ranks - XP Optional)`;
+                  return `<option value="${f.id}" ${f.id === defaultFac ? 'selected' : ''}>${f.name} ${rankNote}</option>`;
+                }).join('')}
+              </select>
+              <div style="display: flex; align-items: center; gap: 3px; width: 95px;">
+                <i class="fas fa-star" style="color: #f59f00; font-size: 11px;"></i>
+                <input type="number" class="faction-xp-amount" value="${amount}" min="0" placeholder="XP" style="width: 70px; height: 28px; font-size: 0.85rem; border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.3)); border-radius: 3px; background: var(--dialog-input-bg, #fff); color: var(--dialog-input-text, #191813); font-weight: 600; text-align: center;" />
+              </div>
+              <button type="button" class="remove-faction-xp-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 12px;"><i class="fas fa-times"></i></button>
+            </div>
+          `);
+          $factionXpContainer.append(row);
+          row.find('.remove-faction-xp-row').click(() => row.remove());
+        };
+
+        html.find('.add-faction-xp-row').click(ev => {
+          ev.preventDefault();
+          addFactionXpRow("", 100);
+        });
+
+        // Multi-Faction Reputation Rows Builder
+        const $repContainer = html.find('.rep-container');
+        const addRepRow = (facId = "", amount = 10) => {
+          if (!factions.length) {
+            ui.notifications.warn("No factions created yet in the module.");
+            return;
+          }
+          const defaultFac = facId || factions[0]?.id;
+          const row = $(`
+            <div class="rep-row">
+              <i class="fas fa-shield-alt" style="color: var(--theme-accent, #782e22); font-size: 11px; margin-left: 2px; flex-shrink: 0;"></i>
+              <select class="rep-faction-select quest-dialog-select">
+                ${factions.map(f => `<option value="${f.id}" ${f.id === defaultFac ? 'selected' : ''}>${Handlebars.escapeExpression(f.name)}</option>`).join('')}
+              </select>
+              <div class="rep-standing-group">
+                <span style="font-size: 10px; font-weight: 700; color: var(--dialog-input-text, #191813);">Standing:</span>
+                <input type="number" class="rep-delta-input" value="${amount}" placeholder="+/-" step="1" />
+              </div>
+              <button type="button" class="remove-rep-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 12px;"><i class="fas fa-times"></i></button>
+            </div>
+          `);
+          $repContainer.append(row);
+          row.find('.remove-rep-row').click(() => row.remove());
+        };
+
+        html.find('.add-rep-row').click(ev => {
+          ev.preventDefault();
+          addRepRow("", 10);
+        });
+
+        // Affect Reputation Toggle
+        html.find('.affect-rep-checkbox').change(function() {
+          const isChecked = $(this).is(':checked');
+          $repContainer.css('display', isChecked ? 'flex' : 'none');
+          html.find('.add-rep-row').css('display', isChecked ? 'inline-flex' : 'none');
+          if (isChecked && $repContainer.find('.rep-row').length === 0) {
+            addRepRow("", 10);
+          }
+        });
+
+        // Item Dropzone Drag & Drop
+        const $dropzone = html.find('.quest-item-dropzone');
+        const addItemChip = (itemObj) => {
+          $dropzone.find('.dropzone-placeholder').hide();
+          const chip = $(`
+            <div class="reward-item-chip" data-item-id="${itemObj.id}" data-uuid="${itemObj.uuid}" data-name="${Handlebars.escapeExpression(itemObj.name)}" data-img="${itemObj.img}" data-type="${itemObj.type}">
+              <img src="${itemObj.img}" class="reward-item-thumb" />
+              <span class="reward-item-name" title="${Handlebars.escapeExpression(itemObj.name)}">${Handlebars.escapeExpression(itemObj.name)}</span>
+              <input type="number" class="reward-item-qty" value="${itemObj.quantity || 1}" min="1" title="Quantity" />
+              <button type="button" class="remove-reward-item" title="Remove"><i class="fas fa-times"></i></button>
+            </div>
+          `);
+          chip.data('itemData', itemObj.itemData);
+          $dropzone.append(chip);
+          chip.find('.remove-reward-item').click(function() {
+            chip.remove();
+            if ($dropzone.find('.reward-item-chip').length === 0) {
+              $dropzone.find('.dropzone-placeholder').show();
+            }
+          });
+        };
+
+        $dropzone.on('dragover', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          $dropzone.css('border-color', 'var(--theme-accent, #ff6400)');
+        });
+        $dropzone.on('dragleave', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          $dropzone.css('border-color', '');
+        });
+        $dropzone.on('drop', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          $dropzone.css('border-color', '');
+          
+          let data = null;
+          try {
+            data = JSON.parse(ev.originalEvent.dataTransfer.getData('text/plain'));
+          } catch (e) {
+            if (typeof TextEditor.getDragEventData === 'function') {
+              data = TextEditor.getDragEventData(ev.originalEvent || ev);
+            }
+          }
+          if (!data || data.type !== 'Item') return;
+
+          let item = null;
+          if (data.uuid) {
+            try { item = await fromUuid(data.uuid); } catch (e) {}
+          }
+          if (!item && data.id) {
+            item = game.items.get(data.id);
+          }
+          if (!item && data.data) {
+            item = data.data;
+          }
+          if (!item) return;
+
+          const itemObj = {
+            id: item.id || foundry.utils.randomID(),
+            uuid: data.uuid || item.uuid || "",
+            name: item.name || "Item",
+            img: item.img || "icons/svg/item-bag.svg",
+            type: item.type || "loot",
+            quantity: 1,
+            itemData: typeof item.toObject === 'function' ? item.toObject() : null
+          };
+
+          addItemChip(itemObj);
+        });
       },
       default: "create"
-    }, { width: 760 }).render(true);
+    }, { width: 800 }).render(true);
   }
 
   async _createQuest(data) {
@@ -2922,7 +4330,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return;
     }
 
-    const settings = game.settings.get('intoterica', 'data');
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
     if (!settings.quests) settings.quests = [];
 
     const questTitle = data.title || data.name || "Untitled Quest";
@@ -2939,7 +4348,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       commissionedFaction: data.commissionedFaction || "",
       image: data.image || "",
       tasks: data.tasks || [],
-      rewards: data.rewards || { xp: 0, currency: "", text: "" },
+      rewards: data.rewards || { xp: 0, factionXp: [], reputation: null, currencies: {}, currency: "", items: [], text: "" },
       assignedAll: assignAll,
       assignedTo: assignAll ? [] : (Array.isArray(data.assignedTo) ? data.assignedTo : []),
       gmNotes: data.gmNotes || "",
@@ -2971,33 +4380,77 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     const playerActors = IntotericaApp.getPlayerActors();
     const tasks = Array.isArray(quest.tasks) ? quest.tasks : [];
     const rewards = quest.rewards || {};
+    const factions = settings.factions || [];
+    const systemCurrencies = IntotericaApp.getSystemCurrencies();
     
     const isAssignAll = quest.assignedAll !== false && (!quest.assignedTo || quest.assignedTo.length === 0);
     const assignedTo = Array.isArray(quest.assignedTo) ? quest.assignedTo : [];
 
     const tasksHtml = tasks.map((t) => {
       return `
-        <div class="quest-task-entry">
+        <div class="quest-task-entry ${t.isSubquest ? 'is-subquest-header' : ''}">
           <input type="hidden" class="task-input-id" value="${t.id || foundry.utils.randomID()}" />
           <input type="checkbox" class="task-input-completed" ${t.completed ? 'checked' : ''} title="Mark Completed" style="margin: 0; width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;" />
-          <input type="text" class="task-input-text" value="${t.text || ''}" placeholder="Objective description..." style="flex: 1;" />
-          <div class="quest-task-opt-badge ${t.optional ? 'active' : ''}">
+          <input type="text" class="task-input-text" value="${Handlebars.escapeExpression(t.text || '')}" placeholder="Objective description..." style="flex: 1;" />
+          <div class="quest-task-subquest-badge ${t.isSubquest ? 'active' : ''}" title="Toggle Subquest (Header / Folder)">
+            <input type="checkbox" class="task-input-subquest" ${t.isSubquest ? 'checked' : ''} style="display: none;" />
+            <i class="fas fa-folder"></i> Subquest
+          </div>
+          <div class="quest-task-opt-badge ${t.optional ? 'active' : ''}" title="Toggle Optional">
             <input type="checkbox" class="task-input-optional" ${t.optional ? 'checked' : ''} style="display: none;" />
             <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
+          </div>
+          <div class="quest-task-fail-badge ${t.failed ? 'active' : ''}" title="Toggle Failed State">
+            <input type="checkbox" class="task-input-failed" ${t.failed ? 'checked' : ''} style="display: none;" />
+            <i class="fas fa-times-circle" style="font-size: 9px;"></i> Failed
           </div>
           <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
         </div>
       `;
     }).join('');
 
+    const savedCurrencies = rewards.currencies || {};
+    const currencyInputsHtml = Object.entries(systemCurrencies).map(([key, label]) => {
+      const currentVal = savedCurrencies[key] || '';
+      return `
+        <div class="quest-currency-card" title="${Handlebars.escapeExpression(label)}">
+          <div class="currency-card-header">
+            <i class="fas fa-coins" style="color: #d4af37; font-size: 10px;"></i>
+            <span class="currency-tag">${Handlebars.escapeExpression((label || key).toUpperCase())}</span>
+          </div>
+          <input type="number" class="currency-val-input" data-denom="${Handlebars.escapeExpression(key)}" value="${currentVal}" placeholder="0" min="0" />
+        </div>
+      `;
+    }).join('');
+
+    const existingReps = Array.isArray(rewards.reputations) && rewards.reputations.length > 0
+      ? rewards.reputations
+      : (rewards.reputation && Number(rewards.reputation.amount || rewards.reputation.delta) !== 0 ? [rewards.reputation] : []);
+    const hasRep = existingReps.length > 0;
+
+    const items = Array.isArray(rewards.items) ? rewards.items : [];
+    const itemsHtml = items.map(it => `
+      <div class="reward-item-chip" data-item-id="${it.id || foundry.utils.randomID()}" data-uuid="${it.uuid || ''}" data-name="${Handlebars.escapeExpression(it.name)}" data-img="${it.img || 'icons/svg/item-bag.svg'}" data-type="${it.type || 'loot'}">
+        <img src="${it.img || 'icons/svg/item-bag.svg'}" class="reward-item-thumb" />
+        <span class="reward-item-name" title="${Handlebars.escapeExpression(it.name)}">${Handlebars.escapeExpression(it.name)}</span>
+        <input type="number" class="reward-item-qty" value="${it.quantity || 1}" min="1" title="Quantity" />
+        <button type="button" class="remove-reward-item" title="Remove"><i class="fas fa-times"></i></button>
+      </div>
+    `).join('');
+
+    const descEditorHtml = IntotericaApp.createRichTextEditorHtml('description', quest.description || '', 'Provide quest narrative, background lore, clues, and objectives...');
+
     IntotericaApp.createDialog({
       title: `Edit Quest: ${questTitle || 'Untitled Quest'}`,
       content: `
-        <form class="intoterica-form" style="max-height: 600px; overflow-y: auto; padding-right: 2px;">
+        <form class="intoterica-form" style="max-height: 640px; overflow-y: auto; padding-right: 2px;">
           <!-- Tab Navigation -->
           <div class="dialog-tabs">
             <button type="button" class="dialog-tab-btn active" data-tab="details">
               <i class="fas fa-scroll"></i> Quest Details
+            </button>
+            <button type="button" class="dialog-tab-btn" data-tab="rewards">
+              <i class="fas fa-trophy"></i> Rewards
             </button>
             <button type="button" class="dialog-tab-btn" data-tab="gm">
               <i class="fas fa-user-shield"></i> GM Secret Notes & Pin
@@ -3020,7 +4473,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               <!-- Right: Title + Metadata Strip -->
               <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; gap: 6px;">
                 <div>
-                  <input type="text" name="title" value="${questTitle}" placeholder="Quest Title (e.g. The Sunken Crypt)..." class="quest-title-large" autofocus required />
+                  <input type="text" name="title" value="${Handlebars.escapeExpression(questTitle)}" placeholder="Quest Title (e.g. The Sunken Crypt)..." class="quest-title-large" autofocus required />
                 </div>
                 
                 <div class="quest-meta-strip">
@@ -3048,7 +4501,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                     <label><i class="fas fa-shield-alt"></i> Commissioned by (Faction)</label>
                     <select name="commissionedFaction" class="quest-dialog-select">
                       <option value="">— Independent / None —</option>
-                      ${(settings.factions || []).map(f => `<option value="${f.name}" ${quest.commissionedFaction === f.name ? 'selected' : ''}>${f.name}</option>`).join('')}
+                      ${factions.map(f => `<option value="${f.name}" ${quest.commissionedFaction === f.name ? 'selected' : ''}>${f.name}</option>`).join('')}
                     </select>
                   </div>
                   <div class="quest-meta-pill">
@@ -3092,59 +4545,104 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               ` : `<p style="font-size: 11px; font-style: italic; color: var(--theme-dim); margin: 0;">No player characters detected on the app.</p>`}
             </div>
 
-            <!-- Bottom 2-Column Ledger: Briefing (Left) + Objectives & Rewards (Right) -->
-            <div class="quest-editor-body">
+            <!-- Bottom 2-Column Ledger: Description (Left) + Objectives & Tasks (Right) -->
+            <div class="quest-editor-body" style="display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 12px; align-items: stretch;">
               
-              <!-- Left Column: Story Briefing -->
-              <div class="quest-panel">
-                <div class="quest-panel-title"><i class="fas fa-feather-alt"></i> Briefing & Lore</div>
-                <textarea name="description" placeholder="Provide background lore, objective summary, or narrative clues..." style="flex: 1; min-height: 180px; resize: none; border: 1px solid var(--dialog-section-border, rgba(120, 46, 34, 0.25)); border-radius: 4px; padding: 8px 10px; background: var(--dialog-input-bg, #ffffff); color: var(--dialog-input-text, #191813); font-size: 0.88rem; line-height: 1.4; box-sizing: border-box;">${quest.description || ''}</textarea>
+              <!-- Left Column: Quest Description with Journal-Style Rich Text Editor -->
+              <div class="quest-panel" style="display: flex; flex-direction: column; min-width: 0;">
+                <div class="quest-panel-title">
+                  <span><i class="fas fa-feather-alt"></i> Quest Description</span>
+                </div>
+                ${descEditorHtml}
               </div>
 
-              <!-- Right Column: Objectives & Rewards -->
-              <div style="display: flex; flex-direction: column; gap: 10px;">
-                
-                <!-- Objectives -->
-                <div class="quest-panel" style="flex: 1;">
-                  <div class="quest-panel-title"><i class="fas fa-tasks"></i> Objectives & Tasks</div>
-                  <div class="quest-tasks-builder" style="flex: 1; max-height: 130px; overflow-y: auto; padding-right: 2px;">
-                    ${tasksHtml}
-                  </div>
-                  <button type="button" class="add-task-row" style="margin-top: 6px;"><i class="fas fa-plus"></i> Add Objective</button>
+              <!-- Right Column: Objectives & Tasks Builder -->
+              <div class="quest-panel" style="display: flex; flex-direction: column; min-width: 0;">
+                <div class="quest-panel-title"><i class="fas fa-tasks"></i> Objectives & Tasks</div>
+                <div class="quest-tasks-builder" style="flex: 1; max-height: 280px; overflow-y: auto; padding-right: 2px;">
+                  ${tasksHtml}
                 </div>
-
-                <!-- Rewards Bar -->
-                <div class="quest-panel">
-                  <div class="quest-panel-title"><i class="fas fa-trophy"></i> Rewards</div>
-                  <div class="quest-rewards-grid">
-                    <div class="quest-reward-input-box" title="Experience Points">
-                      <i class="fas fa-star" style="color: #f59f00;"></i>
-                      <input type="number" name="rewardXP" value="${rewards.xp || ''}" placeholder="XP" min="0" />
-                    </div>
-                    <div class="quest-reward-input-box" title="Gold / Currency">
-                      <i class="fas fa-coins" style="color: #d4af37;"></i>
-                      <input type="text" name="rewardCurrency" value="${rewards.currency || ''}" placeholder="Currency" />
-                    </div>
-                    <div class="quest-reward-input-box" title="Items & Equipment">
-                      <i class="fas fa-box-open" style="color: #4facfe;"></i>
-                      <input type="text" name="rewardText" value="${rewards.text || ''}" placeholder="Items" />
-                    </div>
-                  </div>
-                </div>
-
+                <button type="button" class="add-task-row" style="margin-top: 8px;"><i class="fas fa-plus"></i> Add Objective</button>
               </div>
 
             </div>
 
           </div>
 
-          <!-- TAB 2: GM Controls -->
+          <!-- TAB 2: Automated Rewards -->
+          <div class="dialog-tab-content" data-tab="rewards" style="display: none; flex-direction: column; gap: 12px;">
+            <div class="quest-panel" style="padding: 12px;">
+              <div class="quest-panel-title" style="margin-bottom: 12px; font-size: 13px;">
+                <i class="fas fa-trophy" style="color: #f59f00;"></i> Automated Quest Rewards
+              </div>
+              
+              <div style="display: flex; flex-direction: column; gap: 12px;">
+
+                <!-- 1. Multi-Faction XP -->
+                <div class="reward-section-box">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span class="reward-section-subtitle"><i class="fas fa-star" style="color: #f59f00;"></i> Faction XP</span>
+                    <button type="button" class="add-faction-xp-row" style="font-size: 11px; padding: 3px 8px; background: rgba(245, 159, 0, 0.15); border: 1px solid rgba(245, 159, 0, 0.4); color: var(--dialog-input-text, #333); border-radius: 4px; cursor: pointer;"><i class="fas fa-plus"></i> Add Faction XP</button>
+                  </div>
+                  <div class="faction-xp-container" style="display: flex; flex-direction: column; gap: 6px;">
+                    <!-- Faction XP rows injected here -->
+                  </div>
+                </div>
+
+                <!-- 2. Multi-Faction Reputation -->
+                <div class="reward-section-box">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label class="affect-rep-label" style="font-size: 11px; font-weight: 700; color: var(--theme-accent, #782e22); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin: 0; user-select: none;">
+                      <input type="checkbox" name="affectRep" class="affect-rep-checkbox" ${hasRep ? 'checked' : ''} style="margin: 0; width: 14px; height: 14px; cursor: pointer;" />
+                      <span><i class="fas fa-shield-alt"></i> Affect Reputation?</span>
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span class="rep-target-badge" style="font-size: 10px; padding: 2px 6px; border-radius: 3px; background: rgba(0,0,0,0.08); color: var(--theme-dim);">
+                        ${isAssignAll ? 'Whole Party' : 'Assigned Characters'}
+                      </span>
+                      <button type="button" class="add-rep-row" style="${hasRep ? 'display: inline-flex;' : 'display: none;'} font-size: 11px; padding: 3px 8px; background: rgba(43, 138, 62, 0.15); border: 1px solid rgba(43, 138, 62, 0.4); color: var(--dialog-input-text, #333); border-radius: 4px; cursor: pointer; align-items: center; gap: 4px;">
+                        <i class="fas fa-plus"></i> Add Faction
+                      </button>
+                    </div>
+                  </div>
+                  <div class="rep-container" style="${hasRep ? 'display: flex;' : 'display: none;'} flex-direction: column; gap: 6px; margin-top: 6px;">
+                    <!-- Reputation rows injected here -->
+                  </div>
+                </div>
+
+                <!-- 3. System Currencies -->
+                <div class="reward-section-box">
+                  <div class="reward-section-subtitle" style="margin-bottom: 6px;"><i class="fas fa-coins" style="color: #d4af37;"></i> Currency</div>
+                  <div class="quest-currency-grid">
+                    ${currencyInputsHtml}
+                  </div>
+                </div>
+
+                <!-- 4. Compendium / Directory Item Drag & Drop -->
+                <div class="reward-section-box">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span class="reward-section-subtitle"><i class="fas fa-box-open" style="color: #4facfe;"></i> Items & Equipment</span>
+                    <span style="font-size: 10px; color: var(--theme-dim); font-style: italic;">Drop items from Directory/Compendiums</span>
+                  </div>
+                  <div class="quest-item-dropzone" style="min-height: 56px; border: 1px dashed var(--dialog-section-border, rgba(120, 46, 34, 0.4)); border-radius: 4px; background: rgba(0,0,0,0.03); padding: 6px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-start;">
+                    <div class="dropzone-placeholder" style="${items.length ? 'display: none;' : ''} width: 100%; text-align: center; font-size: 11px; color: var(--theme-dim); padding: 10px 0;">
+                      <i class="fas fa-hand-holding"></i> Drag & Drop Items Here
+                    </div>
+                    ${itemsHtml}
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 3: GM Controls -->
           <div class="dialog-tab-content" data-tab="gm" style="display: none; flex-direction: column; gap: 12px;">
             <div class="form-section">
               <div class="form-section-title"><i class="fas fa-user-shield"></i> GM Secret Notes</div>
               <div class="form-group">
                 <label>GM Notes (Hidden from Players)</label>
-                <textarea name="gmNotes" placeholder="Secret clues, encounter triggers, NPC motivations, hidden DCs..." rows="4">${quest.gmNotes || ''}</textarea>
+                <textarea name="gmNotes" placeholder="Secret clues, encounter triggers, NPC motivations, hidden DCs..." rows="5">${quest.gmNotes || ''}</textarea>
               </div>
 
               <div class="form-toggle-card" style="margin-top: 8px; border-color: rgba(245, 159, 0, 0.4); background: rgba(245, 159, 0, 0.08);">
@@ -3160,9 +4658,14 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-save"></i>',
           label: "Save Changes",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { form, data: formData } = IntotericaApp.getFormData(html);
             
+            // Sync rich text editors (exits source mode, ensures textarea is current)
+            IntotericaApp.syncRichEditors(html);
+
+            // Extract description from rich text editor
+            const descriptionHtml = html.find('.rich-editor-source[name="description"]').val() || html.find('textarea[name="description"]').val() || formData.description || "";
+
             // Extract tasks
             const taskRows = html.find('.quest-task-entry');
             const updatedTasks = [];
@@ -3170,10 +4673,12 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               const $row = $(row);
               const text = $row.find('.task-input-text').val().trim();
               const completed = $row.find('.task-input-completed').is(':checked');
+              const failed = $row.find('.task-input-failed').is(':checked');
               const optional = $row.find('.task-input-optional').is(':checked');
+              const isSubquest = $row.find('.task-input-subquest').is(':checked');
               const id = $row.find('.task-input-id').val() || foundry.utils.randomID();
               if (text) {
-                updatedTasks.push({ id, text, completed, optional });
+                updatedTasks.push({ id, text, completed: failed ? false : completed, failed, optional, isSubquest });
               }
             });
 
@@ -3190,20 +4695,87 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               giverValue = html.find('.quest-giver-custom-input').val().trim();
             }
 
+            // Extract Faction XP
+            const factionXp = [];
+            let totalFactionXp = 0;
+            html.find('.faction-xp-row').each((i, el) => {
+              const $r = $(el);
+              const fId = $r.find('.faction-xp-select').val();
+              const amount = parseInt($r.find('.faction-xp-amount').val()) || 0;
+              const fObj = factions.find(f => f.id === fId);
+              if (fId && amount > 0) {
+                factionXp.push({ factionId: fId, factionName: fObj?.name || "", amount });
+                totalFactionXp += amount;
+              }
+            });
+
+            // Extract Reputation Impact (Multi-Faction)
+            const affectRep = html.find('.affect-rep-checkbox').is(':checked');
+            const reputations = [];
+            if (affectRep) {
+              html.find('.rep-row').each((i, el) => {
+                const $r = $(el);
+                const repFacId = $r.find('.rep-faction-select').val();
+                const repDelta = parseInt($r.find('.rep-delta-input').val()) || 0;
+                const fObj = factions.find(f => f.id === repFacId);
+                if (repFacId && repDelta !== 0) {
+                  reputations.push({
+                    factionId: repFacId,
+                    factionName: fObj?.name || "",
+                    amount: repDelta
+                  });
+                }
+              });
+            }
+
+            // Extract Currencies
+            const currencies = {};
+            const currencyParts = [];
+            html.find('.currency-val-input').each((i, el) => {
+              const denom = $(el).data('denom');
+              const val = parseInt($(el).val()) || 0;
+              if (denom && val > 0) {
+                currencies[denom] = val;
+                currencyParts.push(`${val} ${denom.toUpperCase()}`);
+              }
+            });
+
+            // Extract Items
+            const updatedItems = [];
+            html.find('.reward-item-chip').each((i, el) => {
+              const $c = $(el);
+              updatedItems.push({
+                id: $c.data('itemId') || foundry.utils.randomID(),
+                uuid: $c.data('uuid') || "",
+                name: $c.data('name') || "Item",
+                img: $c.data('img') || "icons/svg/item-bag.svg",
+                type: $c.data('type') || "loot",
+                quantity: parseInt($c.find('.reward-item-qty').val()) || 1,
+                itemData: $c.data('itemData') || null
+              });
+            });
+
+            const titleFromDom = html.find('input[name="title"]').val() ?? form?.querySelector('input[name="title"]')?.value ?? formData.title;
+            const cleanTitle = (typeof titleFromDom === 'string' && titleFromDom.trim().length > 0) ? titleFromDom.trim() : (quest.title || quest.name || "Untitled Quest");
             const updatedData = {
-              title: formData.title,
-              name: formData.title,
+              title: cleanTitle,
+              name: cleanTitle,
               difficulty: formData.difficulty || "Medium",
               status: formData.status || "Active",
               giver: giverValue,
               commissionedFaction: formData.commissionedFaction || "",
               image: formData.image || "",
-              description: formData.description || "",
+              description: descriptionHtml,
               tasks: updatedTasks,
               rewards: {
-                xp: parseInt(formData.rewardXP) || 0,
-                currency: formData.rewardCurrency || "",
-                text: formData.rewardText || ""
+                xp: totalFactionXp,
+                factionXp,
+                reputations,
+                reputation: reputations[0] || null,
+                currencies,
+                currency: currencyParts.join(', '),
+                items: updatedItems,
+                text: ""
               },
               assignedAll: assignAll,
               assignedTo: updatedAssignedTo,
@@ -3227,6 +4799,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
       },
       render: (html) => {
+        // Initialize Rich Text Editor
+        IntotericaApp.initRichTextEditor(html);
+
         // Tab switching
         html.find('.dialog-tab-btn').click(function(ev) {
           ev.preventDefault();
@@ -3255,6 +4830,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         // Assign All vs Individual Player Checkboxes
         const $assignAll = html.find('.assign-all-checkbox');
         const $playerCbs = html.find('.player-assign-cb');
+        const $repTargetBadge = html.find('.rep-target-badge');
 
         $assignAll.change(function() {
           const isChecked = $(this).is(':checked');
@@ -3263,6 +4839,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             const $card = $(this).closest('.player-assign-card');
             $card.toggleClass('assigned', isChecked);
           });
+          $repTargetBadge.text(isChecked ? 'Whole Party' : 'Assigned Characters');
         });
 
         $playerCbs.change(function() {
@@ -3272,7 +4849,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
           const total = $playerCbs.length;
           const checkedCount = $playerCbs.filter(':checked').length;
-          $assignAll.prop('checked', total > 0 && checkedCount === total);
+          const allChecked = total > 0 && checkedCount === total;
+          $assignAll.prop('checked', allChecked);
+          $repTargetBadge.text(allChecked ? 'Whole Party' : 'Assigned Characters');
         });
 
         // Quest Giver dropdown + custom input toggle
@@ -3288,6 +4867,18 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           }
         });
 
+        // Subquest badge toggle
+        html.on('click', '.quest-task-subquest-badge', function(ev) {
+          ev.preventDefault();
+          const $badge = $(this);
+          const $cb = $badge.find('.task-input-subquest');
+          const checked = !$cb.is(':checked');
+          $cb.prop('checked', checked);
+          $badge.toggleClass('active', checked);
+          const $entry = $badge.closest('.quest-task-entry');
+          $entry.toggleClass('is-subquest-header', checked);
+        });
+
         // Optional badge toggle
         html.on('click', '.quest-task-opt-badge', function(ev) {
           ev.preventDefault();
@@ -3298,6 +4889,19 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           $badge.toggleClass('active', checked);
         });
 
+        // Failed badge toggle
+        html.on('click', '.quest-task-fail-badge', function(ev) {
+          ev.preventDefault();
+          const $badge = $(this);
+          const $cb = $badge.find('.task-input-failed');
+          const checked = !$cb.is(':checked');
+          $cb.prop('checked', checked);
+          $badge.toggleClass('active', checked);
+          if (checked) {
+            $badge.closest('.quest-task-entry').find('.task-input-completed').prop('checked', false);
+          }
+        });
+
         // Add task row
         html.find('.add-task-row').click(ev => {
           const row = $(`
@@ -3305,9 +4909,17 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               <input type="hidden" class="task-input-id" value="${foundry.utils.randomID()}" />
               <input type="checkbox" class="task-input-completed" title="Completed" style="margin: 0; width: 15px; height: 15px; flex-shrink: 0; cursor: pointer;" />
               <input type="text" class="task-input-text" placeholder="Objective description..." style="flex: 1;" />
-              <div class="quest-task-opt-badge">
+              <div class="quest-task-subquest-badge" title="Toggle Subquest (Header / Folder)">
+                <input type="checkbox" class="task-input-subquest" style="display: none;" />
+                <i class="fas fa-folder"></i> Subquest
+              </div>
+              <div class="quest-task-opt-badge" title="Toggle Optional">
                 <input type="checkbox" class="task-input-optional" style="display: none;" />
                 <i class="fas fa-flag" style="font-size: 9px;"></i> Optional
+              </div>
+              <div class="quest-task-fail-badge" title="Toggle Failed State">
+                <input type="checkbox" class="task-input-failed" style="display: none;" />
+                <i class="fas fa-times-circle" style="font-size: 9px;"></i> Failed
               </div>
               <button type="button" class="delete-task-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
             </div>
@@ -3319,9 +4931,174 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         html.find('.delete-task-row').click(ev => {
           $(ev.currentTarget).closest('.quest-task-entry').remove();
         });
+
+        // Faction XP Rows Builder & Injection
+        const $factionXpContainer = html.find('.faction-xp-container');
+        const addFactionXpRow = (facId = "", amount = 100) => {
+          if (!factions.length) {
+            ui.notifications.warn("No factions created yet in the module.");
+            return;
+          }
+          const defaultFac = facId || factions[0]?.id;
+          const row = $(`
+            <div class="faction-xp-row" style="display: flex; align-items: center; gap: 6px; background: var(--dialog-input-bg, #fff); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 4px 6px;">
+              <select class="faction-xp-select quest-dialog-select" style="flex: 1; height: 28px; font-size: 0.85rem;">
+                ${factions.map(f => {
+                  const hasRanks = Array.isArray(f.ranks) && f.ranks.length > 0;
+                  const rankNote = hasRanks ? `(${f.ranks.length} Ranks)` : `(No Ranks - XP Optional)`;
+                  return `<option value="${f.id}" ${f.id === defaultFac ? 'selected' : ''}>${f.name} ${rankNote}</option>`;
+                }).join('')}
+              </select>
+              <div style="display: flex; align-items: center; gap: 3px; width: 95px;">
+                <i class="fas fa-star" style="color: #f59f00; font-size: 11px;"></i>
+                <input type="number" class="faction-xp-amount" value="${amount}" min="0" placeholder="XP" style="width: 70px; height: 28px; font-size: 0.85rem; border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.3)); border-radius: 3px; background: var(--dialog-input-bg, #fff); color: var(--dialog-input-text, #191813); font-weight: 600; text-align: center;" />
+              </div>
+              <button type="button" class="remove-faction-xp-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 12px;"><i class="fas fa-times"></i></button>
+            </div>
+          `);
+          $factionXpContainer.append(row);
+          row.find('.remove-faction-xp-row').click(() => row.remove());
+        };
+
+        // Populate existing Faction XP
+        const existingFactionXp = Array.isArray(rewards.factionXp) ? rewards.factionXp : [];
+        if (existingFactionXp.length > 0) {
+          existingFactionXp.forEach(fx => addFactionXpRow(fx.factionId, fx.amount));
+        } else if (Number(rewards.xp) > 0 && factions.length > 0) {
+          addFactionXpRow(factions[0].id, Number(rewards.xp));
+        }
+
+        html.find('.add-faction-xp-row').click(ev => {
+          ev.preventDefault();
+          addFactionXpRow("", 100);
+        });
+
+        // Multi-Faction Reputation Rows Builder & Injection
+        const $repContainer = html.find('.rep-container');
+        const addRepRow = (facId = "", amount = 10) => {
+          if (!factions.length) {
+            ui.notifications.warn("No factions created yet in the module.");
+            return;
+          }
+          const defaultFac = facId || factions[0]?.id;
+          const row = $(`
+            <div class="rep-row">
+              <i class="fas fa-shield-alt" style="color: var(--theme-accent, #782e22); font-size: 11px; margin-left: 2px; flex-shrink: 0;"></i>
+              <select class="rep-faction-select quest-dialog-select">
+                ${factions.map(f => `<option value="${f.id}" ${f.id === defaultFac ? 'selected' : ''}>${Handlebars.escapeExpression(f.name)}</option>`).join('')}
+              </select>
+              <div class="rep-standing-group">
+                <span style="font-size: 10px; font-weight: 700; color: var(--dialog-input-text, #191813);">Standing:</span>
+                <input type="number" class="rep-delta-input" value="${amount}" placeholder="+/-" step="1" />
+              </div>
+              <button type="button" class="remove-rep-row" title="Remove" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 12px;"><i class="fas fa-times"></i></button>
+            </div>
+          `);
+          $repContainer.append(row);
+          row.find('.remove-rep-row').click(() => row.remove());
+        };
+
+        // Populate existing Reputation
+        if (existingReps.length > 0) {
+          existingReps.forEach(r => addRepRow(r.factionId, r.amount !== undefined ? r.amount : r.delta));
+        }
+
+        html.find('.add-rep-row').click(ev => {
+          ev.preventDefault();
+          addRepRow("", 10);
+        });
+
+        // Affect Reputation Toggle
+        html.find('.affect-rep-checkbox').change(function() {
+          const isChecked = $(this).is(':checked');
+          $repContainer.css('display', isChecked ? 'flex' : 'none');
+          html.find('.add-rep-row').css('display', isChecked ? 'inline-flex' : 'none');
+          if (isChecked && $repContainer.find('.rep-row').length === 0) {
+            addRepRow("", 10);
+          }
+        });
+
+        // Item Dropzone Drag & Drop
+        const $dropzone = html.find('.quest-item-dropzone');
+        $dropzone.find('.remove-reward-item').click(function() {
+          $(this).closest('.reward-item-chip').remove();
+          if ($dropzone.find('.reward-item-chip').length === 0) {
+            $dropzone.find('.dropzone-placeholder').show();
+          }
+        });
+
+        const addItemChip = (itemObj) => {
+          $dropzone.find('.dropzone-placeholder').hide();
+          const chip = $(`
+            <div class="reward-item-chip" data-item-id="${itemObj.id}" data-uuid="${itemObj.uuid}" data-name="${Handlebars.escapeExpression(itemObj.name)}" data-img="${itemObj.img}" data-type="${itemObj.type}">
+              <img src="${itemObj.img}" class="reward-item-thumb" />
+              <span class="reward-item-name" title="${Handlebars.escapeExpression(itemObj.name)}">${Handlebars.escapeExpression(itemObj.name)}</span>
+              <input type="number" class="reward-item-qty" value="${itemObj.quantity || 1}" min="1" title="Quantity" />
+              <button type="button" class="remove-reward-item" title="Remove"><i class="fas fa-times"></i></button>
+            </div>
+          `);
+          chip.data('itemData', itemObj.itemData);
+          $dropzone.append(chip);
+          chip.find('.remove-reward-item').click(function() {
+            chip.remove();
+            if ($dropzone.find('.reward-item-chip').length === 0) {
+              $dropzone.find('.dropzone-placeholder').show();
+            }
+          });
+        };
+
+        $dropzone.on('dragover', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          $dropzone.css('border-color', 'var(--theme-accent, #ff6400)');
+        });
+        $dropzone.on('dragleave', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          $dropzone.css('border-color', '');
+        });
+        $dropzone.on('drop', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          $dropzone.css('border-color', '');
+          
+          let data = null;
+          try {
+            data = JSON.parse(ev.originalEvent.dataTransfer.getData('text/plain'));
+          } catch (e) {
+            if (typeof TextEditor.getDragEventData === 'function') {
+              data = TextEditor.getDragEventData(ev.originalEvent || ev);
+            }
+          }
+          if (!data || data.type !== 'Item') return;
+
+          let item = null;
+          if (data.uuid) {
+            try { item = await fromUuid(data.uuid); } catch (e) {}
+          }
+          if (!item && data.id) {
+            item = game.items.get(data.id);
+          }
+          if (!item && data.data) {
+            item = data.data;
+          }
+          if (!item) return;
+
+          const itemObj = {
+            id: item.id || foundry.utils.randomID(),
+            uuid: data.uuid || item.uuid || "",
+            name: item.name || "Item",
+            img: item.img || "icons/svg/item-bag.svg",
+            type: item.type || "loot",
+            quantity: 1,
+            itemData: typeof item.toObject === 'function' ? item.toObject() : null
+          };
+
+          addItemChip(itemObj);
+        });
       },
       default: "save"
-    }, { width: 760 }).render(true);
+    }, { width: 800 }).render(true);
   }
 
   async _updateQuest(questId, data) {
@@ -3330,11 +5107,18 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return;
     }
 
-    const settings = game.settings.get('intoterica', 'data');
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
     const quest = (settings.quests || []).find(q => q.id === questId);
-    if (!quest) return;
+    if (!quest) {
+      console.warn(`Intoterica | Could not find quest to update with id: ${questId}`);
+      return;
+    }
+
+    if (!quest.id) quest.id = questId;
 
     Object.assign(quest, data);
+    quest.lastModified = Date.now();
     await this._saveData(settings);
     this._broadcastUpdate();
     this.render();
@@ -3347,7 +5131,8 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       return;
     }
 
-    const settings = game.settings.get('intoterica', 'data');
+    const raw = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(raw);
     settings.quests = (settings.quests || []).filter(q => q.id !== questId);
     await this._saveData(settings);
     this._broadcastUpdate();
@@ -3400,55 +5185,81 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   async _onAddFaction(event) {
     event.preventDefault();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permFactions')) {
+      ui.notifications.warn("Only Game Masters can create factions.");
+      return;
+    }
     
+    const descEditorHtml = IntotericaApp.createRichTextEditorHtml('description', '', 'Faction history, goals, allies, and enemies...');
+
     IntotericaApp.createDialog({
       title: "Create Faction",
       content: `
-        <form class="intoterica-form" style="max-height: 550px; overflow-y: auto; padding-right: 4px;">
-          <!-- Section 1: Faction Profile -->
-          <div class="form-section">
-            <div class="form-section-title"><i class="fas fa-shield-alt"></i> Faction Profile</div>
-            <div class="form-grid-name-icon">
-              <div class="form-group">
-                <label>Faction Name *</label>
-                <input type="text" name="name" placeholder="e.g. Iron Vanguard" autofocus required />
-              </div>
-              <div class="form-group">
-                <label>Icon / Emblem</label>
-                <div class="file-picker-group">
-                  <input type="text" name="image" value="⚔️" />
-                  <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+        <form class="intoterica-form" style="max-height: 580px; overflow-y: auto; padding-right: 2px;">
+          <!-- Tab Navigation -->
+          <div class="dialog-tabs">
+            <button type="button" class="dialog-tab-btn active" data-tab="profile">
+              <i class="fas fa-shield-alt"></i> Faction Profile
+            </button>
+            <button type="button" class="dialog-tab-btn" data-tab="ranks">
+              <i class="fas fa-layer-group"></i> Ranks Configuration
+            </button>
+          </div>
+
+          <!-- TAB 1: Profile -->
+          <div class="dialog-tab-content active" data-tab="profile" style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-id-card"></i> Faction Identity</div>
+              <div class="form-grid-name-icon" style="display: grid; grid-template-columns: 1fr 140px; gap: 10px; align-items: flex-start;">
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-weight: bold; font-size: 11px; margin-bottom: 4px; display: block;">Faction Name *</label>
+                  <input type="text" name="name" placeholder="e.g. Iron Vanguard" autofocus required style="height: 32px;" />
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-weight: bold; font-size: 11px; margin-bottom: 4px; display: block;">Icon / Emblem</label>
+                  <div class="file-picker-group" style="display: flex; gap: 4px;">
+                    <input type="text" name="image" value="⚔️" style="height: 32px;" />
+                    <button type="button" class="file-picker" title="Browse File" style="padding: 0 8px;"><i class="fas fa-file-import"></i></button>
+                  </div>
                 </div>
               </div>
+
+              <div class="form-toggle-card" style="margin-top: 10px;">
+                <input type="checkbox" name="allowEnlistment" id="fac-enlist-new" />
+                <label for="fac-enlist-new" style="font-size: 11px; font-weight: 600;"><i class="fas fa-signature"></i> Allow Player Enlistment (Players can request membership)</label>
+              </div>
             </div>
-            <div class="form-group">
-              <label>Description & Background</label>
-              <textarea name="description" placeholder="Faction history, goals, allies, and enemies..." rows="3"></textarea>
-            </div>
-            <div class="form-toggle-card">
-              <input type="checkbox" name="allowEnlistment" id="fac-enlist-new" />
-              <label for="fac-enlist-new">Allow Player Enlistment (Players can request membership)</label>
+
+            <!-- Faction Description / Lore -->
+            <div class="form-section" style="display: flex; flex-direction: column; min-width: 0;">
+              <div class="form-section-title"><i class="fas fa-book-open"></i> Faction Description & Lore</div>
+              ${descEditorHtml}
             </div>
           </div>
 
-          <!-- Section 2: Ranks Configuration -->
-          <div class="form-section">
-            <div class="form-section-title"><i class="fas fa-layer-group"></i> Ranks Configuration</div>
-            <div class="ranks-header" style="display: grid; grid-template-columns: 1fr 80px 70px 32px; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--theme-dim);">
-              <div>Rank Title</div>
-              <div style="text-align: center;">XP Req.</div>
-              <div style="text-align: center;">Rep Mod.</div>
-              <div></div>
-            </div>
-            <div class="ranks-container">
-              <div class="rank-row">
-                <input type="text" class="rank-name" value="Initiate" placeholder="Rank name" />
-                <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center;" />
-                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center;" />
-                <button type="button" class="delete-rank" title="Remove Rank"><i class="fas fa-times"></i></button>
+          <!-- TAB 2: Ranks Configuration -->
+          <div class="dialog-tab-content" data-tab="ranks" style="display: none; flex-direction: column; gap: 12px;">
+            <div class="form-section">
+              <div class="form-section-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-layer-group"></i> Rank Ladder & Modifiers</span>
+                <span style="font-size: 10px; color: var(--theme-dim); font-weight: normal;">Ordered lowest to highest</span>
               </div>
+              <div class="ranks-header" style="display: grid; grid-template-columns: 1fr 90px 80px 32px; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--theme-dim); padding: 0 4px;">
+                <div>Rank Title</div>
+                <div style="text-align: center;">XP Req.</div>
+                <div style="text-align: center;">Rep Mod.</div>
+                <div></div>
+              </div>
+              <div class="ranks-container faction-ranks-scroll" style="max-height: 360px; overflow-y: auto; padding-right: 2px; display: flex; flex-direction: column; gap: 6px;">
+                <div class="rank-row" style="display: grid; grid-template-columns: 1fr 90px 80px 32px; gap: 6px; align-items: center; background: var(--dialog-input-bg, #fff); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 4px 6px;">
+                  <input type="text" class="rank-name" value="Initiate" placeholder="Rank name" style="height: 28px;" />
+                  <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center; height: 28px;" />
+                  <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center; height: 28px;" />
+                  <button type="button" class="delete-rank" title="Remove Rank" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
+                </div>
+              </div>
+              <button type="button" class="add-rank" style="margin-top: 8px;"><i class="fas fa-plus"></i> Add Rank Tier</button>
             </div>
-            <button type="button" class="add-rank"><i class="fas fa-plus"></i> Add Rank</button>
           </div>
         </form>
       `,
@@ -3457,8 +5268,12 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-check"></i>',
           label: "Create Faction",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
+            
+            // Sync rich text editors (exits source mode, ensures textarea is current)
+            IntotericaApp.syncRichEditors(html);
+
+            const descriptionHtml = html.find('.rich-editor-source[name="description"]').val() || html.find('textarea[name="description"]').val() || formData.description || "";
             
             const rows = html.find('.rank-row');
             const ranks = [];
@@ -3470,6 +5285,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 if (name) ranks.push({ name, xp, modifier });
             });
             formData.ranks = ranks;
+            formData.description = descriptionHtml;
 
             await this._createFaction(formData);
           }
@@ -3480,21 +5296,34 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
       },
       render: (html) => {
+        IntotericaApp.initRichTextEditor(html);
+
+        // Tab switching
+        html.find('.dialog-tab-btn').click(function(ev) {
+          ev.preventDefault();
+          const tabName = $(this).data('tab');
+          html.find('.dialog-tab-btn').removeClass('active');
+          $(this).addClass('active');
+          html.find('.dialog-tab-content').removeClass('active').hide();
+          html.find(`.dialog-tab-content[data-tab="${tabName}"]`).addClass('active').css('display', 'flex').show();
+        });
+
         html.find('.file-picker').click(ev => {
             const input = $(ev.currentTarget).prev('input');
             new FilePicker({
                 type: "image",
+                current: input.val() || undefined,
                 callback: (path) => input.val(path)
             }).render(true);
         });
         
         html.find('.add-rank').click(ev => {
             const row = $(`
-              <div class="rank-row">
-                <input type="text" class="rank-name" placeholder="Rank name" />
-                <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center;" />
-                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center;" />
-                <button type="button" class="delete-rank" title="Remove Rank"><i class="fas fa-times"></i></button>
+              <div class="rank-row" style="display: grid; grid-template-columns: 1fr 90px 80px 32px; gap: 6px; align-items: center; background: var(--dialog-input-bg, #fff); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 4px 6px;">
+                <input type="text" class="rank-name" placeholder="Rank name" style="height: 28px;" />
+                <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center; height: 28px;" />
+                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center; height: 28px;" />
+                <button type="button" class="delete-rank" title="Remove Rank" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
               </div>
             `);
             html.find('.ranks-container').append(row);
@@ -3506,7 +5335,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         });
       },
       default: "create"
-    }, { width: 540 }).render(true);
+    }, { width: 580 }).render(true);
   }
 
   async _createFaction(data) {
@@ -3514,18 +5343,18 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     
     let ranks = [];
     if (Array.isArray(data.ranks)) {
-        ranks = data.ranks;
-    } else if (typeof data.ranks === 'string') { // Legacy support
-        ranks = data.ranks.split('\n').filter(line => line.trim()).map(line => {
-            const [name, xp, modifier] = line.split(',').map(s => s.trim());
-            return { name, xp: parseInt(xp) || 0, modifier: parseFloat(modifier) || 1.0 };
-        });
+      ranks = data.ranks;
+    } else if (typeof data.ranks === 'string') {
+      ranks = data.ranks.split('\n').filter(line => line.trim()).map(line => {
+        const [name, xp, modifier] = line.split(',').map(s => s.trim());
+        return { name, xp: parseInt(xp) || 0, modifier: parseFloat(modifier) || 1.0 };
+      });
     }
 
     const newFaction = {
       id: foundry.utils.randomID(),
       name: data.name,
-      description: data.description,
+      description: data.description || "",
       image: data.image || "⚔️",
       reputation: 0,
       autoCalc: false,
@@ -3544,63 +5373,89 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   async _onEditFaction(event) {
     event.preventDefault();
+    if (!game.user.isGM && !IntotericaApp.hasPermission('permFactions')) {
+      ui.notifications.warn("Only Game Masters can edit factions.");
+      return;
+    }
     const factionId = event.currentTarget.dataset.factionId;
     const settings = game.settings.get('intoterica', 'data');
     const faction = settings.factions.find(f => f.id === factionId);
     if (!faction) return;
 
     const ranksHtml = (faction.ranks || []).map(r => `
-      <div class="rank-row">
-        <input type="text" class="rank-name" value="${r.name}" placeholder="Rank name" />
-        <input type="number" class="rank-xp" value="${r.xp}" placeholder="0" style="text-align: center;" />
-        <input type="number" class="rank-mod" value="${r.modifier}" step="0.1" placeholder="1.0" style="text-align: center;" />
-        <button type="button" class="delete-rank" title="Remove Rank"><i class="fas fa-times"></i></button>
+      <div class="rank-row" style="display: grid; grid-template-columns: 1fr 90px 80px 32px; gap: 6px; align-items: center; background: var(--dialog-input-bg, #fff); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 4px 6px;">
+        <input type="text" class="rank-name" value="${Handlebars.escapeExpression(r.name || '')}" placeholder="Rank name" style="height: 28px;" />
+        <input type="number" class="rank-xp" value="${r.xp || 0}" placeholder="0" style="text-align: center; height: 28px;" />
+        <input type="number" class="rank-mod" value="${r.modifier !== undefined ? r.modifier : 1.0}" step="0.1" placeholder="1.0" style="text-align: center; height: 28px;" />
+        <button type="button" class="delete-rank" title="Remove Rank" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
       </div>
     `).join('');
+
+    const descEditorHtml = IntotericaApp.createRichTextEditorHtml('description', faction.description || '', 'Faction history, goals, allies, and enemies...');
 
     IntotericaApp.createDialog({
       title: `Edit Faction: ${faction.name}`,
       content: `
-        <form class="intoterica-form" style="max-height: 550px; overflow-y: auto; padding-right: 4px;">
-          <!-- Section 1: Faction Profile -->
-          <div class="form-section">
-            <div class="form-section-title"><i class="fas fa-shield-alt"></i> Faction Profile</div>
-            <div class="form-grid-name-icon">
-              <div class="form-group">
-                <label>Faction Name *</label>
-                <input type="text" name="name" value="${faction.name}" autofocus required />
-              </div>
-              <div class="form-group">
-                <label>Icon / Emblem</label>
-                <div class="file-picker-group">
-                  <input type="text" name="image" value="${faction.image}" />
-                  <button type="button" class="file-picker" title="Browse"><i class="fas fa-file-import"></i></button>
+        <form class="intoterica-form" style="max-height: 580px; overflow-y: auto; padding-right: 2px;">
+          <!-- Tab Navigation -->
+          <div class="dialog-tabs">
+            <button type="button" class="dialog-tab-btn active" data-tab="profile">
+              <i class="fas fa-shield-alt"></i> Faction Profile
+            </button>
+            <button type="button" class="dialog-tab-btn" data-tab="ranks">
+              <i class="fas fa-layer-group"></i> Ranks Configuration
+            </button>
+          </div>
+
+          <!-- TAB 1: Profile -->
+          <div class="dialog-tab-content active" data-tab="profile" style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-id-card"></i> Faction Identity</div>
+              <div class="form-grid-name-icon" style="display: grid; grid-template-columns: 1fr 140px; gap: 10px; align-items: flex-start;">
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-weight: bold; font-size: 11px; margin-bottom: 4px; display: block;">Faction Name *</label>
+                  <input type="text" name="name" value="${Handlebars.escapeExpression(faction.name || '')}" autofocus required style="height: 32px;" />
+                </div>
+                <div class="form-group" style="margin: 0;">
+                  <label style="font-weight: bold; font-size: 11px; margin-bottom: 4px; display: block;">Icon / Emblem</label>
+                  <div class="file-picker-group" style="display: flex; gap: 4px;">
+                    <input type="text" name="image" value="${faction.image || '⚔️'}" style="height: 32px;" />
+                    <button type="button" class="file-picker" title="Browse File" style="padding: 0 8px;"><i class="fas fa-file-import"></i></button>
+                  </div>
                 </div>
               </div>
+
+              <div class="form-toggle-card" style="margin-top: 10px;">
+                <input type="checkbox" name="allowEnlistment" id="fac-enlist-edit" ${faction.allowEnlistment ? 'checked' : ''} />
+                <label for="fac-enlist-edit" style="font-size: 11px; font-weight: 600;"><i class="fas fa-signature"></i> Allow Player Enlistment (Players can request membership)</label>
+              </div>
             </div>
-            <div class="form-group">
-              <label>Description & Background</label>
-              <textarea name="description" rows="3">${faction.description || ''}</textarea>
-            </div>
-            <div class="form-toggle-card">
-              <input type="checkbox" name="allowEnlistment" id="fac-enlist-edit" ${faction.allowEnlistment ? 'checked' : ''} />
-              <label for="fac-enlist-edit">Allow Player Enlistment (Players can request membership)</label>
+
+            <!-- Faction Description / Lore -->
+            <div class="form-section" style="display: flex; flex-direction: column; min-width: 0;">
+              <div class="form-section-title"><i class="fas fa-book-open"></i> Faction Description & Lore</div>
+              ${descEditorHtml}
             </div>
           </div>
 
-          <!-- Section 2: Ranks Configuration -->
-          <div class="form-section">
-            <div class="form-section-title"><i class="fas fa-layer-group"></i> Ranks Configuration</div>
-            <div class="ranks-header" style="display: grid; grid-template-columns: 1fr 80px 70px 32px; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--theme-dim);">
-              <div>Rank Title</div>
-              <div style="text-align: center;">XP Req.</div>
-              <div style="text-align: center;">Rep Mod.</div>
-              <div></div>
+          <!-- TAB 2: Ranks Configuration -->
+          <div class="dialog-tab-content" data-tab="ranks" style="display: none; flex-direction: column; gap: 12px;">
+            <div class="form-section">
+              <div class="form-section-title" style="display: flex; justify-content: space-between; align-items: center;">
+                <span><i class="fas fa-layer-group"></i> Rank Ladder & Modifiers</span>
+                <span style="font-size: 10px; color: var(--theme-dim); font-weight: normal;">Ordered lowest to highest</span>
+              </div>
+              <div class="ranks-header" style="display: grid; grid-template-columns: 1fr 90px 80px 32px; gap: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--theme-dim); padding: 0 4px;">
+                <div>Rank Title</div>
+                <div style="text-align: center;">XP Req.</div>
+                <div style="text-align: center;">Rep Mod.</div>
+                <div></div>
+              </div>
+              <div class="ranks-container faction-ranks-scroll" style="max-height: 360px; overflow-y: auto; padding-right: 2px; display: flex; flex-direction: column; gap: 6px;">
+                ${ranksHtml}
+              </div>
+              <button type="button" class="add-rank" style="margin-top: 8px;"><i class="fas fa-plus"></i> Add Rank Tier</button>
             </div>
-            <div class="ranks-container">
-              ${ranksHtml}
-            </div>
-            <button type="button" class="add-rank"><i class="fas fa-plus"></i> Add Rank</button>
           </div>
         </form>
       `,
@@ -3609,8 +5464,12 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-save"></i>',
           label: "Save Changes",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
+            
+            // Sync rich text editors (exits source mode, ensures textarea is current)
+            IntotericaApp.syncRichEditors(html);
+
+            const descriptionHtml = html.find('.rich-editor-source[name="description"]').val() || html.find('textarea[name="description"]').val() || formData.description || "";
             
             const rows = html.find('.rank-row');
             const ranks = [];
@@ -3622,6 +5481,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                 if (name) ranks.push({ name, xp, modifier });
             });
             formData.ranks = ranks;
+            formData.description = descriptionHtml;
 
             await this._updateFaction(factionId, formData);
           }
@@ -3639,21 +5499,34 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
       },
       render: (html) => {
+        IntotericaApp.initRichTextEditor(html);
+
+        // Tab switching
+        html.find('.dialog-tab-btn').click(function(ev) {
+          ev.preventDefault();
+          const tabName = $(this).data('tab');
+          html.find('.dialog-tab-btn').removeClass('active');
+          $(this).addClass('active');
+          html.find('.dialog-tab-content').removeClass('active').hide();
+          html.find(`.dialog-tab-content[data-tab="${tabName}"]`).addClass('active').css('display', 'flex').show();
+        });
+
         html.find('.file-picker').click(ev => {
             const input = $(ev.currentTarget).prev('input');
             new FilePicker({
                 type: "image",
+                current: input.val() || undefined,
                 callback: (path) => input.val(path)
             }).render(true);
         });
 
         html.find('.add-rank').click(ev => {
             const row = $(`
-              <div class="rank-row">
-                <input type="text" class="rank-name" placeholder="Rank name" />
-                <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center;" />
-                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center;" />
-                <button type="button" class="delete-rank" title="Remove Rank"><i class="fas fa-times"></i></button>
+              <div class="rank-row" style="display: grid; grid-template-columns: 1fr 90px 80px 32px; gap: 6px; align-items: center; background: var(--dialog-input-bg, #fff); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 4px 6px;">
+                <input type="text" class="rank-name" placeholder="Rank name" style="height: 28px;" />
+                <input type="number" class="rank-xp" value="0" placeholder="0" style="text-align: center; height: 28px;" />
+                <input type="number" class="rank-mod" value="1.0" step="0.1" placeholder="1.0" style="text-align: center; height: 28px;" />
+                <button type="button" class="delete-rank" title="Remove Rank" style="background: transparent; border: none; color: #c92a2a; cursor: pointer; padding: 2px 4px; font-size: 13px;"><i class="fas fa-times"></i></button>
               </div>
             `);
             html.find('.ranks-container').append(row);
@@ -3665,7 +5538,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         });
       },
       default: "save"
-    }, { width: 540 }).render(true);
+    }, { width: 580 }).render(true);
   }
 
   async _updateFaction(factionId, data) {
@@ -3734,8 +5607,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-user-plus"></i>',
           label: "Add Member",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
             await this._addFactionMember(factionId, formData);
           }
         },
@@ -3974,19 +5846,27 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   async _onReplyMail(originalMessage) {
-    const sender = game.actors.get(originalMessage.fromId); // The original sender
-    
     // Determine recipients (Reply All logic: Sender + Original To + Original CC - Self)
     const originalTo = Array.isArray(originalMessage.to) ? originalMessage.to : [originalMessage.to];
     const originalCc = Array.isArray(originalMessage.cc) ? originalMessage.cc : [originalMessage.cc];
     
     // Determine From ID (Reply as the actor who received it if owned)
-    const myActorIds = game.actors.filter(a => a.isOwner).map(a => a.id);
-    const myRecipientId = [...originalTo, ...originalCc].find(id => myActorIds.includes(id));
-    const replyFromId = myRecipientId || game.user.character?.id || game.user.id;
+    const myActors = game.actors.filter(a => a.isOwner);
+    const myActorIds = myActors.map(a => a.id);
+    let myRecipientId = [...originalTo, ...originalCc].find(id => myActorIds.includes(id));
+    if (!myRecipientId) {
+        const foundActor = myActors.find(a => [...originalTo, ...originalCc].some(t => typeof t === 'string' && t.trim().toLowerCase() === a.name?.trim().toLowerCase()));
+        if (foundActor) myRecipientId = foundActor.id;
+    }
+    const replyFromId = myRecipientId || game.user.character?.id || (myActors[0]?.id) || game.user.id;
 
     let recipients = new Set([...originalTo, ...originalCc]);
-    if (originalMessage.fromId) recipients.add(originalMessage.fromId);
+    let replyToId = originalMessage.fromId;
+    if (!game.actors.get(replyToId) && originalMessage.from && typeof originalMessage.from === 'string') {
+        const matchingSender = game.actors.find(a => a.name?.trim().toLowerCase() === originalMessage.from.trim().toLowerCase());
+        if (matchingSender) replyToId = matchingSender.id;
+    }
+    if (replyToId) recipients.add(replyToId);
     if (replyFromId) recipients.delete(replyFromId);
 
     const subject = originalMessage.subject || "(No Subject)";
@@ -4105,20 +5985,26 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   }
 
   async _sendMail(data) {
-    // Handle disabled select for players
+    // Handle disabled select for players & match sender by id or name
     let fromId = data.fromId;
+    let sender = fromId ? game.actors.get(fromId) : null;
+    if (!sender && data.from && typeof data.from === 'string') {
+        sender = game.actors.find(a => a.name?.trim().toLowerCase() === data.from.trim().toLowerCase());
+    }
+    if (!sender && game.user.character) {
+        sender = game.user.character;
+    }
     if (!fromId) {
-        fromId = game.user.character?.id || game.user.id;
+        fromId = sender ? sender.id : (game.user.character?.id || game.user.id);
     }
 
     const settings = game.settings.get('intoterica', 'data');
-    const sender = game.actors.get(fromId);
-    const senderImage = sender ? (sender.prototypeToken?.texture?.src || sender.img) : "👤";
+    const senderImage = sender ? (sender.prototypeToken?.texture?.src || sender.img) : (data.image || "icons/svg/mystery-man.svg");
 
     const newMessage = {
       id: foundry.utils.randomID(),
-      from: sender ? sender.name : (game.user.name || "Unknown"),
-      fromId: fromId,
+      from: sender ? sender.name : (data.from || game.user.name || "Unknown"),
+      fromId: sender ? sender.id : fromId,
       to: data.to,
       cc: data.cc || [],
       image: senderImage,
@@ -4193,7 +6079,12 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
     // Notifications
     const recipients = Array.isArray(data.to) ? data.to : [data.to];
-    const recipientUsers = game.users.filter(u => u.character && recipients.includes(u.character.id));
+    const recipientUsers = game.users.filter(u => {
+        if (!u.character) return false;
+        if (recipients.includes(u.character.id)) return true;
+        const charName = u.character.name?.trim().toLowerCase();
+        return recipients.some(r => typeof r === 'string' && r.trim().toLowerCase() === charName);
+    });
     
     if (game.settings.get('intoterica', 'notifyMail')) {
     
@@ -4249,8 +6140,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-save"></i>',
           label: "Save Date",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
             settings.worldClock = {
               era: parseInt(formData.era),
               day: parseInt(formData.day)
@@ -4273,9 +6163,9 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     event.preventDefault();
     event.stopPropagation();
     const btn = $(event.currentTarget);
-    const questItem = btn.closest('.quest-item');
-    const questId = questItem.data('questId');
-    const isManual = String(questItem.data('isManual')) === "true";
+    const questEl = btn.closest('[data-quest-id]');
+    const questId = btn.data('questId') || questEl.data('questId');
+    const isManual = String(btn.data('isManual') || questEl.data('isManual')) === "true";
     
     const settings = game.settings.get('intoterica', 'data');
     if (!settings.profileHistory) settings.profileHistory = {};
@@ -4330,8 +6220,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-check"></i>',
           label: "Add to History",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
             
             const settings = game.settings.get('intoterica', 'data');
             if (!settings.profileHistory) settings.profileHistory = {};
@@ -4563,8 +6452,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-star"></i>',
           label: "Award XP",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
             const factionId = formData.factionId;
             const amount = parseInt(formData.amount);
             const playerIds = Object.keys(formData).filter(k => k.startsWith('player_') && formData[k]).map(k => k.replace('player_', ''));
@@ -4683,8 +6571,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           icon: '<i class="fas fa-save"></i>',
           label: "Update Rank",
           callback: async (html) => {
-            const form = html[0].querySelector('form');
-            const formData = new FormDataExtended(form).object;
+            const { data: formData } = IntotericaApp.getFormData(html);
             await this._processRankAdjustment(faction.id, formData.memberId, parseInt(formData.rankIdx));
           }
         },
@@ -4730,12 +6617,25 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   // Helper to save data, routing through socket if user is not GM
   async _saveData(settings) {
+    const clone = foundry.utils.deepClone(settings);
     if (game.user.isGM) {
-        await game.settings.set('intoterica', 'data', settings);
+      try {
+        await game.settings.set('intoterica', 'data', clone);
+      } catch (_e) {
+        /* fallback to storage doc */
+      }
+      try {
+        const settingDoc = game.settings.storage?.get("world")?.get("intoterica.data");
+        if (settingDoc) {
+          await settingDoc.update({ value: clone }, { diff: false });
+        }
+      } catch (_e) {
+        /* storage doc update optional if settings.set succeeded */
+      }
     } else {
-        // Non-GMs cannot write to world settings directly
-        // Emit socket event for GM to handle the save
-        game.socket.emit('module.intoterica', { type: 'dispatch', action: 'updateData', payload: settings });
+      // Non-GMs cannot write to world settings directly
+      // Emit socket event for GM to handle the save
+      game.socket.emit('module.intoterica', { type: 'dispatch', action: 'updateData', payload: clone });
     }
   }
 

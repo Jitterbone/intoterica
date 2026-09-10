@@ -89,7 +89,7 @@
                   </div>
                 </div>
                 
-                <div class="faction-detail-description">{{selectedFaction.description}}</div>
+                <div class="faction-detail-description">{{{selectedFaction.description}}}</div>
 
                 <div class="faction-standing">
                   <div class="standing-info">
@@ -396,7 +396,9 @@
             <div class="content-grid three-column" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px;">
               {{#each knownNPCs}}
                 <div class="player-card" style="cursor: default;">
-                  <img src="{{img}}" class="player-img">
+                  <div class="player-avatar">
+                    <img src="{{img}}" class="player-img">
+                  </div>
                   <div class="player-info">
                     <div class="player-name">{{name}}</div>
                     <button class="remove-known-npc" data-id="{{id}}" style="font-size: 10px; color: #c92a2a; border-color: #c92a2a; margin-top: 5px; padding: 2px 6px;">Remove</button>

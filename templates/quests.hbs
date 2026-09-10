@@ -160,6 +160,7 @@
 
           <div class="quest-quick-actions">
             {{#if @root.perms.quests}}
+              <i class="fas {{#if (or (eq status 'Hidden') hidden)}}fa-eye-slash{{else}}fa-eye{{/if}} quest-visibility-btn {{#if (or (eq status 'Hidden') hidden)}}hidden-quest{{/if}}" data-quest-id="{{id}}" title="{{#if (or (eq status 'Hidden') hidden)}}Hidden from Players (Click to Reveal){{else}}Visible to Players (Click to Hide){{/if}}"></i>
               <i class="fas fa-thumbtack quest-pin-btn {{#if isPrimary}}pinned{{/if}}" data-quest-id="{{id}}" title="{{#if isPrimary}}Unpin Primary Objective{{else}}Pin as Primary Objective{{/if}}"></i>
             {{/if}}
             <i class="fas fa-chevron-down quest-expand-icon {{#if isExpanded}}expanded{{/if}}"></i>
@@ -168,7 +169,11 @@
 
         <!-- Quest Collapsible Details Body -->
         <div class="quest-card-body {{#if isExpanded}}show{{/if}}">
-          {{#if description}}
+          {{#if descriptionHtml}}
+            <div class="quest-description-block">
+              {{{descriptionHtml}}}
+            </div>
+          {{else if description}}
             <div class="quest-description-block">
               {{{description}}}
             </div>
@@ -180,27 +185,67 @@
               <div class="quest-section-label"><i class="fas fa-tasks"></i> Objectives</div>
               <div class="quest-tasks-list">
                 {{#each tasks}}
-                  <div class="quest-task-item {{#if completed}}completed{{/if}} {{#if optional}}optional{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}">
-                    <input type="checkbox" class="quest-task-checkbox" data-quest-id="{{../id}}" data-task-id="{{id}}" {{#if completed}}checked{{/if}} {{#unless @root.perms.quests}}disabled{{/unless}}>
-                    <span class="quest-task-text">{{text}}</span>
-                    {{#if optional}}<span class="quest-task-optional">(Optional)</span>{{/if}}
-                  </div>
+                  {{#if isSubquest}}
+                    <div class="quest-task-subquest-header" data-quest-id="{{../id}}" data-task-id="{{id}}">
+                      <i class="fas fa-folder-open"></i>
+                      <span>{{text}}</span>
+                    </div>
+                  {{else}}
+                    <div class="quest-task-item {{#if isSubquestChild}}subquest-child{{/if}} {{#if failed}}failed{{else if completed}}completed{{/if}} {{#if optional}}optional{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}">
+                      <input type="checkbox" class="quest-task-checkbox" data-quest-id="{{../id}}" data-task-id="{{id}}" {{#if completed}}checked{{/if}} {{#if failed}}disabled{{/if}} {{#unless @root.perms.quests}}disabled{{/unless}}>
+                      <span class="quest-task-text {{#if failed}}task-failed{{/if}}">{{text}}</span>
+                      {{#if optional}}<span class="quest-task-optional">(Optional)</span>{{/if}}
+                      {{#if failed}}
+                        <span class="quest-task-failed-badge" title="This objective has failed"><i class="fas fa-times"></i> Failed</span>
+                      {{/if}}
+                      {{#if @root.perms.quests}}
+                        <button type="button" class="quest-task-fail-toggle {{#if failed}}active{{/if}}" data-quest-id="{{../id}}" data-task-id="{{id}}" title="{{#if failed}}Clear Failed State{{else}}Mark Objective as Failed{{/if}}">
+                          <i class="fas {{#if failed}}fa-undo{{else}}fa-ban{{/if}}"></i>
+                        </button>
+                      {{/if}}
+                    </div>
+                  {{/if}}
                 {{/each}}
               </div>
             </div>
           {{/if}}
 
           <!-- Rewards Section -->
-          {{#if (or rewards.xp rewards.currency rewards.text)}}
+          {{#if (or rewards.hasAnyRewards rewards.xp rewards.currency rewards.text)}}
             <div class="quest-rewards-section">
               <div class="quest-section-label"><i class="fas fa-gift"></i> Rewards</div>
               <div class="quest-rewards-pills">
-                {{#if rewards.xp}}
-                  <span class="reward-pill xp"><i class="fas fa-star"></i> {{rewards.xp}} XP</span>
+                {{#each rewards.factionXpList}}
+                  <span class="reward-pill faction-xp" title="Faction Experience Points"><i class="fas fa-star"></i> {{factionName}}: +{{amount}} XP</span>
+                {{/each}}
+                {{#unless rewards.factionXpList.length}}
+                  {{#if rewards.xp}}
+                    <span class="reward-pill xp"><i class="fas fa-star"></i> {{rewards.xp}} XP</span>
+                  {{/if}}
+                {{/unless}}
+                {{#each rewards.reputationsList}}
+                  <span class="reward-pill rep {{#if (gte amount 0)}}positive{{else}}negative{{/if}}" title="Faction Reputation Impact">
+                    <i class="fas fa-shield-alt"></i> {{factionName}}: {{#if (gte amount 0)}}+{{/if}}{{amount}} Rep
+                  </span>
+                {{/each}}
+                {{#unless rewards.reputationsList.length}}
+                  {{#if rewards.repData}}
+                    <span class="reward-pill rep {{#if (gte rewards.repData.amount 0)}}positive{{else}}negative{{/if}}" title="Faction Reputation Impact">
+                      <i class="fas fa-shield-alt"></i> {{rewards.repData.factionName}}: {{#if (gte rewards.repData.amount 0)}}+{{/if}}{{rewards.repData.amount}} Rep
+                    </span>
+                  {{/if}}
+                {{/unless}}
+                {{#if rewards.currencyList}}
+                  <span class="reward-pill currency" title="Currency Reward"><i class="fas fa-coins"></i> {{rewards.currencyList}}</span>
+                {{else if rewards.currency}}
+                  <span class="reward-pill currency" title="Currency Reward"><i class="fas fa-coins"></i> {{rewards.currency}}</span>
                 {{/if}}
-                {{#if rewards.currency}}
-                  <span class="reward-pill currency"><i class="fas fa-coins"></i> {{rewards.currency}}</span>
-                {{/if}}
+                {{#each rewards.itemsList}}
+                  <span class="reward-pill item-badge" title="{{name}}">
+                    <img src="{{img}}" style="width: 14px; height: 14px; border-radius: 2px; object-fit: cover; vertical-align: middle; margin-right: 3px;" />
+                    <span>{{name}}{{#if (gt quantity 1)}} (x{{quantity}}){{/if}}</span>
+                  </span>
+                {{/each}}
                 {{#if rewards.text}}
                   <span class="reward-pill item"><i class="fas fa-box-open"></i> {{rewards.text}}</span>
                 {{/if}}
