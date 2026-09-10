@@ -193,6 +193,29 @@ export const registerSettings = () => {
     default: true
   });
 
+  // ─── Quest System & Difficulty ─────────────────────────────────────────────
+
+  game.settings.register('intoterica', 'difficultyScale', {
+    name: 'Quest Difficulty System',
+    hint: 'Choose the difficulty tier naming convention used across the Quest Journal.',
+    scope: 'world',
+    config: true,
+    type: String,
+    choices: {
+      "standard": "Standard (Easy, Medium, Hard, Epic, Legendary)",
+      "metal": "Metal Tiers (Copper, Bronze, Silver, Gold, Platinum, Mithral)",
+      "rank": "Guild Rank (E-Rank, D-Rank, C-Rank, B-Rank, A-Rank, S-Rank)",
+      "stars": "Star Rating (1-Star, 2-Star, 3-Star, 4-Star, 5-Star)",
+      "numeric": "Tiers (Tier I, Tier II, Tier III, Tier IV, Tier V)"
+    },
+    default: "standard",
+    onChange: () => {
+      Object.values(ui.windows).forEach(app => {
+        if (app.constructor.name === "IntotericaApp") app.render();
+      });
+    }
+  });
+
   // ─── Permissions ──────────────────────────────────────────────────────────
 
   const ROLES = {
@@ -458,6 +481,12 @@ export const registerSettings = () => {
       'fas fa-users', '#9bd7e5',
       'Factions', mainHeaderStyle,
       findRow('enableFactionXP'));
+
+    // ── Quest System ──
+    insertHeader('h3', 'intoterica-quests-header',
+      'fas fa-scroll', '#f59e0b',
+      'Quest System & Difficulty', mainHeaderStyle,
+      findRow('difficultyScale'));
 
     // ── Notifications ──
     insertHeader('h3', 'intoterica-notify-header',

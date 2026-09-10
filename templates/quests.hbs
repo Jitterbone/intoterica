@@ -2,6 +2,7 @@
   <div class="section-header quest-page-header">
     <div class="section-title"><i class="fas fa-scroll"></i> Quest Journal</div>
     <div class="quest-header-actions">
+      <!-- Search Bar -->
       <div class="quest-search-bar">
         <i class="fas fa-search quest-search-icon"></i>
         <input type="text" class="quest-search-input" placeholder="Search quests by name..." value="{{questSearch}}" autocomplete="off" spellcheck="false">
@@ -9,10 +10,73 @@
           <button type="button" class="clear-quest-search" title="Clear Search"><i class="fas fa-times"></i></button>
         {{/if}}
       </div>
+
+      <!-- Advanced Filters & Sort Toggle Button -->
+      <button type="button" class="quest-filter-toggle-btn {{#if hasActiveFilters}}active-filters{{/if}}" title="Toggle Filter & Sort Controls">
+        <i class="fas fa-sliders-h"></i> Filters & Sort
+        {{#if activeFilterCount}}
+          <span class="active-filter-badge">{{activeFilterCount}}</span>
+        {{/if}}
+      </button>
+
       {{#if perms.quests}}
         <button type="button" class="add-quest"><i class="fas fa-plus"></i> New Quest</button>
       {{/if}}
     </div>
+  </div>
+
+  <!-- Collapsible Advanced Filter & Sort Toolbar -->
+  <div class="quest-advanced-filter-toolbar {{#if showAdvancedFilters}}show{{/if}}">
+    <div class="filter-group">
+      <label><i class="fas fa-shield-alt"></i> Faction:</label>
+      <select class="quest-filter-faction">
+        <option value="">All Factions</option>
+        {{#each questFilterFactions}}
+          <option value="{{this}}" {{#if (eq ../questFactionFilter this)}}selected{{/if}}>{{this}}</option>
+        {{/each}}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label><i class="fas fa-user-circle"></i> Giver / NPC:</label>
+      <select class="quest-filter-giver">
+        <option value="">All Givers</option>
+        {{#each questFilterGivers}}
+          <option value="{{this}}" {{#if (eq ../questGiverFilter this)}}selected{{/if}}>{{this}}</option>
+        {{/each}}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label><i class="fas fa-signal"></i> Difficulty:</label>
+      <select class="quest-filter-difficulty">
+        <option value="">All Difficulties</option>
+        {{#each questFilterDifficulties}}
+          <option value="{{this.id}}" {{#if (eq ../questDifficultyFilter this.id)}}selected{{/if}}>{{this.label}}</option>
+        {{/each}}
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <label><i class="fas fa-sort-amount-down"></i> Sort:</label>
+      <select class="quest-filter-sort">
+        <option value="default" {{#if (eq questSort 'default')}}selected{{/if}}>Default (Primary & Status)</option>
+        <option value="title-asc" {{#if (eq questSort 'title-asc')}}selected{{/if}}>Title (A → Z)</option>
+        <option value="title-desc" {{#if (eq questSort 'title-desc')}}selected{{/if}}>Title (Z → A)</option>
+        <option value="diff-asc" {{#if (eq questSort 'diff-asc')}}selected{{/if}}>Difficulty (Lowest → Highest)</option>
+        <option value="diff-desc" {{#if (eq questSort 'diff-desc')}}selected{{/if}}>Difficulty (Highest → Lowest)</option>
+        <option value="reward-desc" {{#if (eq questSort 'reward-desc')}}selected{{/if}}>Reward Value (Highest → Lowest)</option>
+        <option value="reward-asc" {{#if (eq questSort 'reward-asc')}}selected{{/if}}>Reward Value (Lowest → Highest)</option>
+        <option value="progress-desc" {{#if (eq questSort 'progress-desc')}}selected{{/if}}>Progress (Most Complete)</option>
+        <option value="progress-asc" {{#if (eq questSort 'progress-asc')}}selected{{/if}}>Progress (Least Complete)</option>
+      </select>
+    </div>
+
+    {{#if hasActiveFilters}}
+      <button type="button" class="reset-quest-filters" title="Reset all active filters and sorting">
+        <i class="fas fa-undo"></i> Reset Filters
+      </button>
+    {{/if}}
   </div>
 
   <!-- Quest Filter Tabs -->
@@ -64,23 +128,26 @@
               </div>
               <div class="quest-badges">
                 {{#if difficulty}}
-                  <span class="quest-difficulty-badge {{lowercase difficulty}}">{{difficulty}}</span>
+                  <span class="quest-difficulty-badge" style="color: {{difficultyColor}}; border-color: {{difficultyColor}};">{{difficulty}}</span>
                 {{/if}}
                 <span class="quest-status-badge status-{{lowercase status}}">{{status}}</span>
               </div>
             </div>
             
             <div class="quest-meta-row">
+              {{#if commissionedFaction}}
+                <span class="quest-commissioned" title="Commissioned Faction"><i class="fas fa-shield-alt"></i> Commissioned by: <strong>{{commissionedFaction}}</strong></span>
+              {{/if}}
               {{#if giver}}
-                <span class="quest-giver"><i class="fas fa-user-circle"></i> Giver: {{giver}}</span>
+                <span class="quest-giver" title="Quest Giver"><i class="fas fa-user-circle"></i> {{giver}}</span>
               {{/if}}
               {{#if assignedNames}}
-                <span class="quest-assigned"><i class="fas fa-users"></i> {{assignedNames}}</span>
+                <span class="quest-assigned" title="Assigned Party Members"><i class="fas fa-users"></i> {{assignedNames}}</span>
               {{else}}
-                <span class="quest-assigned party"><i class="fas fa-users"></i> Whole Party</span>
+                <span class="quest-assigned party" title="Whole Party Quest"><i class="fas fa-users"></i> Whole Party</span>
               {{/if}}
               {{#if tasks.length}}
-                <span class="quest-task-count"><i class="fas fa-tasks"></i> {{completedTasks}}/{{totalTasks}} Objectives ({{taskProgress}}%)</span>
+                <span class="quest-task-count" title="Objective Completion"><i class="fas fa-tasks"></i> {{completedTasks}}/{{totalTasks}} Objectives ({{taskProgress}}%)</span>
               {{/if}}
             </div>
 
@@ -172,7 +239,11 @@
         <i class="fas fa-scroll"></i>
         {{#if questSearch}}
           <div class="empty-title">No quests found matching "{{questSearch}}"</div>
-          <div class="empty-subtitle">Try searching with different keywords or switch tabs.</div>
+          <div class="empty-subtitle">Try searching with different keywords or reset your filters.</div>
+        {{else if hasActiveFilters}}
+          <div class="empty-title">No quests match your selected filters</div>
+          <div class="empty-subtitle">Try adjusting your faction, giver, or difficulty filter settings.</div>
+          <button type="button" class="reset-quest-filters" style="margin-top: 8px;"><i class="fas fa-undo"></i> Reset Filters</button>
         {{else}}
           <div class="empty-title">No {{questFilter}} quests</div>
           <div class="empty-subtitle">There are currently no quests in this category.</div>

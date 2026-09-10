@@ -206,11 +206,97 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this.mailViewSubject = null;
     this.questFilter = 'active';
     this.questSearch = '';
+    this.questGiverFilter = '';
+    this.questFactionFilter = '';
+    this.questDifficultyFilter = '';
+    this.questSort = 'default';
+    this.showAdvancedFilters = false;
     this._preserveSearchFocus = false;
     this._questSearchTimer = null;
     this.expandedQuestIds = new Set();
     this._isClosing = false;
     IntotericaApp._instance = this;
+  }
+
+  static DIFFICULTY_SCALES = {
+    "standard": [
+      { id: "Easy", label: "Easy", color: "#2b8a3e", tier: 1 },
+      { id: "Medium", label: "Medium", color: "#f59f00", tier: 2 },
+      { id: "Hard", label: "Hard", color: "#c92a2a", tier: 3 },
+      { id: "Epic", label: "Epic", color: "#b026ff", tier: 4 },
+      { id: "Legendary", label: "Legendary", color: "#e03131", tier: 5 }
+    ],
+    "metal": [
+      { id: "Copper Tier", label: "Copper Tier", color: "#b87333", tier: 1 },
+      { id: "Bronze Tier", label: "Bronze Tier", color: "#cd7f32", tier: 2 },
+      { id: "Silver Tier", label: "Silver Tier", color: "#a0aab2", tier: 3 },
+      { id: "Gold Tier", label: "Gold Tier", color: "#f59f00", tier: 4 },
+      { id: "Platinum Tier", label: "Platinum Tier", color: "#00d2d3", tier: 5 },
+      { id: "Mithral Tier", label: "Mithral Tier", color: "#b026ff", tier: 6 }
+    ],
+    "rank": [
+      { id: "E-Rank", label: "E-Rank", color: "#6c757d", tier: 1 },
+      { id: "D-Rank", label: "D-Rank", color: "#2b8a3e", tier: 2 },
+      { id: "C-Rank", label: "C-Rank", color: "#1c7ed6", tier: 3 },
+      { id: "B-Rank", label: "B-Rank", color: "#f59f00", tier: 4 },
+      { id: "A-Rank", label: "A-Rank", color: "#c92a2a", tier: 5 },
+      { id: "S-Rank", label: "S-Rank", color: "#b026ff", tier: 6 }
+    ],
+    "stars": [
+      { id: "1-Star", label: "1-Star", color: "#2b8a3e", tier: 1 },
+      { id: "2-Star", label: "2-Star", color: "#1c7ed6", tier: 2 },
+      { id: "3-Star", label: "3-Star", color: "#f59f00", tier: 3 },
+      { id: "4-Star", label: "4-Star", color: "#c92a2a", tier: 4 },
+      { id: "5-Star", label: "5-Star", color: "#b026ff", tier: 5 }
+    ],
+    "numeric": [
+      { id: "Tier I", label: "Tier I", color: "#2b8a3e", tier: 1 },
+      { id: "Tier II", label: "Tier II", color: "#1c7ed6", tier: 2 },
+      { id: "Tier III", label: "Tier III", color: "#f59f00", tier: 3 },
+      { id: "Tier IV", label: "Tier IV", color: "#c92a2a", tier: 4 },
+      { id: "Tier V", label: "Tier V", color: "#b026ff", tier: 5 }
+    ]
+  };
+
+  static getActiveDifficultyScale() {
+    const scaleKey = game.settings.get('intoterica', 'difficultyScale') || 'standard';
+    return IntotericaApp.DIFFICULTY_SCALES[scaleKey] || IntotericaApp.DIFFICULTY_SCALES['standard'];
+  }
+
+  static getDifficultyInfo(diffName) {
+    if (!diffName) return { id: "Medium", label: "Medium", color: "#f59f00", tier: 2 };
+    const clean = String(diffName).trim();
+    const activeList = IntotericaApp.getActiveDifficultyScale();
+    
+    // Check in active scale
+    const directMatch = activeList.find(d => d.id.toLowerCase() === clean.toLowerCase() || d.label.toLowerCase() === clean.toLowerCase());
+    if (directMatch) return directMatch;
+
+    // Check across all defined scales
+    for (const scale of Object.values(IntotericaApp.DIFFICULTY_SCALES)) {
+      const match = scale.find(d => d.id.toLowerCase() === clean.toLowerCase() || d.label.toLowerCase() === clean.toLowerCase());
+      if (match) return match;
+    }
+
+    return { id: clean, label: clean, color: "#f59f00", tier: 2 };
+  }
+
+  static getDifficultyOptions(selectedDiff = "") {
+    const activeList = IntotericaApp.getActiveDifficultyScale();
+    const selectedClean = String(selectedDiff || '').trim().toLowerCase();
+    
+    let hasMatch = false;
+    const optionsHtml = activeList.map(d => {
+      const isSelected = selectedClean === d.id.toLowerCase() || selectedClean === d.label.toLowerCase();
+      if (isSelected) hasMatch = true;
+      return `<option value="${d.id}" ${isSelected ? 'selected' : ''}>${d.label}</option>`;
+    }).join('');
+
+    if (selectedDiff && !hasMatch) {
+      return `<option value="${selectedDiff}" selected>${selectedDiff}</option>` + optionsHtml;
+    }
+
+    return optionsHtml;
   }
 
   static THEMES = {
@@ -524,6 +610,25 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       const isPrimary = !!q.isPrimary;
       const rewards = q.rewards || {};
 
+      const diffInfo = IntotericaApp.getDifficultyInfo(q.difficulty);
+      const difficulty = diffInfo.label || q.difficulty || "Medium";
+      const difficultyColor = diffInfo.color || "#f59f00";
+      const difficultyTier = diffInfo.tier || 2;
+      const commissionedFaction = q.commissionedFaction || "";
+      const giver = q.giver || "";
+
+      // Calculate approximate numeric reward score for sorting
+      let rewardValue = Number(rewards.xp || 0);
+      if (rewards.currency) {
+        const numMatch = String(rewards.currency).match(/(\d+(?:\.\d+)?)/);
+        if (numMatch) {
+          const val = parseFloat(numMatch[1]);
+          if (/sp\b|silver/i.test(rewards.currency)) rewardValue += val * 0.1;
+          else if (/cp\b|copper/i.test(rewards.currency)) rewardValue += val * 0.01;
+          else rewardValue += val;
+        }
+      }
+
       return {
         ...q,
         tasks,
@@ -535,7 +640,13 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         assignedNames,
         isExpanded,
         isPrimary,
-        rewards
+        rewards,
+        difficulty,
+        difficultyColor,
+        difficultyTier,
+        commissionedFaction,
+        giver,
+        rewardValue
       };
     });
 
@@ -558,6 +669,19 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       failed: visibleQuests.filter(q => q.status === 'Failed').length
     };
 
+    // Extract unique factions and givers across all known data for filter dropdowns
+    const questFilterFactions = Array.from(new Set([
+      ...(settings.factions || []).map(f => f.name).filter(Boolean),
+      ...visibleQuests.map(q => q.commissionedFaction).filter(Boolean)
+    ])).sort();
+
+    const questFilterGivers = Array.from(new Set([
+      ...(settings.knownNPCs || []).map(n => n.name).filter(Boolean),
+      ...visibleQuests.map(q => q.giver).filter(Boolean)
+    ])).sort();
+
+    const questFilterDifficulties = IntotericaApp.getActiveDifficultyScale();
+
     // Filter by current quest filter tab
     let filteredQuests = visibleQuests;
     if (this.questFilter === 'available') {
@@ -566,25 +690,68 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       filteredQuests = visibleQuests.filter(q => (q.status || '').toLowerCase() === this.questFilter.toLowerCase());
     }
 
-    // Filter by search query (by quest title, giver, description, or task objective text)
+    // Filter by Faction
+    if (this.questFactionFilter) {
+      filteredQuests = filteredQuests.filter(q => (q.commissionedFaction || '').toLowerCase() === this.questFactionFilter.toLowerCase());
+    }
+
+    // Filter by Giver / NPC
+    if (this.questGiverFilter) {
+      filteredQuests = filteredQuests.filter(q => (q.giver || '').toLowerCase() === this.questGiverFilter.toLowerCase());
+    }
+
+    // Filter by Difficulty
+    if (this.questDifficultyFilter) {
+      const targetDiff = this.questDifficultyFilter.toLowerCase();
+      filteredQuests = filteredQuests.filter(q => {
+        const info = IntotericaApp.getDifficultyInfo(q.difficulty);
+        return info.id.toLowerCase() === targetDiff || info.label.toLowerCase() === targetDiff || (q.difficulty || '').toLowerCase() === targetDiff;
+      });
+    }
+
+    // Filter by search query (by quest title, giver, faction, description, or task objective text)
     const searchQuery = (this.questSearch || '').trim().toLowerCase();
     if (searchQuery) {
       filteredQuests = filteredQuests.filter(q => {
         const titleMatch = (q.title || '').toLowerCase().includes(searchQuery);
         const giverMatch = (q.giver || '').toLowerCase().includes(searchQuery);
+        const factionMatch = (q.commissionedFaction || '').toLowerCase().includes(searchQuery);
         const descMatch = (q.description || '').toLowerCase().includes(searchQuery);
         const taskMatch = (q.tasks || []).some(t => (t.text || '').toLowerCase().includes(searchQuery));
-        return titleMatch || giverMatch || descMatch || taskMatch;
+        return titleMatch || giverMatch || factionMatch || descMatch || taskMatch;
       });
     }
 
-    // Sort: Primary > Active > Available > Completed > Failed
-    const sortOrder = { "Active": 0, "Available": 1, "Inactive": 1, "Completed": 2, "Failed": 3 };
-    filteredQuests.sort((a, b) => {
-      if (a.isPrimary && !b.isPrimary) return -1;
-      if (!a.isPrimary && b.isPrimary) return 1;
-      return (sortOrder[a.status] ?? 9) - (sortOrder[b.status] ?? 9);
-    });
+    // Sorting logic
+    const sort = this.questSort || 'default';
+    if (sort === 'title-asc') {
+      filteredQuests.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+    } else if (sort === 'title-desc') {
+      filteredQuests.sort((a, b) => (b.title || '').localeCompare(a.title || ''));
+    } else if (sort === 'diff-asc') {
+      filteredQuests.sort((a, b) => (a.difficultyTier - b.difficultyTier) || (a.title || '').localeCompare(b.title || ''));
+    } else if (sort === 'diff-desc') {
+      filteredQuests.sort((a, b) => (b.difficultyTier - a.difficultyTier) || (a.title || '').localeCompare(b.title || ''));
+    } else if (sort === 'reward-desc') {
+      filteredQuests.sort((a, b) => (b.rewardValue - a.rewardValue));
+    } else if (sort === 'reward-asc') {
+      filteredQuests.sort((a, b) => (a.rewardValue - b.rewardValue));
+    } else if (sort === 'progress-desc') {
+      filteredQuests.sort((a, b) => (b.taskProgress - a.taskProgress));
+    } else if (sort === 'progress-asc') {
+      filteredQuests.sort((a, b) => (a.taskProgress - b.taskProgress));
+    } else {
+      // Default: Primary > Status
+      const sortOrder = { "Active": 0, "Available": 1, "Inactive": 1, "Completed": 2, "Failed": 3 };
+      filteredQuests.sort((a, b) => {
+        if (a.isPrimary && !b.isPrimary) return -1;
+        if (!a.isPrimary && b.isPrimary) return 1;
+        return (sortOrder[a.status] ?? 9) - (sortOrder[b.status] ?? 9);
+      });
+    }
+
+    const hasActiveFilters = Boolean(this.questFactionFilter || this.questGiverFilter || this.questDifficultyFilter || (this.questSort && this.questSort !== 'default'));
+    const activeFilterCount = (this.questFactionFilter ? 1 : 0) + (this.questGiverFilter ? 1 : 0) + (this.questDifficultyFilter ? 1 : 0) + ((this.questSort && this.questSort !== 'default') ? 1 : 0);
 
     const activeQuests = visibleQuests.filter(q => q.status === 'Active');
 
@@ -900,6 +1067,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       questFilter: this.questFilter || 'active',
       questSearch: this.questSearch || '',
       questStats,
+      questFilterFactions,
+      questFilterGivers,
+      questFilterDifficulties,
+      questFactionFilter: this.questFactionFilter || '',
+      questGiverFilter: this.questGiverFilter || '',
+      questDifficultyFilter: this.questDifficultyFilter || '',
+      questSort: this.questSort || 'default',
+      showAdvancedFilters: this.showAdvancedFilters,
+      hasActiveFilters,
+      activeFilterCount,
       factions: processedFactions,
       players: players,
       profile: profile,
@@ -1122,6 +1299,12 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       html.find('.share-quest-chat').click(this._onShareQuestChat.bind(this));
       html.find('.quest-search-input').on('input', this._onSearchQuests.bind(this));
       html.find('.clear-quest-search').click(this._onClearQuestSearch.bind(this));
+      html.find('.quest-filter-toggle-btn').click(this._onToggleQuestFilterToolbar.bind(this));
+      html.find('.quest-filter-faction').change(this._onChangeQuestFactionFilter.bind(this));
+      html.find('.quest-filter-giver').change(this._onChangeQuestGiverFilter.bind(this));
+      html.find('.quest-filter-difficulty').change(this._onChangeQuestDifficultyFilter.bind(this));
+      html.find('.quest-filter-sort').change(this._onChangeQuestSort.bind(this));
+      html.find('.reset-quest-filters').click(this._onResetQuestFilters.bind(this));
 
       if (this._preserveSearchFocus) {
         const searchInput = html.find('.quest-search-input');
@@ -2034,6 +2217,48 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     this.render();
   }
 
+  _onToggleQuestFilterToolbar(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.showAdvancedFilters = !this.showAdvancedFilters;
+    this.render();
+  }
+
+  _onChangeQuestFactionFilter(event) {
+    event.preventDefault();
+    this.questFactionFilter = event.currentTarget.value || '';
+    this.render();
+  }
+
+  _onChangeQuestGiverFilter(event) {
+    event.preventDefault();
+    this.questGiverFilter = event.currentTarget.value || '';
+    this.render();
+  }
+
+  _onChangeQuestDifficultyFilter(event) {
+    event.preventDefault();
+    this.questDifficultyFilter = event.currentTarget.value || '';
+    this.render();
+  }
+
+  _onChangeQuestSort(event) {
+    event.preventDefault();
+    this.questSort = event.currentTarget.value || 'default';
+    this.render();
+  }
+
+  _onResetQuestFilters(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.questFactionFilter = '';
+    this.questGiverFilter = '';
+    this.questDifficultyFilter = '';
+    this.questSort = 'default';
+    this.questSearch = '';
+    this.render();
+  }
+
   _onToggleExpandQuest(event) {
     event.preventDefault();
     const questId = event.currentTarget.dataset.questId;
@@ -2196,6 +2421,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
   async _onAddQuest(event) {
     event.preventDefault();
+    const settings = game.settings.get('intoterica', 'data');
     const playerActors = game.users.filter(u => !u.isGM && u.character).map(u => u.character);
     
     IntotericaApp.createDialog({
@@ -2226,19 +2452,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               </div>
 
               <!-- Right: Title + Metadata Strip -->
-              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; gap: 6px;">
                 <div>
                   <input type="text" name="title" placeholder="Quest Title (e.g. Investigate the Sunken Crypt)..." class="quest-title-large" autofocus required />
                 </div>
                 
-                <div class="quest-meta-strip">
+                <div class="quest-meta-strip" style="grid-template-columns: 1fr 1fr; gap: 8px;">
                   <div class="quest-meta-pill">
                     <label><i class="fas fa-signal"></i> Difficulty</label>
                     <select name="difficulty">
-                      <option value="Easy">🟢 Easy</option>
-                      <option value="Medium" selected>🟡 Medium</option>
-                      <option value="Hard">🔴 Hard</option>
-                      <option value="Epic">🟣 Epic</option>
+                      ${IntotericaApp.getDifficultyOptions("Medium")}
                     </select>
                   </div>
                   <div class="quest-meta-pill">
@@ -2251,11 +2474,26 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                       <option value="Hidden">Hidden</option>
                     </select>
                   </div>
+                </div>
+
+                <!-- Commissioned By & Giver Section -->
+                <div class="quest-commission-strip" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.04); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 6px 8px;">
                   <div class="quest-meta-pill">
-                    <label><i class="fas fa-user-tag"></i> Quest Giver</label>
-                    <input type="text" name="giver" placeholder="e.g. Guildmaster Vane" />
+                    <label><i class="fas fa-shield-alt"></i> Commissioned by (Faction)</label>
+                    <select name="commissionedFaction">
+                      <option value="">— Independent / None —</option>
+                      ${(settings.factions || []).map(f => `<option value="${f.name}">${f.name}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="quest-meta-pill">
+                    <label><i class="fas fa-user-circle"></i> Quest Giver / NPC</label>
+                    <input type="text" name="giver" list="create-quest-npc-list" placeholder="e.g. Guildmaster Vane" />
+                    <datalist id="create-quest-npc-list">
+                      ${(settings.knownNPCs || []).map(n => `<option value="${n.name}">`).join('')}
+                    </datalist>
                   </div>
                 </div>
+
               </div>
 
             </div>
@@ -2377,9 +2615,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
             const questData = {
               title: formData.title,
-              difficulty: formData.difficulty,
-              status: formData.status,
+              difficulty: formData.difficulty || "Medium",
+              status: formData.status || "Active",
               giver: formData.giver || "",
+              commissionedFaction: formData.commissionedFaction || "",
               image: formData.image || "",
               description: formData.description || "",
               tasks,
@@ -2544,19 +2783,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               </div>
 
               <!-- Right: Title + Metadata Strip -->
-              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0;">
+              <div style="flex: 1; display: flex; flex-direction: column; justify-content: space-between; min-width: 0; gap: 6px;">
                 <div>
                   <input type="text" name="title" value="${quest.title || ''}" placeholder="Quest Title (e.g. The Sunken Crypt)..." class="quest-title-large" autofocus required />
                 </div>
                 
-                <div class="quest-meta-strip">
+                <div class="quest-meta-strip" style="grid-template-columns: 1fr 1fr; gap: 8px;">
                   <div class="quest-meta-pill">
                     <label><i class="fas fa-signal"></i> Difficulty</label>
                     <select name="difficulty">
-                      <option value="Easy" ${quest.difficulty === 'Easy' ? 'selected' : ''}>🟢 Easy</option>
-                      <option value="Medium" ${quest.difficulty === 'Medium' || !quest.difficulty ? 'selected' : ''}>🟡 Medium</option>
-                      <option value="Hard" ${quest.difficulty === 'Hard' ? 'selected' : ''}>🔴 Hard</option>
-                      <option value="Epic" ${quest.difficulty === 'Epic' ? 'selected' : ''}>🟣 Epic</option>
+                      ${IntotericaApp.getDifficultyOptions(quest.difficulty)}
                     </select>
                   </div>
                   <div class="quest-meta-pill">
@@ -2569,11 +2805,26 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
                       <option value="Hidden" ${quest.status === 'Hidden' ? 'selected' : ''}>Hidden</option>
                     </select>
                   </div>
+                </div>
+
+                <!-- Commissioned By & Giver Section -->
+                <div class="quest-commission-strip" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: rgba(0,0,0,0.04); border: 1px solid var(--dialog-section-border, rgba(120,46,34,0.2)); border-radius: 4px; padding: 6px 8px;">
                   <div class="quest-meta-pill">
-                    <label><i class="fas fa-user-tag"></i> Quest Giver</label>
-                    <input type="text" name="giver" value="${quest.giver || ''}" placeholder="e.g. Guildmaster Vane" />
+                    <label><i class="fas fa-shield-alt"></i> Commissioned by (Faction)</label>
+                    <select name="commissionedFaction">
+                      <option value="">— Independent / None —</option>
+                      ${(settings.factions || []).map(f => `<option value="${f.name}" ${quest.commissionedFaction === f.name ? 'selected' : ''}>${f.name}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="quest-meta-pill">
+                    <label><i class="fas fa-user-circle"></i> Quest Giver / NPC</label>
+                    <input type="text" name="giver" value="${quest.giver || ''}" list="edit-quest-npc-list" placeholder="e.g. Guildmaster Vane" />
+                    <datalist id="edit-quest-npc-list">
+                      ${(settings.knownNPCs || []).map(n => `<option value="${n.name}">`).join('')}
+                    </datalist>
                   </div>
                 </div>
+
               </div>
 
             </div>
@@ -2685,9 +2936,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
             const updatedData = {
               title: formData.title,
-              difficulty: formData.difficulty,
-              status: formData.status,
+              difficulty: formData.difficulty || "Medium",
+              status: formData.status || "Active",
               giver: formData.giver || "",
+              commissionedFaction: formData.commissionedFaction || "",
               image: formData.image || "",
               description: formData.description || "",
               tasks: updatedTasks,

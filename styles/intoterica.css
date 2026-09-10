@@ -2333,6 +2333,117 @@
   color: var(--theme-accent) !important;
 }
 
+/* Filter & Sort Toggle Button */
+.quest-filter-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--dialog-btn-secondary-bg, rgba(0, 0, 0, 0.05));
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  height: 30px;
+  box-sizing: border-box;
+}
+
+.quest-filter-toggle-btn:hover {
+  background: var(--nav-active-bg, rgba(120, 46, 34, 0.15));
+  border-color: var(--theme-accent);
+  color: var(--theme-accent);
+}
+
+.quest-filter-toggle-btn.active-filters {
+  background: rgba(245, 159, 0, 0.15);
+  border-color: #f59f00;
+  color: #f59f00;
+}
+
+.active-filter-badge {
+  background: #f59f00;
+  color: #000;
+  border-radius: 10px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+/* Collapsible Advanced Filter & Sort Toolbar */
+.quest-advanced-filter-toolbar {
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+  margin-bottom: 2px;
+}
+
+.quest-advanced-filter-toolbar.show {
+  display: flex;
+}
+
+.quest-advanced-filter-toolbar .filter-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--theme-text);
+}
+
+.quest-advanced-filter-toolbar .filter-group label {
+  font-weight: 700;
+  color: var(--theme-dim);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.quest-advanced-filter-toolbar .filter-group select {
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--theme-surface, #fff);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
+  font-size: 11px;
+  height: 26px;
+  outline: none;
+  cursor: pointer;
+}
+
+.quest-advanced-filter-toolbar .filter-group select:focus {
+  border-color: var(--theme-accent);
+}
+
+.quest-advanced-filter-toolbar .reset-quest-filters {
+  margin-left: auto;
+  padding: 3px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: rgba(201, 42, 42, 0.1);
+  border: 1px solid rgba(201, 42, 42, 0.4);
+  color: #c92a2a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+}
+
+.quest-advanced-filter-toolbar .reset-quest-filters:hover {
+  background: #c92a2a;
+  color: #fff;
+}
+
 /* Filter Bar */
 .quest-filter-bar {
   display: flex;
@@ -2389,6 +2500,7 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: 6px;
+  padding-bottom: 3.5rem;
   flex: 1;
   min-height: 0;
   scrollbar-width: thin;
@@ -2583,6 +2695,11 @@
   gap: 4px;
 }
 
+.quest-meta-row .quest-commissioned {
+  color: var(--theme-accent);
+  font-weight: 600;
+}
+
 .quest-mini-progress {
   height: 4px;
   background: rgba(0, 0, 0, 0.12);
@@ -2760,8 +2877,9 @@
 .quest-card-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 6px;
-  padding-top: 8px;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 6px;
   border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
