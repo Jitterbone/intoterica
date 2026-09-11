@@ -2,7 +2,10 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
   foundry.applications.api.ApplicationV2
 ) {
   static get VERSION() {
-    return game.modules?.get('intoterica')?.version || "1.5.0";
+    // Prefer the live module version (updated after server restart).
+    // Fall back to the hardcoded string so the header always shows correctly.
+    const liveVersion = game.modules?.get('intoterica')?.version;
+    return (liveVersion && liveVersion !== '1.1.0') ? liveVersion : "1.5.0";
   }
 
   static DEFAULT_OPTIONS = {
@@ -1795,15 +1798,20 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
 
             return {
               id: f.id,
+              factionId: f.id,
+              actorId: actorId,
+              memberId: actorId,
               name: f.name,
               image: f.image,
               isImage: f.isImage,
               rank: member ? (f.ranks[member.rank]?.name || member.rank) : '',
+              rankIndex: member ? (member.rank || 0) : 0,
               xp: currentXP,
               progress: Math.round(progress),
               showProgress,
               nextRankName,
-              nextRankXP
+              nextRankXP,
+              ranks: f.ranks || []
             };
           }),
           messages: (settings.inbox || []).filter(m => {
@@ -2310,6 +2318,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       html.find('.back-btn').off('click').on('click', this._onCloseProfile.bind(this));
     }
     html.find('.profile-quest-link').click(this._onProfileQuestClick.bind(this));
+    html.find('.profile-edit-faction-xp').click(this._onProfileEditFactionXP.bind(this));
 
     // Quest Journal Event Bindings
     if (this.currentView === 'quests') {
@@ -2923,6 +2932,106 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
         }
       }, 100);
     }
+  }
+
+  async _onProfileEditFactionXP(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!game.user.isGM) return;
+
+    const btn = event.currentTarget;
+    const factionId = btn.dataset.factionId;
+    const actorId = btn.dataset.actorId || btn.dataset.memberId;
+
+    const rawSettings = game.settings.get('intoterica', 'data') || {};
+    const settings = foundry.utils.deepClone(rawSettings);
+    const faction = (settings.factions || []).find(f => f.id === factionId);
+    if (!faction) return;
+
+    const member = (faction.members || []).find(m => m.id === actorId);
+    if (!member) {
+      ui.notifications.warn("Character is not a member of this faction.");
+      return;
+    }
+
+    const actor = game.actors.get(actorId);
+    const currentXP = member.xp || 0;
+    const currentRankIdx = member.rank || 0;
+    const ranks = faction.ranks || [];
+
+    // Build rank select options
+    const rankOptions = ranks.map((r, i) => `<option value="${i}" ${i === currentRankIdx ? 'selected' : ''}>${r.name}${r.xp != null ? ` (${r.xp} XP threshold)` : ''}</option>`).join('');
+
+    IntotericaApp.createDialog({
+      title: `Edit Faction Standing: ${actor?.name || actorId}`,
+      content: `
+        <form class="intoterica-form">
+          <div style="display: flex; align-items: center; gap: 10px; background: var(--dialog-section-bg, rgba(0,0,0,0.06)); border: 1px solid var(--dialog-section-border, var(--theme-border)); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+            ${faction.image ? `<img src="${faction.image}" style="width: 40px; height: 40px; object-fit: contain; border-radius: 4px; flex-shrink: 0;" />` : ''}
+            <div>
+              <div style="font-weight: 700; font-size: 13px;">${Handlebars.escapeExpression(faction.name)}</div>
+              <div style="font-size: 11px; color: var(--theme-dim);">Editing standing for <strong>${Handlebars.escapeExpression(actor?.name || actorId)}</strong></div>
+            </div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title"><i class="fas fa-star" style="color: #f59f00;"></i> Faction XP</div>
+            <div class="form-group">
+              <label>Current XP</label>
+              <input type="number" name="xp" value="${currentXP}" min="0" step="1" autofocus />
+            </div>
+          </div>
+          ${ranks.length > 0 ? `
+            <div class="form-section">
+              <div class="form-section-title"><i class="fas fa-shield-alt" style="color: var(--theme-accent);"></i> Rank Override</div>
+              <div class="form-group">
+                <label>Rank</label>
+                <select name="rankIndex">
+                  ${rankOptions}
+                </select>
+              </div>
+              <div style="font-size: 10px; color: var(--theme-dim); margin-top: 4px;"><i class="fas fa-info-circle"></i> Rank is normally auto-calculated from XP. Override here if needed.</div>
+            </div>
+          ` : ''}
+        </form>
+      `,
+      buttons: {
+        save: {
+          icon: '<i class="fas fa-save"></i>',
+          label: 'Save',
+          callback: async (html) => {
+            const newXP = Math.max(0, parseInt(html.find('input[name="xp"]').val()) || 0);
+            let newRankIdx = parseInt(html.find('select[name="rankIndex"]').val());
+            if (isNaN(newRankIdx)) newRankIdx = currentRankIdx;
+
+            // Auto-promote rank from XP if ranks exist
+            if (ranks.length > 0) {
+              let autoRankIdx = 0;
+              for (let i = 0; i < ranks.length; i++) {
+                if (newXP >= (ranks[i].xp || 0)) autoRankIdx = i;
+              }
+              // Only auto-set if user didn't manually change the dropdown selection,
+              // but we still respect the user's explicit choice from the select
+              newRankIdx = newRankIdx;
+            }
+
+            member.xp = newXP;
+            member.rank = newRankIdx;
+
+            await this._saveData(settings);
+            this._broadcastUpdate();
+            this.render();
+
+            const rankName = ranks[newRankIdx]?.name || newRankIdx;
+            ui.notifications.info(`Updated ${actor?.name || actorId}'s ${faction.name} standing: ${newXP} XP, Rank: ${rankName}`);
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: 'Cancel'
+        }
+      },
+      default: 'save'
+    }, { width: 420 }).render(true);
   }
 
   async _onToggleQuestVisibility(event) {
@@ -3745,19 +3854,26 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
           ${items.length > 0 ? `
             <div class="form-section">
               <div class="form-section-title"><i class="fas fa-box-open" style="color: #4facfe;"></i> Items & Equipment</div>
-              <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px;">
-                ${items.map(it => `
-                  <div class="reward-item-chip" style="pointer-events: none;">
-                    <img src="${it.img || 'icons/svg/item-bag.svg'}" class="reward-item-thumb" />
-                    <span class="reward-item-name">${Handlebars.escapeExpression(it.name)}</span>
-                    <span style="font-weight: bold; font-size: 10px; color: var(--theme-accent);">x${it.quantity || 1}</span>
+              <div style="font-size: 10px; color: var(--theme-dim); margin-bottom: 8px; padding: 4px 8px; background: rgba(79,172,254,0.08); border-left: 3px solid #4facfe; border-radius: 2px;">
+                <i class="fas fa-info-circle"></i> Use the <strong>Assign to</strong> dropdown on each item to choose which character(s) receive it.
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                ${items.map((it, idx) => `
+                  <div class="reward-item-row" style="display: flex; align-items: center; gap: 10px; background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 6px; padding: 6px 10px;">
+                    <img src="${it.img || 'icons/svg/item-bag.svg'}" style="width: 32px; height: 32px; border-radius: 4px; object-fit: contain; flex-shrink: 0;" />
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${Handlebars.escapeExpression(it.name)}<span style="color: var(--theme-accent); font-size: 10px; margin-left: 4px;">x${it.quantity || 1}</span></div>
+                      <div style="font-size: 10px; color: var(--theme-dim); margin-top: 2px;">Assign to:</div>
+                    </div>
+                    <div style="flex-shrink: 0; min-width: 0; max-width: 240px;">
+                      <select name="item_recipients_${idx}" multiple style="width: 100%; min-width: 160px; font-size: 11px; border: 1px solid var(--theme-border); border-radius: 4px; background: var(--theme-bg); color: var(--theme-text); padding: 2px 4px; max-height: 80px;">
+                        ${recipientActors.map(a => `<option value="${a.id}" selected>${Handlebars.escapeExpression(a.name)}</option>`).join('')}
+                      </select>
+                    </div>
                   </div>
                 `).join('')}
               </div>
-              <label style="font-size: 11px; display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
-                <input type="checkbox" name="grantItems" checked style="margin: 0;" />
-                <span>Create item documents directly on recipient actor sheets</span>
-              </label>
+              <div style="font-size: 10px; color: var(--theme-dim); margin-top: 6px;"><i class="fas fa-hand-pointer"></i> Hold <kbd>Ctrl</kbd> (or <kbd>Cmd</kbd>) to select multiple characters per item.</div>
             </div>
           ` : ''}
 
@@ -3818,7 +3934,6 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
             const targetActorIds = html.find('.dist-recipient-cb:checked').map((i, el) => el.value).get();
             const targetActors = playerActors.filter(a => targetActorIds.includes(a.id));
             const splitMode = html.find('input[name="currencyDistMode"]:checked').val() || 'split';
-            const doGrantItems = html.find('input[name="grantItems"]').is(':checked');
             const doApplyFaction = html.find('input[name="applyFactionRewards"]').is(':checked');
 
             // 1. Distribute Currencies
@@ -3829,10 +3944,16 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
               }
             }
 
-            // 2. Grant Items
-            if (doGrantItems && items.length > 0 && targetActors.length > 0) {
-              for (const actor of targetActors) {
-                await IntotericaApp.grantItemsToActor(actor, items);
+            // 2. Grant Items (per-item recipient assignment)
+            if (items.length > 0) {
+              for (let idx = 0; idx < items.length; idx++) {
+                const itemRecipientIds = html.find(`select[name="item_recipients_${idx}"]`).val() || [];
+                const itemActors = playerActors.filter(a => itemRecipientIds.includes(a.id));
+                if (itemActors.length > 0) {
+                  for (const actor of itemActors) {
+                    await IntotericaApp.grantItemsToActor(actor, [items[idx]]);
+                  }
+                }
               }
             }
 

@@ -67,7 +67,7 @@
         <h3 class="section-title">Factions</h3>
         {{#if profile.factions.length}}
           {{#each profile.factions}}
-            <div class="mini-card faction-profile-card">
+            <div class="mini-card faction-profile-card" style="position: relative;">
               <div class="faction-profile-icon">
                 {{#if isImage}}<img src="{{image}}" alt="{{name}}">{{else}}{{image}}{{/if}}
               </div>
@@ -86,6 +86,11 @@
                   </div>
                 {{/if}}
               </div>
+              {{#if ../isGM}}
+                <button class="profile-edit-faction-xp" data-faction-id="{{factionId}}" data-actor-id="{{actorId}}" data-member-id="{{memberId}}" title="Edit Faction XP & Rank" style="position: absolute; top: 6px; right: 6px; background: transparent; border: none; cursor: pointer; color: var(--theme-dim); font-size: 12px; padding: 2px 4px; border-radius: 3px; opacity: 0.6; transition: opacity 0.2s, color 0.2s;">
+                  <i class="fas fa-pencil-alt"></i>
+                </button>
+              {{/if}}
             </div>
           {{/each}}
         {{else}}

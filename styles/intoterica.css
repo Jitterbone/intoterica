@@ -689,7 +689,9 @@ div.intoterica:has(.theme-custom) header.window-header .header-button {
 /* Splash Art Preview / Click-to-Pick Portrait in Quest Dialog */
 .intoterica-dialog .quest-art-banner {
   width: 140px !important;
-  height: 120px !important;
+  min-height: 160px !important;
+  height: 100% !important;
+  align-self: stretch !important;
   border-radius: 6px !important;
   border: 2px solid var(--dialog-section-border, #782e22) !important;
   overflow: hidden !important;
@@ -2801,6 +2803,22 @@ div.intoterica:has(.theme-custom) header.window-header .header-button {
   object-fit: contain;
   border: none;
   display: block;
+}
+
+/* GM edit button on profile faction cards */
+.profile-edit-faction-xp {
+  opacity: 0;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.faction-profile-card:hover .profile-edit-faction-xp {
+  opacity: 0.65;
+}
+
+.profile-edit-faction-xp:hover {
+  opacity: 1 !important;
+  color: var(--theme-accent) !important;
+  text-shadow: 0 0 6px var(--theme-accent);
 }
 
 .quest-task-substory-header,
