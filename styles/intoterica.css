@@ -1,5 +1,96 @@
-/* Intoterica - Theming System */
 @import url('https://fonts.googleapis.com/css2?family=Russo+One&family=Roboto+Slab:wght@400;700&family=Cinzel:wght@400;700&family=Crimson+Text:wght@400;700&family=VT323&display=swap');
+
+/* Intoterica - Theming System */
+
+/* ─── Intoterica Notification Badges ──────────────────────────── */
+
+.intoterica-control-badge,
+.intoterica-mail-badge,
+#controls .intoterica-control-badge,
+#controls .intoterica-mail-badge,
+scene-controls .intoterica-control-badge,
+scene-controls .intoterica-mail-badge,
+.scene-control .intoterica-control-badge,
+.control-tool .intoterica-mail-badge {
+  position: absolute !important;
+  top: 1px !important;
+  right: 1px !important;
+  min-width: 16px !important;
+  height: 16px !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  background: #ed4245 !important;
+  color: #ffffff !important;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  line-height: 16px !important;
+  text-align: center !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 0 0 2px rgba(20, 20, 20, 0.9), 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+/* Ensure control lists and tool targets do not clip the badge */
+#controls,
+#controls ol,
+#controls ul,
+#controls menu,
+#controls .main-controls,
+#controls .sub-controls,
+#controls .control-tools,
+scene-controls,
+scene-controls > *,
+.scene-control,
+.control-tool,
+.intoterica-badge-target,
+#controls [data-control="intoterica"],
+#controls [data-group="intoterica"],
+#controls [data-tab="intoterica"],
+#controls [data-tool="mail"],
+scene-controls [data-control="intoterica"],
+scene-controls [data-group="intoterica"],
+scene-controls [data-tool="mail"],
+[data-control="intoterica"],
+[data-group="intoterica"],
+[data-tool="mail"] {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+.intoterica-badge-target > button,
+.intoterica-badge-target > a,
+.control-tool > button,
+.scene-control > button {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Sidebar Nav Unread Badge */
+.nav-item .nav-unread-badge {
+  margin-left: auto;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ed4245;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
 
 /* Default (Foundry Standard) */
 /* Default (Foundry Standard) */
@@ -2575,11 +2666,114 @@ div.intoterica:has(.theme-custom) header.window-header .header-button {
 
 .rank-display-desc { font-size: 12px; color: var(--theme-text); font-style: italic; }
 
-/* Inbox */ .intoterica .inbox-item { padding: 0.75rem; display: flex; gap: 0.75rem; cursor: pointer; border-left: 3px solid transparent; }
+/* ─── Inbox Items & Unread Theming ────────────────────────── */
+.intoterica .inbox-item {
+  padding: 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: var(--theme-surface, rgba(0, 0, 0, 0.05));
+  border: 1px solid var(--theme-border, rgba(0, 0, 0, 0.15));
+  border-left: 4px solid transparent !important;
+  transition: all 0.2s ease;
+  position: relative;
+}
 
-.intoterica .inbox-item.unread { background: rgba(255, 255, 255, 0.05); border-left-color: var(--theme-accent); }
+.intoterica .inbox-item:hover {
+  filter: brightness(1.08);
+  transform: translateX(2px);
+}
 
-.intoterica .inbox-item.selected { background: rgba(0, 240, 255, 0.1); }
+.intoterica .inbox-item.unread {
+  border-left: 4px solid var(--theme-accent) !important;
+  border-color: var(--theme-border);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2), inset 0 0 16px rgba(0, 0, 0, 0.1) !important;
+  background: color-mix(in srgb, var(--theme-accent) 14%, var(--theme-surface)) !important;
+}
+
+.intoterica .inbox-item.unread .inbox-from {
+  font-weight: 700 !important;
+  color: var(--theme-accent) !important;
+}
+
+.intoterica .inbox-item.unread .inbox-subject {
+  font-weight: 700 !important;
+  color: var(--theme-text) !important;
+}
+
+.intoterica .inbox-item .unread-indicator-dot {
+  color: var(--theme-accent);
+  font-size: 11px;
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.intoterica .inbox-item.selected {
+  border-color: var(--theme-accent) !important;
+  background: color-mix(in srgb, var(--theme-accent) 24%, var(--theme-surface)) !important;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Theme-specific Unread Fallbacks & Polish */
+.intoterica-container.theme-foundry .inbox-item.unread,
+.intoterica-container.theme-default .inbox-item.unread {
+  background: rgba(255, 100, 0, 0.12) !important;
+  border-left-color: #ff6400 !important;
+}
+.intoterica-container.theme-foundry .inbox-item.selected,
+.intoterica-container.theme-default .inbox-item.selected {
+  background: rgba(255, 100, 0, 0.22) !important;
+}
+
+.intoterica-container.theme-access-point .inbox-item.unread {
+  background: rgba(79, 172, 254, 0.15) !important;
+  border-left-color: #4facfe !important;
+}
+.intoterica-container.theme-access-point .inbox-item.selected {
+  background: rgba(79, 172, 254, 0.25) !important;
+}
+
+.intoterica-container.theme-soviet .inbox-item.unread {
+  background: rgba(204, 0, 0, 0.12) !important;
+  border-left-color: #cc0000 !important;
+  box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.2) !important;
+}
+.intoterica-container.theme-soviet .inbox-item.selected {
+  background: rgba(212, 175, 55, 0.25) !important;
+  border-color: #d4af37 !important;
+}
+
+.intoterica-container.theme-dark-fantasy .inbox-item.unread {
+  background: rgba(176, 38, 255, 0.18) !important;
+  border-left-color: #b026ff !important;
+  box-shadow: 0 0 10px rgba(176, 38, 255, 0.25) !important;
+}
+.intoterica-container.theme-dark-fantasy .inbox-item.selected {
+  background: rgba(176, 38, 255, 0.3) !important;
+  border-color: #b026ff !important;
+}
+
+.intoterica-container.theme-vaporwave .inbox-item.unread {
+  background: rgba(0, 240, 255, 0.18) !important;
+  border-left-color: #00f0ff !important;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3) !important;
+}
+.intoterica-container.theme-vaporwave .inbox-item.selected {
+  background: rgba(255, 0, 127, 0.25) !important;
+  border-color: #ff007f !important;
+}
+
+.intoterica-container.theme-custom .inbox-item.unread {
+  background: rgba(255, 152, 0, 0.15) !important;
+  border-left-color: var(--theme-accent) !important;
+}
+.intoterica-container.theme-custom .inbox-item.selected {
+  background: rgba(255, 152, 0, 0.25) !important;
+  border-color: var(--theme-accent) !important;
+}
 
 .intoterica .inbox-avatar { width: 40px; height: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.1); border-radius: 4px; }
 
@@ -2764,6 +2958,52 @@ div.intoterica:has(.theme-custom) header.window-header .header-button {
   border: 1px solid rgba(0,0,0,0.1);
   margin-bottom: 0.5rem;
   border-radius: 2px;
+}
+
+.intoterica .intoterica-container button.profile-message-link {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  justify-content: flex-start;
+  text-align: left;
+  appearance: none;
+  padding: 0.5rem !important;
+  background: rgba(0, 0, 0, 0.05) !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: inherit !important;
+  font: inherit !important;
+  font-weight: normal !important;
+  text-transform: none !important;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.intoterica .intoterica-container button.profile-message-link:hover,
+.intoterica .intoterica-container button.profile-message-link:focus-visible {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: var(--theme-accent) !important;
+  color: inherit !important;
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.25) !important;
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.intoterica .intoterica-container .profile-message-icon {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: var(--theme-accent);
+  font-size: 22px;
+  line-height: 1;
 }
 
 .badge-profile-card {

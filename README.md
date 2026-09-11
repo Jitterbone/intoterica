@@ -1,4 +1,4 @@
-# Intoterica (v1.5.0) 📖
+# Intoterica (v1.5.1) 📖
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jitterbone)
 
 A system-agnostic Foundry VTT campaign management suite for tracking quests, substories, factions, achievements, and communications across any game system.

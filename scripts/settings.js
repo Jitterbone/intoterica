@@ -137,6 +137,21 @@ export const registerSettings = () => {
 
   // ─── Notifications ────────────────────────────────────────────────────────
 
+  game.settings.register('intoterica', 'showNotificationBadges', {
+    name: 'Show Notification Bubbles',
+    hint: 'Display unread mail count notification badges on the sidebar launcher and navigation icons.',
+    scope: 'client',
+    config: true,
+    type: Boolean,
+    default: true,
+    onChange: () => {
+      window.IntotericaSceneBadges?.();
+      Object.values(ui.windows).forEach(app => {
+        if (app.constructor.name === "IntotericaApp") app.render();
+      });
+    }
+  });
+
   game.settings.register('intoterica', 'notifyMail', {
     name: 'Chat: Mail Notifications',
     hint: 'Post "You\'ve got mail" cards to chat.',

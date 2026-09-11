@@ -1,6 +1,21 @@
-﻿# Changelog
+# Changelog
 
 All notable changes to **Intoterica** will be documented in this file.
+
+---
+
+## [1.5.1] - 2026-09-10
+
+### 🏗️ Architecture & Performance
+- **Modular Domain Architecture**: Refactored monolithic codebase into maintainable, modular domain components under `scripts/core/` and `scripts/features/` with prototype mixin composition and zero breaking API changes.
+
+### 🐛 Bug Fixes & UI Improvements
+- **Mail Chat Notifications**: Restored whispered "You've got mail!" chat cards with the interactive "Access Inbox" button for recipients, as well as GM alerts for player messages.
+- **Header Clock & Date Display**: Restored the in-game date / world clock display in the application header with click-to-edit integration.
+- **Character Profile Messages**: Profile messages now strictly show unread messages, and clicking a message opens the conversation thread directly and marks it as read.
+- **Quest Journal Tabs & Controls**: Fixed event listener binding for Quest Journal filter tabs (Active, Available, Completed, Failed), search, and toolbar controls.
+- **Player Quest Visibility**: Improved player assignment and whole-party matching so active and party quests are consistently visible to players in both the Quest Journal and Character Profiles.
+- **Profile Layout Clean-up**: Eliminated duplicate completed quest cards from character profiles while maintaining full Mission Report logs.
 
 ---
 

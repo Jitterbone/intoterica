@@ -28,6 +28,72 @@ Hooks.once('ready', () => {
   initializeSocket();
 });
 
+function updateSceneControlBadges(renderedControls) {
+  let showBadges = true;
+  try {
+    showBadges = game.settings.get('intoterica', 'showNotificationBadges') !== false;
+  } catch (_e) {}
+
+  const count = showBadges ? (window.IntotericaApp?.getUnreadMailCount?.() || 0) : 0;
+  const badgeText = count > 99 ? '99+' : String(count);
+
+  const launcherSelectors = [
+    '#controls [data-control="intoterica"]',
+    '#controls [data-group="intoterica"]',
+    '#controls [data-tab="intoterica"]',
+    '#controls [data-action="control"][data-control="intoterica"]',
+    'scene-controls [data-control="intoterica"]',
+    'scene-controls [data-action="control"][data-control="intoterica"]',
+    '[data-control="intoterica"]',
+    '[data-group="intoterica"]'
+  ];
+
+  const mailToolSelectors = [
+    '#controls [data-tool="mail"]',
+    '#controls [data-action="tool"][data-tool="mail"]',
+    'scene-controls [data-tool="mail"]',
+    'scene-controls [data-action="tool"][data-tool="mail"]',
+    '[data-tool="mail"]'
+  ];
+
+  const setBadge = (elements, className) => {
+    elements.forEach(element => {
+      if (!element) return;
+      element.classList.add('intoterica-badge-target');
+      const target = element.querySelector('button, a') || element;
+      target.classList.add('intoterica-badge-target');
+      
+      let badge = target.querySelector(`.${className}`);
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = className;
+        target.appendChild(badge);
+      }
+      
+      if (count > 0) {
+        badge.textContent = badgeText;
+        badge.style.display = 'flex';
+        badge.hidden = false;
+        target.classList.add('intoterica-has-unread');
+      } else {
+        badge.textContent = '';
+        badge.style.display = 'none';
+        badge.hidden = true;
+        target.classList.remove('intoterica-has-unread');
+      }
+    });
+  };
+
+  const launchers = Array.from(document.querySelectorAll(launcherSelectors.join(',')));
+  const mailTools = Array.from(document.querySelectorAll(mailToolSelectors.join(',')));
+
+  setBadge(launchers, 'intoterica-control-badge');
+  setBadge(mailTools, 'intoterica-mail-badge');
+}
+
+window.IntotericaSceneBadges = updateSceneControlBadges;
+Hooks.on('renderSceneControls', (_app, html) => updateSceneControlBadges(html));
+
 Hooks.on('preCreateChatMessage', (document, data, options, userId) => {
   if (data.content && data.content.includes('intoterica-chat-card')) {
     const theme = game.settings.get('intoterica', 'theme') || 'default';
