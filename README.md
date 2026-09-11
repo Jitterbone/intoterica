@@ -1,4 +1,10 @@
 # Intoterica (v1.5.1) 📖
+
+[![Latest Release](https://img.shields.io/github/v/release/Jitterbone/intoterica?style=flat&logo=github&logoColor=white&color=22c55e&label=Latest%20Release)](https://github.com/Jitterbone/intoterica/releases/latest)
+[![Foundry VTT](https://img.shields.io/badge/Foundry%20VTT-v14%20Verified-ff6400?style=flat)](https://foundryvtt.com)
+[![Latest Release Installs](https://img.shields.io/github/downloads/Jitterbone/intoterica/latest/module.zip?displayAssetName=false&style=flat&logo=github&logoColor=white&color=38bdf8&label=Latest%20Release%20Installs)](https://github.com/Jitterbone/intoterica/releases/latest)
+[![Lifetime Installs](https://img.shields.io/github/downloads/Jitterbone/intoterica/module.zip?displayAssetName=false&style=flat&logo=github&logoColor=white&color=38bdf8&label=Lifetime%20Installs)](https://github.com/Jitterbone/intoterica/releases)
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jitterbone)
 
 A system-agnostic Foundry VTT campaign management suite for tracking quests, substories, factions, achievements, and communications across any game system.
