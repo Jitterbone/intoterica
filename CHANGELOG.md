@@ -6,6 +6,11 @@ All notable changes to **Intoterica** will be documented in this file.
 
 ## [1.5.1] - 2026-09-10
 
+### Bug Fixes & Profile Improvements
+- Restored chat notifications for newly delivered mail.
+- Removed duplicate completed quests from character profiles and kept the Mission Report at the bottom.
+- Profile messages now show only unread mail and open directly in the inbox.
+- Matched unread mail cards to the active quest card layout and the selected interface theme.
 ### 🏗️ Architecture & Performance
 - **Modular Domain Architecture**: Refactored monolithic codebase into maintainable, modular domain components under `scripts/core/` and `scripts/features/` with prototype mixin composition and zero breaking API changes.
 
