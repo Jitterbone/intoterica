@@ -4,6 +4,20 @@ All notable changes to **Intoterica** will be documented in this file.
 
 ---
 
+## [1.5.2] - 2026-11-08
+
+### 🚀 New Features & Enhancements
+- **Simple Calendar Reborn Compatibility**: Added first-class integration with Simple Calendar Reborn (`foundryvtt-simple-calendar-reborn`), supporting active calendar date/time displays, timestamp formatting, and global API bindings.
+- **Interactive Calendar Header**: The in-game world clock display in the application header is now interactive — clicking it when syncing with Simple Calendar or Calendaria opens the calendar interface directly.
+- **Real-Time Clock Synchronization**: Bound to `updateWorldTime`, `simple-calendar-date-time-change`, and `simple-calendar-ready` events to dynamically update the clock display in the application header without requiring full re-renders or interrupting user input.
+
+### 🐛 Bug Fixes & Improvements
+- **Date Formatting Resilience**: Resolved an issue where Simple Calendar's `{ date, time }` object output rendered as `[object Object]` in the header and mail/quest logs, and safeguarded against unhandled errors when calendars initialize.
+- **Mail Thread Sorting**: Added `worldTime` and `timestamp` tracking for newly created mail messages, ensuring consistent chronological sorting for fantasy/custom calendar formats.
+- **Settings & Documentation**: Updated settings hints and documentation to highlight full compatibility with Simple Calendar Reborn and Calendaria.
+
+---
+
 ## [1.5.1] - 2026-09-10
 
 ### Bug Fixes & Profile Improvements

@@ -40,8 +40,9 @@
       </div>
       <div class="header-actions">
         {{#if clockDisplay}}
-          <div class="world-clock {{#if canEditClock}}edit-clock{{/if}}" {{#if canEditClock}}title="Click to edit game date/clock"{{/if}}>
-            <i class="fas fa-clock"></i> {{clockDisplay}}
+          <div class="world-clock {{#if canEditClock}}edit-clock{{/if}}{{#if canOpenCalendar}} open-calendar{{/if}}"
+               {{#if canEditClock}}title="Click to edit game date/clock"{{else if canOpenCalendar}}title="Click to open calendar"{{/if}}>
+            <i class="fas fa-clock"></i> <span class="clock-display-text">{{clockDisplay}}</span>
           </div>
         {{/if}}
       </div>

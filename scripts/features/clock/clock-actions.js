@@ -7,16 +7,69 @@ import { hasPermission } from "../../core/permissions.js";
 import { createDialog, getFormData } from "../../core/dialog.js";
 
 /**
- * Formats and returns the in-game date according to SimpleCalendar, Calendaria, worldTime, or custom clock.
+ * Returns Simple Calendar or Simple Calendar Reborn API if active.
+ * @returns {Object|null}
+ */
+export function getSimpleCalendarApi() {
+  if (window.SimpleCalendar?.api) return window.SimpleCalendar.api;
+  const rebornMod = game.modules?.get('foundryvtt-simple-calendar-reborn');
+  if (rebornMod?.active && rebornMod.api) return rebornMod.api;
+  const scMod = game.modules?.get('foundryvtt-simple-calendar');
+  if (scMod?.active && scMod.api) return scMod.api;
+  return null;
+}
+
+/**
+ * Helper to normalize Simple Calendar formatted output into a string.
+ * Simple Calendar returns either a string or an object: { date: string, time: string }
+ * @param {string|Object} disp 
+ * @returns {string}
+ */
+function formatSimpleCalendarOutput(disp) {
+  if (!disp) return "";
+  if (typeof disp === 'string') return disp;
+  if (typeof disp === 'object') {
+    if (disp.date && disp.time) return `${disp.date} ${disp.time}`;
+    if (disp.date) return disp.date;
+    if (disp.time) return disp.time;
+  }
+  return "";
+}
+
+/**
+ * Formats and returns the in-game date according to SimpleCalendar, Simple Calendar Reborn, Calendaria, worldTime, or custom clock.
  * @returns {string}
  */
 export function getGameDate() {
   const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
   
   if (useWorldClock) {
-    if (window.SimpleCalendar?.api) {
-      const date = SimpleCalendar.api.timestampToDate(game.time.worldTime);
-      return SimpleCalendar.api.formatDateTime(date);
+    const scApi = getSimpleCalendarApi();
+    if (scApi) {
+      try {
+        if (typeof scApi.currentDateTimeDisplay === 'function') {
+          const disp = scApi.currentDateTimeDisplay();
+          const formatted = formatSimpleCalendarOutput(disp);
+          if (formatted) return formatted;
+        }
+
+        if (typeof scApi.formatTimestamp === 'function' && typeof game.time?.worldTime === 'number') {
+          const disp = scApi.formatTimestamp(game.time.worldTime);
+          const formatted = formatSimpleCalendarOutput(disp);
+          if (formatted) return formatted;
+        }
+
+        if (typeof scApi.timestampToDate === 'function' && typeof scApi.formatDateTime === 'function' && typeof game.time?.worldTime === 'number') {
+          const d = scApi.timestampToDate(game.time.worldTime);
+          if (d) {
+            const disp = scApi.formatDateTime(d);
+            const formatted = formatSimpleCalendarOutput(disp);
+            if (formatted) return formatted;
+          }
+        }
+      } catch (err) {
+        console.warn("Intoterica | Error getting date from Simple Calendar / Simple Calendar Reborn:", err);
+      }
     } else if (game.modules.get('calendaria')?.active) {
       const calendariaModule = game.modules.get('calendaria');
       const cal = window.Calendaria || window.CALENDARIA || game.calendaria || calendariaModule.api;
@@ -94,17 +147,25 @@ export function getGameDate() {
  * Prepares clock context.
  * @param {Object} settings 
  * @param {Object} perms 
- * @returns {{clockDisplay: string, canEditClock: boolean, worldClock: Object}}
+ * @returns {{clockDisplay: string, canEditClock: boolean, canOpenCalendar: boolean, worldClock: Object}}
  */
 export function prepareClockContext(settings, perms) {
   const useWorldClock = game.settings.get('intoterica', 'useWorldClock');
   const clockDisplay = getGameDate();
   const canEditClock = perms.clock && !useWorldClock;
   const worldClock = settings.worldClock || { era: 4, day: 442 };
+  const hasSimpleCalendar = Boolean(
+    window.SimpleCalendar?.api ||
+    game.modules.get('foundryvtt-simple-calendar-reborn')?.active ||
+    game.modules.get('foundryvtt-simple-calendar')?.active
+  );
+  const hasCalendaria = Boolean(game.modules.get('calendaria')?.active);
+  const canOpenCalendar = useWorldClock && (hasSimpleCalendar || hasCalendaria);
 
   return {
     clockDisplay,
     canEditClock,
+    canOpenCalendar,
     worldClock
   };
 }
@@ -112,6 +173,25 @@ export function prepareClockContext(settings, perms) {
 export const clockActions = {
   _getGameDate() {
     return getGameDate();
+  },
+
+  _onOpenCalendar(event) {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    const scApi = getSimpleCalendarApi();
+    if (typeof scApi?.showCalendar === 'function') {
+      scApi.showCalendar();
+      return;
+    }
+    const calModule = game.modules.get('calendaria');
+    if (calModule?.active) {
+      const cal = window.Calendaria || window.CALENDARIA || game.calendaria || calModule.api;
+      if (typeof cal?.show === 'function') cal.show();
+      else if (typeof cal?.api?.show === 'function') cal.api.show();
+      else if (typeof cal?.render === 'function') cal.render(true);
+    }
   },
 
   async _onEditClock(event) {
@@ -178,5 +258,6 @@ export function bindClockEvents(html, app) {
   if (hasPermission('permClock')) {
     html.find('.edit-clock').click(app._onEditClock.bind(app));
   }
+  html.find('.open-calendar').click(app._onOpenCalendar.bind(app));
 }
 

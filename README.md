@@ -1,4 +1,4 @@
-# Intoterica (v1.5.1) 📖
+# Intoterica (v1.5.2) 📖
 
 [![Latest Release](https://img.shields.io/github/v/release/Jitterbone/intoterica?style=flat&logo=github&logoColor=white&color=22c55e&label=Latest%20Release)](https://github.com/Jitterbone/intoterica/releases/latest)
 [![Foundry VTT](https://img.shields.io/badge/Foundry%20VTT-v14%20Verified-ff6400?style=flat)](https://foundryvtt.com)
@@ -7,7 +7,7 @@
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jitterbone)
 
-A system-agnostic Foundry VTT campaign management suite for tracking quests, substories, factions, achievements, and communications across any game system.
+A system-agnostic Foundry VTT campaign management suite for tracking quests, substories, factions, achievements, and communications across any game system. Compatible with **Simple Calendar Reborn** and **Calendaria** for real-time world clock synchronization and interactive date tracking.
 
 ---
 
@@ -69,7 +69,7 @@ A system-agnostic Foundry VTT campaign management suite for tracking quests, sub
 - **Default Start View** — Dashboard / Quest Journal / Factions / Inbox / Known NPCs
 
 ### ⏰ World Clock
-- **Sync with World Clock** — Use Foundry world time or Simple Calendar instead of manual Era/Day
+- **Sync with World Clock** — Compatible with Simple Calendar Reborn and Calendaria (or Foundry world time) instead of manual Era/Day, featuring real-time clock synchronization and click-to-open calendar integration
 
 ### 🏛️ Factions
 - **Enable Faction XP** — Toggle XP-based auto-promotion vs. manual GM rank control
@@ -110,8 +110,8 @@ A system-agnostic Foundry VTT campaign management suite for tracking quests, sub
 |---|---|
 | **Game System** | System Agnostic (works with any system) |
 | **Foundry VTT** | v13+ / v14 (Verified) |
-| **Simple Calendar** | Supported (world clock integration) |
-| **Calendaria** | Supported (world clock integration) |
+| **Simple Calendar Reborn** | Fully Compatible (world clock integration, click-to-open, real-time sync) |
+| **Calendaria** | Fully Compatible (world clock integration, click-to-open, real-time sync) |
 
 ---
 

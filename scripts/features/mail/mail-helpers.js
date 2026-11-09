@@ -314,7 +314,7 @@ export function prepareMailContext(settings, app, perms = {}) {
   });
 
   const displayInbox = Object.values(threads).map(threadMsgs => {
-    let latest = threadMsgs.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    let latest = threadMsgs.sort((a, b) => (new Date(b.date) - new Date(a.date)) || ((b.worldTime || 0) - (a.worldTime || 0)) || ((b.timestamp || 0) - (a.timestamp || 0)))[0];
     // Thread is unread if ANY message in it is unread for this user
     const isThreadUnread = threadMsgs.some(isMsgUnread);
     latest = getMessageDisplayData(latest);
@@ -323,7 +323,7 @@ export function prepareMailContext(settings, app, perms = {}) {
       status: isThreadUnread ? 'unread' : 'read', // Override status for display
       isImage: latest.image && (latest.image.includes('/') || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(latest.image))
     };
-  }).sort((a, b) => new Date(b.date) - new Date(a.date));
+  }).sort((a, b) => (new Date(b.date) - new Date(a.date)) || ((b.worldTime || 0) - (a.worldTime || 0)) || ((b.timestamp || 0) - (a.timestamp || 0)));
 
   const knownNPCs = knownNPCIds.map(id => game.actors.get(id)).filter(Boolean);
 
@@ -452,7 +452,7 @@ export function prepareMailContext(settings, app, perms = {}) {
           const threadMessages = (settings.inbox || []).filter(m => {
               const mSubject = m.subject || "(No Subject)";
               return mSubject.toString().replace(/^(Re:\s*)+/i, '').trim().toLowerCase() === normalizedViewSubject;
-          }).sort((a, b) => new Date(a.date) - new Date(b.date));
+          }).sort((a, b) => (new Date(a.date) - new Date(b.date)) || ((a.worldTime || 0) - (b.worldTime || 0)) || ((a.timestamp || 0) - (b.timestamp || 0)));
           
           // Auto mark thread as read when viewed on message page
           const hasUnread = threadMessages.some(isMsgUnread);

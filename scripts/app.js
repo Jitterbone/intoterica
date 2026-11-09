@@ -120,6 +120,21 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
     }
   }
 
+  static updateClock() {
+    if (IntotericaApp._instance?.rendered) {
+      const dateText = getGameDate();
+      const el = IntotericaApp._instance.element?.querySelector('.clock-display-text');
+      if (el) {
+        el.textContent = dateText;
+      } else {
+        const headerClock = IntotericaApp._instance.element?.querySelector('.world-clock');
+        if (headerClock) {
+          headerClock.innerHTML = `<i class="fas fa-clock"></i> <span class="clock-display-text">${dateText}</span>`;
+        }
+      }
+    }
+  }
+
   constructor(options = {}) {
     const savedState = game.settings.get('intoterica', 'windowState');
     if (savedState && !foundry.utils.isEmpty(savedState)) {
@@ -226,6 +241,7 @@ export class IntotericaApp extends foundry.applications.api.HandlebarsApplicatio
       isGM: perms.mail,
       clockDisplay: clockContext.clockDisplay,
       canEditClock: clockContext.canEditClock,
+      canOpenCalendar: clockContext.canOpenCalendar,
       theme: game.settings.get('intoterica', 'theme'),
       themeClass: getThemeClass(),
       currentView: this.currentView,
@@ -450,6 +466,8 @@ IntotericaApp.getMailSenderOptions = getMailSenderOptions;
 IntotericaApp.openProfile = openProfile;
 IntotericaApp._executeOpenProfile = executeOpenProfile;
 IntotericaApp.getActorImageByNameOrId = getActorImageByNameOrId;
+IntotericaApp.updateClock = IntotericaApp.updateClock;
+IntotericaApp.getGameDate = getGameDate;
 
 // Expose globally for macros, hooks, and external access
 if (typeof window !== 'undefined') {
@@ -464,6 +482,15 @@ Hooks.on('ready', async () => {
       window.IntotericaApp.openInbox(messageId);
     }
   });
+
+  // World clock and Simple Calendar / Simple Calendar Reborn synchronization
+  const onTimeUpdate = () => {
+    IntotericaApp.updateClock();
+  };
+
+  Hooks.on('updateWorldTime', onTimeUpdate);
+  Hooks.on('simple-calendar-date-time-change', onTimeUpdate);
+  Hooks.on('simple-calendar-ready', onTimeUpdate);
 
   // Migration: Update audio settings from mp3 to ogg
   const audioSettings = ['soundIdle', 'soundNav', 'soundMail'];

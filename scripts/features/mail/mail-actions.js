@@ -277,7 +277,7 @@ export const mailActions = {
           const threadMessages = (settings.inbox || []).filter(m => {
               const mSubject = m.subject || "(No Subject)";
               return mSubject.toString().replace(/^(Re:\s*)+/i, '').trim().toLowerCase() === normalizedSubject;
-          }).sort((a, b) => new Date(b.date) - new Date(a.date));
+          }).sort((a, b) => (new Date(b.date) - new Date(a.date)) || ((b.worldTime || 0) - (a.worldTime || 0)) || ((b.timestamp || 0) - (a.timestamp || 0)));
           
           if (threadMessages.length > 0) {
               this._onReplyMail(threadMessages[0]);
@@ -430,6 +430,8 @@ export const mailActions = {
       subject: data.subject,
       body: data.body,
       date: data.date || (this._getGameDate ? this._getGameDate() : ""),
+      timestamp: Date.now(),
+      worldTime: Number(game.time?.worldTime || 0),
       readBy: [senderUserId],
       status: "unread"
     };

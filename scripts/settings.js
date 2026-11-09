@@ -107,7 +107,7 @@ export const registerSettings = () => {
 
   game.settings.register('intoterica', 'useWorldClock', {
     name: 'Sync with World Clock',
-    hint: 'Use Foundry VTT world time (or Simple Calendar) instead of manual Era/Day.',
+    hint: 'Use Foundry VTT world time (or Simple Calendar / Simple Calendar Reborn) instead of manual Era/Day.',
     scope: 'world',
     config: true,
     type: Boolean,
@@ -116,6 +116,9 @@ export const registerSettings = () => {
       Object.values(ui.windows).forEach(app => {
         if (app.constructor.name === "IntotericaApp") app.render();
       });
+      if (window.IntotericaApp?._instance?.rendered) {
+        window.IntotericaApp._instance.render();
+      }
     }
   });
 
